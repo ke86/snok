@@ -258,6 +258,67 @@
     .onevr-btn-close:active { background: rgba(255,59,48,.2); }
 
     /* ============================================
+       LOAD TIMES MENU
+       ============================================ */
+    .onevr-load-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .onevr-load-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      color: rgba(60,60,67,.9);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .onevr-load-check input {
+      width: 18px;
+      height: 18px;
+      accent-color: #007aff;
+    }
+
+    .onevr-load-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .onevr-load-btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .onevr-load-btn-start {
+      flex: 1;
+      background: linear-gradient(135deg, #007aff, #0a84ff);
+      color: #fff;
+    }
+
+    .onevr-load-btn-start:active {
+      transform: scale(.98);
+    }
+
+    .onevr-load-btn-cancel {
+      background: rgba(118,118,128,.12);
+      color: rgba(60,60,67,.6);
+    }
+
+    .onevr-load-btn-cancel:active {
+      background: rgba(118,118,128,.2);
+    }
+
+    /* ============================================
        FILTER BAR & DROPDOWNS
        ============================================ */
     .onevr-filter-bar {
@@ -648,6 +709,15 @@
       .onevr-btn-close {
         background: rgba(255,69,58,.2);
         color: #ff453a;
+      }
+
+      .onevr-load-check {
+        color: rgba(235,235,245,.9);
+      }
+
+      .onevr-load-btn-cancel {
+        background: rgba(118,118,128,.24);
+        color: rgba(235,235,245,.6);
       }
 
       .onevr-filter-trigger {

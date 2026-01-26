@@ -320,20 +320,17 @@
   function buildLoadTimesMenu(roleCounts, resNoTime, tpNoTime) {
     var roleChecks = '';
     Object.keys(roleCounts).forEach(function(role) {
-      roleChecks += '<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;color:#000;font-size:14px">' +
-        '<input type="checkbox" data-type="role" value="' + role + '" style="width:16px;height:16px;accent-color:#007aff">' + role + '</label>';
+      roleChecks += '<label class="onevr-load-check"><input type="checkbox" data-type="role" value="' + role + '">' + role + '</label>';
     });
 
-    return '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px">' + roleChecks + '</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px">' +
-        '<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;color:#000;font-size:14px">' +
-          '<input type="checkbox" data-type="special" value="res" style="width:16px;height:16px;accent-color:#8e8e93">Res</label>' +
-        '<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;color:#000;font-size:14px">' +
-          '<input type="checkbox" data-type="special" value="tp" style="width:16px;height:16px;accent-color:#5856d6">TP</label>' +
+    return '<div class="onevr-load-row">' + roleChecks + '</div>' +
+      '<div class="onevr-load-row">' +
+        '<label class="onevr-load-check"><input type="checkbox" data-type="special" value="res">Res</label>' +
+        '<label class="onevr-load-check"><input type="checkbox" data-type="special" value="tp">TP</label>' +
       '</div>' +
-      '<div style="display:flex;gap:8px">' +
-        '<button id="onevr-load-start" style="flex:1;padding:10px;background:linear-gradient(135deg,#007aff,#0a84ff);color:#fff;border:none;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer">Starta</button>' +
-        '<button id="onevr-load-cancel" style="padding:10px 16px;background:rgba(118,118,128,.12);color:#666;border:none;border-radius:10px;font-size:14px;cursor:pointer">Avbryt</button>' +
+      '<div class="onevr-load-actions">' +
+        '<button id="onevr-load-start" class="onevr-load-btn onevr-load-btn-start">Starta</button>' +
+        '<button id="onevr-load-cancel" class="onevr-load-btn onevr-load-btn-cancel">Avbryt</button>' +
       '</div>';
   }
 
