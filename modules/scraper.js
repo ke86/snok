@@ -193,7 +193,12 @@
         var fL = turnInfo.loc;
         var fN = turnInfo.locName;
 
-        if (fN) {
+        // För changedReserve (123456-123456) - använd ENDAST cache
+        if (utils.isChangedReserve(turnr)) {
+          var cached = window.OneVR.cache.locations[name];
+          fL = cached ? cached.loc : '';
+          fN = cached ? cached.locName : '';
+        } else if (fN) {
           window.OneVR.cache.locations[name] = { loc: fL, locName: fN };
         } else if (window.OneVR.cache.locations[name]) {
           fL = window.OneVR.cache.locations[name].loc;
