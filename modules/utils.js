@@ -14,7 +14,8 @@
     tpSuffix: new RegExp(CFG.patterns.tpSuffix),
     flShift: new RegExp(CFG.patterns.flShift),
     turnNumber: new RegExp(CFG.patterns.turnNumber),
-    reserve: new RegExp(CFG.patterns.reserve, 'i')
+    reserve: new RegExp(CFG.patterns.reserve, 'i'),
+    changedReserve: new RegExp(CFG.patterns.changedReserve)
   };
 
   /**
@@ -37,9 +38,18 @@
            t === 'ADM' ||
            t.match(patterns.turnNumber) ||
            t.match(patterns.reserve) ||
+           t.match(patterns.changedReserve) ||
            t.match(patterns.tilShift) ||
            t.match(patterns.tdsShift) ||
            t.match(patterns.tpSuffix);
+  }
+
+  /**
+   * Check if turn number is a changed reserve (format: 123456-123456)
+   */
+  function isChangedReserve(turnr) {
+    if (!turnr) return false;
+    return patterns.changedReserve.test(turnr);
   }
 
   /**
@@ -84,6 +94,14 @@
 
     if (turnr.toLowerCase().startsWith('reserv')) {
       info.isRes = true;
+      return info;
+    }
+
+    // Check for changed reserve format: 123456-123456
+    if (isChangedReserve(turnr)) {
+      info.isRes = true;
+      info.isChanged = true;
+      // Cannot determine location from this format - must use cache
       return info;
     }
 
@@ -157,6 +175,7 @@
     patterns: patterns,
     getTil: getTil,
     chkTurn: chkTurn,
+    isChangedReserve: isChangedReserve,
     getCurrentDateText: getCurrentDateText,
     parseSwedishDate: parseSwedishDate,
     parseTurnr: parseTurnr,
