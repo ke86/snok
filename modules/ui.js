@@ -76,11 +76,11 @@
 
     if (type === 'role') {
       Object.keys(data.roles).forEach(function(role) {
-        items += '<button class="onevr-dropdown-item" data-type="role" data-val="' + role + '">' + role + ' (' + data.roles[role] + ')</button>';
+        items += '<button class="onevr-dropdown-item" data-type="role" data-val="' + role + '">' + role + '</button>';
       });
     } else if (type === 'loc') {
       Object.keys(data.locations).sort().forEach(function(loc) {
-        items += '<button class="onevr-dropdown-item" data-type="loc" data-val="' + loc + '">' + loc + ' (' + data.locations[loc] + ')</button>';
+        items += '<button class="onevr-dropdown-item" data-type="loc" data-val="' + loc + '">' + loc + '</button>';
       });
     }
 
@@ -90,13 +90,13 @@
   /**
    * Build quick filters HTML
    */
-  function buildQuickFilters(stats) {
-    return '<button class="onevr-dropdown-item" data-type="quick" data-val="se">🇸🇪 Sverige (' + stats.se + ')</button>' +
-      '<button class="onevr-dropdown-item" data-type="quick" data-val="dk">🇩🇰 Danmark (' + stats.dk + ')</button>' +
-      '<button class="onevr-dropdown-item" data-type="quick" data-val="res">🔄 Reserver (' + stats.res + ')</button>' +
-      '<button class="onevr-dropdown-item" data-type="quick" data-val="utb">📚 Utb (' + stats.utb + ')</button>' +
-      '<button class="onevr-dropdown-item" data-type="quick" data-val="insutb">👨‍🏫 INSUTB (' + stats.insutb + ')</button>' +
-      '<button class="onevr-dropdown-item" data-type="quick" data-val="adm">🏢 ADM (' + stats.adm + ')</button>';
+  function buildQuickFilters() {
+    return '<button class="onevr-dropdown-item" data-type="quick" data-val="se">Sverige</button>' +
+      '<button class="onevr-dropdown-item" data-type="quick" data-val="dk">Danmark</button>' +
+      '<button class="onevr-dropdown-item" data-type="quick" data-val="res">Reserver</button>' +
+      '<button class="onevr-dropdown-item" data-type="quick" data-val="utb">Utb</button>' +
+      '<button class="onevr-dropdown-item" data-type="quick" data-val="insutb">INSUTB</button>' +
+      '<button class="onevr-dropdown-item" data-type="quick" data-val="adm">ADM</button>';
   }
 
   /**
@@ -159,7 +159,7 @@
           '</div>' +
           '<div class="onevr-filter-dropdown" id="onevr-quick-dropdown">' +
             '<button class="onevr-filter-trigger" data-dropdown="quick">Filter <span class="onevr-filter-arrow">▾</span></button>' +
-            '<div class="onevr-dropdown-menu" id="onevr-quick-menu">' + buildQuickFilters(stats) + '</div>' +
+            '<div class="onevr-dropdown-menu" id="onevr-quick-menu">' + buildQuickFilters() + '</div>' +
           '</div>' +
         '</div>' +
         '<div class="onevr-active-filters" id="onevr-active-filters"></div>' +

@@ -76,11 +76,10 @@
   }
 
   /**
-   * Check if any TIL-related filter is active
+   * Check if person is TIL (based on badge assigned by scraper)
    */
-  function hasTilFilter() {
-    var f = filterState.filters;
-    return f.utb || f.insutb;
+  function isTilPerson(person) {
+    return person.badge === 'TIL';
   }
 
   /**
@@ -147,8 +146,6 @@
   function filterList() {
     if (!currentData) return;
 
-    var tilActive = hasTilFilter();
-
     document.querySelectorAll('.onevr-person').forEach(function(el) {
       var show = true;
       var p = currentData.people[+el.getAttribute('data-idx')];
@@ -160,10 +157,11 @@
       if (f.dk && p.country !== 'DK') show = false;
       if (f.utb && !(p.turnr && /UTB/i.test(p.turnr) && !/INSUTB/i.test(p.turnr))) show = false;
       if (f.insutb && !(p.turnr && /INSUTB/i.test(p.turnr))) show = false;
-      if (f.adm && p.badge !== 'ADM') show = false;
+      // ADM filter checks turnr, not badge
+      if (f.adm && !(p.turnr && /ADM/i.test(p.turnr))) show = false;
       if (filterState.activeRole !== 'all' && p.badge !== filterState.activeRole) show = false;
-      // Skip location filter if TIL filter is active
-      if (!tilActive && filterState.activeLoc !== 'all' && p.locName !== filterState.activeLoc) show = false;
+      // Skip location filter for TIL persons - they should always show regardless of location
+      if (filterState.activeLoc !== 'all' && p.locName !== filterState.activeLoc && !isTilPerson(p)) show = false;
       if (filterState.searchQ && !el.textContent.toLowerCase().includes(filterState.searchQ)) show = false;
 
       el.style.display = show ? 'flex' : 'none';
