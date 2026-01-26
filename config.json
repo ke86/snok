@@ -1,7 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2025-01-26",
-
+  "lastUpdated": "2026-01-26",
   "locations": {
     "1": "Malmö",
     "2": "Helsingborg",
@@ -10,7 +9,6 @@
     "5": "Karlskrona",
     "6": "Halmstad"
   },
-
   "roleBadges": {
     "Lokförare": "LKF",
     "Tågvärd": "TV",
@@ -24,7 +22,6 @@
     "Konduktör": "KON",
     "Trafikledare": "TRL"
   },
-
   "badgeColors": {
     "LKF": "lkf",
     "TV": "tv",
@@ -37,26 +34,140 @@
     "KON": "tv",
     "TRL": "til"
   },
-
   "tilTimes": {
-    "PL1": ["06:00", "14:15"],
-    "PL2": ["14:00", "22:30"],
-    "PL3": ["22:15", "06:15"],
-    "FL1": ["06:00", "14:15"],
-    "FL2": ["14:00", "22:30"],
-    "FL3": ["22:15", "06:15"],
-    "IL1": ["05:45", "13:45"],
-    "IL2": ["13:30", "22:00"],
-    "SL1": ["06:00", "14:15"],
-    "SL2": ["14:00", "22:30"],
-    "SL3": ["22:15", "06:15"],
-    "DK1": ["05:00", "13:00"],
-    "DK2": ["11:00", "21:00"],
-    "TDS1": ["06:30", "14:45"],
-    "TDS2": ["14:30", "23:00"],
-    "TDS3": ["22:45", "06:45"]
+    "PL1": [
+      "06:00",
+      "14:15"
+    ],
+    "PL2": [
+      "14:00",
+      "22:30"
+    ],
+    "PL3": [
+      "22:15",
+      "06:15"
+    ],
+    "FL1": [
+      "06:00",
+      "14:15"
+    ],
+    "FL2": [
+      "14:00",
+      "22:30"
+    ],
+    "FL3": [
+      "22:15",
+      "06:15"
+    ],
+    "IL1": [
+      "05:45",
+      "13:45"
+    ],
+    "IL2": [
+      "13:30",
+      "22:00"
+    ],
+    "SL1": [
+      "06:00",
+      "14:15"
+    ],
+    "SL2": [
+      "14:00",
+      "22:30"
+    ],
+    "SL3": [
+      "22:15",
+      "06:15"
+    ],
+    "DK1": [
+      "05:00",
+      "13:00"
+    ],
+    "DK2": [
+      "11:00",
+      "21:00"
+    ],
+    "TDS1": [
+      "06:30",
+      "14:45"
+    ],
+    "TDS2": [
+      "14:30",
+      "23:00"
+    ],
+    "TDS3": [
+      "22:45",
+      "06:45"
+    ],
+    "PL4": [
+      "14:00",
+      "22:45"
+    ],
+    "PL5": [
+      "22:30",
+      "06:30"
+    ],
+    "PL6": [
+      "06:15",
+      "14:15"
+    ],
+    "DK61": [
+      "09:00",
+      "19:00"
+    ],
+    "DK71": [
+      "09:00",
+      "19:00"
+    ],
+    "FL4": [
+      "14:00",
+      "22:45"
+    ],
+    "FL5": [
+      "22:30",
+      "06:30"
+    ],
+    "FL6": [
+      "06:15",
+      "14:15"
+    ],
+    "IL61": [
+      "06:15",
+      "14:30"
+    ],
+    "IL62": [
+      "14:15",
+      "22:00"
+    ],
+    "IL71": [
+      "06:15",
+      "14:30"
+    ],
+    "IL72": [
+      "14:15",
+      "22:00"
+    ],
+    "SL4": [
+      "14:00",
+      "22:45"
+    ],
+    "SL5": [
+      "22:30",
+      "06:30"
+    ],
+    "SL6": [
+      "06:15",
+      "14:15"
+    ],
+    "SL7": [
+      "22:40",
+      "06:15"
+    ],
+    "FL7": [
+      "22:30",
+      "06:15"
+    ]
   },
-
   "tilLabels": {
     "PL1": "Personal",
     "PL2": "Personal",
@@ -73,9 +184,25 @@
     "DK2": "Drift DK",
     "TDS1": "Driftstöd",
     "TDS2": "Driftstöd",
-    "TDS3": "Driftstöd"
+    "TDS3": "Driftstöd",
+    "PL4": "Personal",
+    "PL5": "Personal",
+    "PL6": "Personal",
+    "DK61": "Drift DK",
+    "DK71": "Drift DK",
+    "FL4": "Fordon",
+    "FL5": "Fordon",
+    "FL6": "Fordon",
+    "IL61": "Info",
+    "IL62": "Info",
+    "IL71": "Info",
+    "IL72": "Info",
+    "SL4": "Drift SE",
+    "SL5": "Drift SE",
+    "SL6": "Drift SE",
+    "SL7": "Drift SE",
+    "FL7": "Fordon"
   },
-
   "roles": [
     "Lokförare",
     "Tågvärd",
@@ -90,7 +217,6 @@
     "Admin",
     "ADM"
   ],
-
   "patterns": {
     "tilShift": "^(PL|IL|SL|DK)\\d$",
     "tdsShift": "^TDS\\d$",
@@ -99,37 +225,11 @@
     "turnNumber": "^\\d{5,6}[A-Z]{0,2}$",
     "reserve": "^RESERV?\\d*$"
   },
-
   "ui": {
     "labelSelector": ".storybook-label",
     "maxModalWidth": "420px",
     "dateNavDelay": 3000,
     "cacheSteps": 8,
     "loadTimeDelay": 800
-  },
-
-  "theme": {
-    "light": {
-      "background": "linear-gradient(180deg,#f2f2f7,#e5e5ea)",
-      "headerBg": "rgba(255,255,255,.72)",
-      "cardBg": "#fff",
-      "textPrimary": "#000",
-      "textSecondary": "rgba(60,60,67,.6)",
-      "accent": "#007aff",
-      "success": "#34c759",
-      "danger": "#ff3b30",
-      "warning": "#ff9500"
-    },
-    "dark": {
-      "background": "linear-gradient(180deg,#000,#1c1c1e)",
-      "headerBg": "rgba(28,28,30,.72)",
-      "cardBg": "#1c1c1e",
-      "textPrimary": "#fff",
-      "textSecondary": "rgba(235,235,245,.6)",
-      "accent": "#0a84ff",
-      "success": "#30d158",
-      "danger": "#ff453a",
-      "warning": "#ff9f0a"
-    }
   }
 }
