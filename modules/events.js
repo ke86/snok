@@ -30,6 +30,52 @@
   var currentData = null;
 
   /**
+   * Check if a person is currently working based on their shift times
+   */
+  function isWorkingNow(person) {
+    if (person.start === '-' || person.end === '-') return false;
+
+    var now = new Date();
+    var currentTime = now.getHours() * 60 + now.getMinutes();
+
+    var startParts = person.start.split(':');
+    var endParts = person.end.split(':');
+    var startMins = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
+    var endMins = parseInt(endParts[0], 10) * 60 + parseInt(endParts[1], 10);
+
+    // Handle overnight shifts (end time is smaller than start time)
+    if (endMins < startMins) {
+      return currentTime >= startMins || currentTime < endMins;
+    }
+
+    return currentTime >= startMins && currentTime < endMins;
+  }
+
+  /**
+   * Update the status bar with current counts
+   */
+  function updateStatusBar() {
+    var workingNowEl = document.getElementById('onevr-working-now');
+    var totalCountEl = document.getElementById('onevr-total-count');
+
+    if (!workingNowEl || !totalCountEl || !currentData) return;
+
+    var visiblePeople = [];
+    document.querySelectorAll('.onevr-person').forEach(function(el) {
+      if (el.style.display !== 'none') {
+        var idx = +el.getAttribute('data-idx');
+        visiblePeople.push(currentData.people[idx]);
+      }
+    });
+
+    var workingCount = visiblePeople.filter(isWorkingNow).length;
+    var totalVisible = visiblePeople.length;
+
+    workingNowEl.textContent = workingCount;
+    totalCountEl.textContent = totalVisible;
+  }
+
+  /**
    * Filter the person list based on current filter state
    */
   function filterList() {
@@ -53,6 +99,8 @@
 
       el.style.display = show ? 'flex' : 'none';
     });
+
+    updateStatusBar();
   }
 
   /**
@@ -466,6 +514,9 @@
 
     // Load times
     setupLoadTimes();
+
+    // Initial status bar update
+    updateStatusBar();
   }
 
   /**

@@ -188,7 +188,7 @@
 
     .onevr-section-arrow {
       color: #c7c7cc;
-      font-size: 13px;
+      font-size: 26px;
       transition: transform .25s;
     }
 
@@ -435,6 +435,33 @@
     .onevr-tag-tp { background: #5856d6; color: #fff; }
 
     /* ============================================
+       STATUS BAR
+       ============================================ */
+    .onevr-status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: rgba(0,122,255,.08);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: rgba(60,60,67,.8);
+    }
+
+    .onevr-status-working {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .onevr-status-working strong,
+    .onevr-status-total strong {
+      color: #007aff;
+      font-weight: 700;
+    }
+
+    /* ============================================
        LIST & EMPTY STATE
        ============================================ */
     .onevr-list {
@@ -552,6 +579,16 @@
 
       .onevr-filter-label, .onevr-section-title { color: rgba(235,235,245,.6); }
       .onevr-empty { color: rgba(235,235,245,.6); }
+
+      .onevr-status-bar {
+        background: rgba(10,132,255,.15);
+        color: rgba(235,235,245,.8);
+      }
+
+      .onevr-status-working strong,
+      .onevr-status-total strong {
+        color: #0a84ff;
+      }
 
       .onevr-loading-overlay { background: rgba(0,0,0,.9); }
 

@@ -102,14 +102,14 @@
 
     return '<div class="onevr-modal">' +
       '<div class="onevr-header">' +
-        '<div class="onevr-search-wrap">' +
-          '<input type="text" class="onevr-search" id="onevr-search" placeholder="Sök personal...">' +
-          '<button class="onevr-search-clear" id="onevr-search-clear">✕</button>' +
-        '</div>' +
         '<div class="onevr-date-nav">' +
           '<button class="onevr-date-btn" id="onevr-prev">‹</button>' +
           '<input type="date" class="onevr-date-picker" id="onevr-date-picker" value="' + isoDate + '">' +
           '<button class="onevr-date-btn" id="onevr-next">›</button>' +
+        '</div>' +
+        '<div class="onevr-search-wrap">' +
+          '<input type="text" class="onevr-search" id="onevr-search" placeholder="Sök personal...">' +
+          '<button class="onevr-search-clear" id="onevr-search-clear">✕</button>' +
         '</div>' +
       '</div>' +
       '<div class="onevr-content">' +
@@ -145,6 +145,10 @@
               '<button class="onevr-filter" id="onevr-adm-btn">🏢 ADM (' + stats.adm + ')</button>' +
             '</div>' +
           '</div>' +
+        '</div>' +
+        '<div class="onevr-status-bar" id="onevr-status-bar">' +
+          '<span class="onevr-status-working">🟢 Jobbar nu: <strong id="onevr-working-now">0</strong></span>' +
+          '<span class="onevr-status-total">Totalt: <strong id="onevr-total-count">' + people.length + '</strong></span>' +
         '</div>' +
         '<div class="onevr-list" id="onevr-list">' +
           (people.length ? listHTML : '<div class="onevr-empty">Ingen personal hittades</div>') +
