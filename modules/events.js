@@ -241,7 +241,7 @@
     var roleChecks = '';
     Object.keys(roleCounts).forEach(function(role) {
       roleChecks += '<label style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(118,118,128,.08);border-radius:10px;cursor:pointer;color:#000;font-size:15px">' +
-        '<input type="checkbox" checked data-type="role" value="' + role + '" style="width:20px;height:20px;accent-color:#007aff"> ' +
+        '<input type="checkbox" data-type="role" value="' + role + '" style="width:20px;height:20px;accent-color:#007aff"> ' +
         role + ' <span style="color:#666">(' + roleCounts[role] + ')</span></label>';
     });
 
@@ -250,9 +250,9 @@
       '<div style="font-weight:600;margin-bottom:8px;margin-top:4px;color:#000;font-size:15px">Specialfilter:</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">' +
         '<label style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(142,142,147,.15);border-radius:10px;cursor:pointer;color:#000;font-size:15px">' +
-          '<input type="checkbox" checked data-type="special" value="res" style="width:20px;height:20px;accent-color:#8e8e93"> 🔄 Reserver <span style="color:#666">(' + resNoTime + ')</span></label>' +
+          '<input type="checkbox" data-type="special" value="res" style="width:20px;height:20px;accent-color:#8e8e93"> 🔄 Reserver <span style="color:#666">(' + resNoTime + ')</span></label>' +
         '<label style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(88,86,214,.15);border-radius:10px;cursor:pointer;color:#000;font-size:15px">' +
-          '<input type="checkbox" checked data-type="special" value="tp" style="width:20px;height:20px;accent-color:#5856d6"> 📝 Ändrade turer <span style="color:#666">(' + tpNoTime + ')</span></label>' +
+          '<input type="checkbox" data-type="special" value="tp" style="width:20px;height:20px;accent-color:#5856d6"> 📝 Ändrade turer <span style="color:#666">(' + tpNoTime + ')</span></label>' +
       '</div>' +
       '<div style="display:flex;gap:8px">' +
         '<button id="onevr-load-start" style="flex:1;padding:14px;background:linear-gradient(135deg,#007aff,#0a84ff);color:#fff;border:none;border-radius:12px;font-weight:600;font-size:15px;cursor:pointer">Starta</button>' +

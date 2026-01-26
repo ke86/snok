@@ -170,7 +170,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 14px 16px;
+      padding: 7px 16px;
       cursor: pointer;
       user-select: none;
       -webkit-user-select: none;
