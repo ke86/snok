@@ -31,9 +31,27 @@
   var currentData = null;
 
   /**
+   * Check if viewing today's date
+   */
+  function isToday() {
+    var navDate = window.OneVR.state.navDate;
+    if (!navDate) return true;
+
+    var today = new Date();
+    var todayStr = today.getFullYear() + '-' +
+      String(today.getMonth() + 1).padStart(2, '0') + '-' +
+      String(today.getDate()).padStart(2, '0');
+
+    return navDate === todayStr;
+  }
+
+  /**
    * Check if a person is currently working based on their shift times
    */
   function isWorkingNow(person) {
+    // Only check if viewing today
+    if (!isToday()) return false;
+
     if (person.start === '-' || person.end === '-') return false;
 
     var now = new Date();
