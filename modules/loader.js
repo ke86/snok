@@ -8,7 +8,7 @@
   // ============================================================
   // CONFIGURATION - Ändra till din GitHub Pages URL
   // ============================================================
-  var BASE_URL = 'https://YOUR_USERNAME.github.io/YOUR_REPO';
+  var BASE_URL = 'https://ke86.github.io/snok';
 
   // Modules to load (in order)
   var modules = [
