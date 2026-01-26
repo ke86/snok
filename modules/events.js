@@ -106,7 +106,8 @@
       utb: 'Utb',
       insutb: 'INS',
       adm: 'ADM',
-      jobbar: '🟢'
+      jobbar: '🟢',
+      changed: 'TP'
     };
 
     Object.keys(filterState.filters).forEach(function(key) {
@@ -319,23 +320,20 @@
   function buildLoadTimesMenu(roleCounts, resNoTime, tpNoTime) {
     var roleChecks = '';
     Object.keys(roleCounts).forEach(function(role) {
-      roleChecks += '<label style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(118,118,128,.08);border-radius:10px;cursor:pointer;color:#000;font-size:15px">' +
-        '<input type="checkbox" data-type="role" value="' + role + '" style="width:20px;height:20px;accent-color:#007aff"> ' +
-        role + ' <span style="color:#666">(' + roleCounts[role] + ')</span></label>';
+      roleChecks += '<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;color:#000;font-size:14px">' +
+        '<input type="checkbox" data-type="role" value="' + role + '" style="width:16px;height:16px;accent-color:#007aff">' + role + '</label>';
     });
 
-    return '<div style="font-weight:600;margin-bottom:12px;color:#000;font-size:15px">Välj roller att ladda:</div>' +
-      '<div id="onevr-role-checks" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">' + roleChecks + '</div>' +
-      '<div style="font-weight:600;margin-bottom:8px;margin-top:4px;color:#000;font-size:15px">Specialfilter:</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">' +
-        '<label style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(142,142,147,.15);border-radius:10px;cursor:pointer;color:#000;font-size:15px">' +
-          '<input type="checkbox" data-type="special" value="res" style="width:20px;height:20px;accent-color:#8e8e93"> 🔄 Reserver <span style="color:#666">(' + resNoTime + ')</span></label>' +
-        '<label style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(88,86,214,.15);border-radius:10px;cursor:pointer;color:#000;font-size:15px">' +
-          '<input type="checkbox" data-type="special" value="tp" style="width:20px;height:20px;accent-color:#5856d6"> 📝 Ändrade turer <span style="color:#666">(' + tpNoTime + ')</span></label>' +
+    return '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px">' + roleChecks + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px">' +
+        '<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;color:#000;font-size:14px">' +
+          '<input type="checkbox" data-type="special" value="res" style="width:16px;height:16px;accent-color:#8e8e93">Res</label>' +
+        '<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;color:#000;font-size:14px">' +
+          '<input type="checkbox" data-type="special" value="tp" style="width:16px;height:16px;accent-color:#5856d6">TP</label>' +
       '</div>' +
       '<div style="display:flex;gap:8px">' +
-        '<button id="onevr-load-start" style="flex:1;padding:14px;background:linear-gradient(135deg,#007aff,#0a84ff);color:#fff;border:none;border-radius:12px;font-weight:600;font-size:15px;cursor:pointer">Starta</button>' +
-        '<button id="onevr-load-cancel" style="padding:14px 20px;background:rgba(118,118,128,.12);color:#666;border:none;border-radius:12px;font-size:15px;cursor:pointer">Avbryt</button>' +
+        '<button id="onevr-load-start" style="flex:1;padding:10px;background:linear-gradient(135deg,#007aff,#0a84ff);color:#fff;border:none;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer">Starta</button>' +
+        '<button id="onevr-load-cancel" style="padding:10px 16px;background:rgba(118,118,128,.12);color:#666;border:none;border-radius:10px;font-size:14px;cursor:pointer">Avbryt</button>' +
       '</div>';
   }
 
@@ -502,19 +500,6 @@
       filterList();
       searchEl.focus();
     };
-
-    // Changed filter
-    var changedBtn = document.getElementById('onevr-changed-btn');
-    if (changedBtn) {
-      changedBtn.onclick = function() {
-        filterState.filters.changed = !filterState.filters.changed;
-        this.classList.toggle('active', filterState.filters.changed);
-        this.textContent = filterState.filters.changed
-          ? '✓ Visar ändrade (' + data.stats.changed + ')'
-          : '📝 Ändrade turer (' + data.stats.changed + ')';
-        filterList();
-      };
-    }
 
     // Dropdown toggle handlers
     document.querySelectorAll('.onevr-filter-trigger').forEach(function(trigger) {

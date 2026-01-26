@@ -92,6 +92,7 @@
    */
   function buildQuickFilters() {
     return '<button class="onevr-dropdown-item" data-type="quick" data-val="jobbar">Jobbar nu</button>' +
+      '<button class="onevr-dropdown-item" data-type="quick" data-val="changed">Ändrade turer</button>' +
       '<button class="onevr-dropdown-item" data-type="quick" data-val="se">Sverige</button>' +
       '<button class="onevr-dropdown-item" data-type="quick" data-val="dk">Danmark</button>' +
       '<button class="onevr-dropdown-item" data-type="quick" data-val="res">Reserver</button>' +
@@ -120,9 +121,6 @@
     var loadTimesBtn = stats.noTime > 0
       ? '<button class="onevr-btn" id="onevr-load-times">⏱ Ladda tider (' + stats.noTime + ' utan tid)</button>'
       : '';
-    var changedBtn = stats.changed > 0
-      ? '<button class="onevr-btn" id="onevr-changed-btn">📝 Ändrade turer (' + stats.changed + ')</button>'
-      : '';
 
     return '<div class="onevr-modal">' +
       '<div class="onevr-header">' +
@@ -144,7 +142,6 @@
           '</div>' +
           '<div class="onevr-section-content">' +
             '<div class="onevr-settings-grid">' +
-              changedBtn +
               loadTimesBtn +
             '</div>' +
           '</div>' +
