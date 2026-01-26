@@ -122,7 +122,6 @@
             '<div class="onevr-settings-grid">' +
               changedBtn +
               loadTimesBtn +
-              '<button class="onevr-btn onevr-btn-close" id="onevr-close-btn">✕ Stäng appen</button>' +
             '</div>' +
           '</div>' +
         '</div>' +

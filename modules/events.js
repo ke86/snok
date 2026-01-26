@@ -298,8 +298,8 @@
           cdkC.style.opacity = '';
           cdkC.style.pointerEvents = '';
         }
-        loadTimesEl.style.background = 'linear-gradient(135deg,#34c759,#30d158)';
-        loadTimesEl.textContent = '✓ ' + successCount + ' tider laddade';
+        loadTimesEl.style.background = '';
+        loadTimesEl.textContent = '🔄 Tryck för att uppdatera listan (' + successCount + ' nya tider)';
         loadTimesEl.classList.add('done');
       }
     }
@@ -347,11 +347,6 @@
         this.parentElement.classList.toggle('open');
       };
     });
-
-    // Close button
-    document.getElementById('onevr-close-btn').onclick = function() {
-      ui.hideOverlay();
-    };
 
     // Click outside to close
     overlay.onclick = function(e) {

@@ -68,6 +68,7 @@
       font-size: 17px;
       text-align: center;
       transition: all .2s;
+      box-sizing: border-box;
     }
 
     .onevr-search:focus {
@@ -235,6 +236,18 @@
       background: linear-gradient(135deg, #34c759, #30d158);
       color: #fff;
       box-shadow: 0 2px 8px rgba(52,199,89,.3);
+    }
+
+    .onevr-btn.done {
+      background: linear-gradient(135deg, #34c759, #30d158);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(52,199,89,.3);
+      animation: onevr-pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes onevr-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.02); }
     }
 
     .onevr-btn-close {
