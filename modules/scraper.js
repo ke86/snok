@@ -45,8 +45,13 @@
         }
       }
 
-      // Cache location if valid
+      // Cache location if valid - men INTE för changedReserve format
       if (name && name.length > 3 && name.match(/^[A-ZÅÄÖÉÈÜ]/) && turnr) {
+        // Hoppa över changedReserve (123456-123456) - dessa har fel ort i turnr
+        if (turnr.match(/^\d{6}-\d{6}$/)) {
+          // Skriv inte över cache med fel ort
+          return;
+        }
         var m = turnr.match(/^(\d)/);
         if (m && CFG.locations[m[1]]) {
           window.OneVR.cache.locations[name] = {
