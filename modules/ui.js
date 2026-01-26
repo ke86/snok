@@ -48,32 +48,55 @@
   }
 
   /**
-   * Build filter buttons HTML
+   * Build filter data for dropdowns
    */
-  function buildFilters(people, stats) {
-    // Role filters
-    var roleFilters = '<button class="onevr-filter active" data-filter="role" data-val="all">Alla</button>';
+  function buildFilterData(people, stats) {
+    // Collect role badges
     var seenBadges = {};
-    people.forEach(function(p) { seenBadges[p.badge] = 1; });
-    Object.keys(seenBadges).forEach(function(b) {
-      roleFilters += '<button class="onevr-filter" data-filter="role" data-val="' + b + '">' + b + '</button>';
-    });
+    people.forEach(function(p) { seenBadges[p.badge] = (seenBadges[p.badge] || 0) + 1; });
 
-    // Location filters
+    // Collect locations
     var locCounts = {};
     people.forEach(function(p) {
       if (p.locName) locCounts[p.locName] = (locCounts[p.locName] || 0) + 1;
     });
 
-    var locFilters = '<button class="onevr-filter active" data-filter="loc" data-val="all">Alla</button>';
-    Object.keys(locCounts).sort().forEach(function(loc) {
-      locFilters += '<button class="onevr-filter" data-filter="loc" data-val="' + loc + '">' + loc + ' (' + locCounts[loc] + ')</button>';
-    });
-
     return {
-      roles: roleFilters,
-      locations: locFilters
+      roles: seenBadges,
+      locations: locCounts,
+      stats: stats
     };
+  }
+
+  /**
+   * Build dropdown menu items HTML
+   */
+  function buildDropdownItems(type, data) {
+    var items = '<button class="onevr-dropdown-item active" data-type="' + type + '" data-val="all">Alla</button>';
+
+    if (type === 'role') {
+      Object.keys(data.roles).forEach(function(role) {
+        items += '<button class="onevr-dropdown-item" data-type="role" data-val="' + role + '">' + role + ' (' + data.roles[role] + ')</button>';
+      });
+    } else if (type === 'loc') {
+      Object.keys(data.locations).sort().forEach(function(loc) {
+        items += '<button class="onevr-dropdown-item" data-type="loc" data-val="' + loc + '">' + loc + ' (' + data.locations[loc] + ')</button>';
+      });
+    }
+
+    return items;
+  }
+
+  /**
+   * Build quick filters HTML
+   */
+  function buildQuickFilters(stats) {
+    return '<button class="onevr-dropdown-item" data-type="quick" data-val="se">🇸🇪 Sverige (' + stats.se + ')</button>' +
+      '<button class="onevr-dropdown-item" data-type="quick" data-val="dk">🇩🇰 Danmark (' + stats.dk + ')</button>' +
+      '<button class="onevr-dropdown-item" data-type="quick" data-val="res">🔄 Reserver (' + stats.res + ')</button>' +
+      '<button class="onevr-dropdown-item" data-type="quick" data-val="utb">📚 Utb (' + stats.utb + ')</button>' +
+      '<button class="onevr-dropdown-item" data-type="quick" data-val="insutb">👨‍🏫 INSUTB (' + stats.insutb + ')</button>' +
+      '<button class="onevr-dropdown-item" data-type="quick" data-val="adm">🏢 ADM (' + stats.adm + ')</button>';
   }
 
   /**
@@ -83,7 +106,7 @@
     var people = data.people;
     var stats = data.stats;
     var isoDate = data.isoDate;
-    var filters = buildFilters(people, stats);
+    var filterData = buildFilterData(people, stats);
 
     // Build person list
     var listHTML = '<div class="onevr-card">';
@@ -125,27 +148,21 @@
             '</div>' +
           '</div>' +
         '</div>' +
-        '<div class="onevr-section" id="onevr-sort-section">' +
-          '<div class="onevr-section-header">' +
-            '<span class="onevr-section-title">Filtrera</span>' +
-            '<span class="onevr-section-arrow">▾</span>' +
+        '<div class="onevr-filter-bar">' +
+          '<div class="onevr-filter-dropdown" id="onevr-role-dropdown">' +
+            '<button class="onevr-filter-trigger" data-dropdown="role">Roll <span class="onevr-filter-arrow">▾</span></button>' +
+            '<div class="onevr-dropdown-menu" id="onevr-role-menu">' + buildDropdownItems('role', filterData) + '</div>' +
           '</div>' +
-          '<div class="onevr-section-content">' +
-            '<div class="onevr-filter-label">Roll</div>' +
-            '<div class="onevr-filters" id="onevr-role-filters">' + filters.roles + '</div>' +
-            '<div class="onevr-filter-label">Ort</div>' +
-            '<div class="onevr-filters" id="onevr-loc-filters">' + filters.locations + '</div>' +
-            '<div class="onevr-filter-label">Snabbfilter</div>' +
-            '<div class="onevr-filters">' +
-              '<button class="onevr-filter" id="onevr-se-btn">🇸🇪 Sverige (' + stats.se + ')</button>' +
-              '<button class="onevr-filter" id="onevr-dk-btn">🇩🇰 Danmark (' + stats.dk + ')</button>' +
-              '<button class="onevr-filter" id="onevr-res-btn">🔄 Reserver (' + stats.res + ')</button>' +
-              '<button class="onevr-filter" id="onevr-utb-btn">📚 Utb (' + stats.utb + ')</button>' +
-              '<button class="onevr-filter" id="onevr-insutb-btn">👨‍🏫 INSUTB (' + stats.insutb + ')</button>' +
-              '<button class="onevr-filter" id="onevr-adm-btn">🏢 ADM (' + stats.adm + ')</button>' +
-            '</div>' +
+          '<div class="onevr-filter-dropdown" id="onevr-loc-dropdown">' +
+            '<button class="onevr-filter-trigger" data-dropdown="loc">Ort <span class="onevr-filter-arrow">▾</span></button>' +
+            '<div class="onevr-dropdown-menu" id="onevr-loc-menu">' + buildDropdownItems('loc', filterData) + '</div>' +
+          '</div>' +
+          '<div class="onevr-filter-dropdown" id="onevr-quick-dropdown">' +
+            '<button class="onevr-filter-trigger" data-dropdown="quick">Filter <span class="onevr-filter-arrow">▾</span></button>' +
+            '<div class="onevr-dropdown-menu" id="onevr-quick-menu">' + buildQuickFilters(stats) + '</div>' +
           '</div>' +
         '</div>' +
+        '<div class="onevr-active-filters" id="onevr-active-filters"></div>' +
         '<div class="onevr-status-bar" id="onevr-status-bar">' +
           '<span class="onevr-status-working">🟢 Jobbar nu: <strong id="onevr-working-now">0</strong></span>' +
           '<span class="onevr-status-total">Totalt: <strong id="onevr-total-count">' + people.length + '</strong></span>' +
@@ -189,7 +206,7 @@
   // Export to global namespace
   window.OneVR.ui = {
     buildPersonHTML: buildPersonHTML,
-    buildFilters: buildFilters,
+    buildFilterData: buildFilterData,
     buildOverlayHTML: buildOverlayHTML,
     showOverlay: showOverlay,
     hideOverlay: hideOverlay,

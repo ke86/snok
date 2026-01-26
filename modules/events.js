@@ -76,10 +76,78 @@
   }
 
   /**
+   * Check if any TIL-related filter is active
+   */
+  function hasTilFilter() {
+    var f = filterState.filters;
+    return f.utb || f.insutb;
+  }
+
+  /**
+   * Update active filter chips display
+   */
+  function updateActiveFilters() {
+    var container = document.getElementById('onevr-active-filters');
+    if (!container) return;
+
+    var chips = [];
+
+    if (filterState.activeRole !== 'all') {
+      chips.push({ type: 'role', val: filterState.activeRole, label: filterState.activeRole });
+    }
+    if (filterState.activeLoc !== 'all') {
+      chips.push({ type: 'loc', val: filterState.activeLoc, label: filterState.activeLoc });
+    }
+
+    var quickLabels = {
+      se: '🇸🇪 Sverige',
+      dk: '🇩🇰 Danmark',
+      res: '🔄 Reserver',
+      utb: '📚 Utb',
+      insutb: '👨‍🏫 INSUTB',
+      adm: '🏢 ADM'
+    };
+
+    Object.keys(filterState.filters).forEach(function(key) {
+      if (filterState.filters[key] && quickLabels[key]) {
+        chips.push({ type: 'quick', val: key, label: quickLabels[key] });
+      }
+    });
+
+    container.innerHTML = chips.map(function(chip) {
+      return '<span class="onevr-chip" data-type="' + chip.type + '" data-val="' + chip.val + '">' +
+        chip.label +
+        '<button class="onevr-chip-remove">✕</button>' +
+      '</span>';
+    }).join('');
+
+    // Update trigger button styles
+    var roleTrigger = document.querySelector('[data-dropdown="role"]');
+    var locTrigger = document.querySelector('[data-dropdown="loc"]');
+    var quickTrigger = document.querySelector('[data-dropdown="quick"]');
+
+    if (roleTrigger) {
+      roleTrigger.classList.toggle('has-filter', filterState.activeRole !== 'all');
+      roleTrigger.innerHTML = (filterState.activeRole !== 'all' ? filterState.activeRole : 'Roll') + ' <span class="onevr-filter-arrow">▾</span>';
+    }
+    if (locTrigger) {
+      locTrigger.classList.toggle('has-filter', filterState.activeLoc !== 'all');
+      locTrigger.innerHTML = (filterState.activeLoc !== 'all' ? filterState.activeLoc : 'Ort') + ' <span class="onevr-filter-arrow">▾</span>';
+    }
+    if (quickTrigger) {
+      var activeQuickCount = Object.keys(filterState.filters).filter(function(k) { return filterState.filters[k]; }).length;
+      quickTrigger.classList.toggle('has-filter', activeQuickCount > 0);
+      quickTrigger.innerHTML = 'Filter' + (activeQuickCount > 0 ? ' (' + activeQuickCount + ')' : '') + ' <span class="onevr-filter-arrow">▾</span>';
+    }
+  }
+
+  /**
    * Filter the person list based on current filter state
    */
   function filterList() {
     if (!currentData) return;
+
+    var tilActive = hasTilFilter();
 
     document.querySelectorAll('.onevr-person').forEach(function(el) {
       var show = true;
@@ -94,12 +162,14 @@
       if (f.insutb && !(p.turnr && /INSUTB/i.test(p.turnr))) show = false;
       if (f.adm && p.badge !== 'ADM') show = false;
       if (filterState.activeRole !== 'all' && p.badge !== filterState.activeRole) show = false;
-      if (filterState.activeLoc !== 'all' && p.locName !== filterState.activeLoc) show = false;
+      // Skip location filter if TIL filter is active
+      if (!tilActive && filterState.activeLoc !== 'all' && p.locName !== filterState.activeLoc) show = false;
       if (filterState.searchQ && !el.textContent.toLowerCase().includes(filterState.searchQ)) show = false;
 
       el.style.display = show ? 'flex' : 'none';
     });
 
+    updateActiveFilters();
     updateStatusBar();
   }
 
@@ -424,39 +494,6 @@
       searchEl.focus();
     };
 
-    // Quick filters
-    var quickFilters = [
-      { id: 'onevr-se-btn', key: 'se', icon: '🇸🇪', label: 'Sverige', count: data.stats.se, exclusive: 'dk' },
-      { id: 'onevr-dk-btn', key: 'dk', icon: '🇩🇰', label: 'Danmark', count: data.stats.dk, exclusive: 'se' },
-      { id: 'onevr-res-btn', key: 'res', icon: '🔄', label: 'Reserver', count: data.stats.res },
-      { id: 'onevr-utb-btn', key: 'utb', icon: '📚', label: 'Utb', count: data.stats.utb },
-      { id: 'onevr-insutb-btn', key: 'insutb', icon: '👨‍🏫', label: 'INSUTB', count: data.stats.insutb },
-      { id: 'onevr-adm-btn', key: 'adm', icon: '🏢', label: 'ADM', count: data.stats.adm }
-    ];
-
-    quickFilters.forEach(function(qf) {
-      var el = document.getElementById(qf.id);
-      if (el) {
-        el.onclick = function() {
-          filterState.filters[qf.key] = !filterState.filters[qf.key];
-
-          if (qf.exclusive && filterState.filters[qf.key]) {
-            filterState.filters[qf.exclusive] = false;
-            var exEl = document.getElementById('onevr-' + qf.exclusive + '-btn');
-            if (exEl) {
-              exEl.classList.remove('active');
-              var exQf = quickFilters.find(function(q) { return q.key === qf.exclusive; });
-              if (exQf) exEl.textContent = exQf.icon + ' ' + exQf.label + ' (' + exQf.count + ')';
-            }
-          }
-
-          this.classList.toggle('active', filterState.filters[qf.key]);
-          this.textContent = (filterState.filters[qf.key] ? '✓' : qf.icon) + ' ' + qf.label + ' (' + qf.count + ')';
-          filterList();
-        };
-      }
-    });
-
     // Changed filter
     var changedBtn = document.getElementById('onevr-changed-btn');
     if (changedBtn) {
@@ -470,22 +507,119 @@
       };
     }
 
-    // Role filters
-    document.getElementById('onevr-role-filters').onclick = function(e) {
-      if (e.target.classList.contains('onevr-filter')) {
-        this.querySelectorAll('.onevr-filter').forEach(function(f) { f.classList.remove('active'); });
-        e.target.classList.add('active');
-        filterState.activeRole = e.target.getAttribute('data-val');
-        filterList();
-      }
-    };
+    // Dropdown toggle handlers
+    document.querySelectorAll('.onevr-filter-trigger').forEach(function(trigger) {
+      trigger.onclick = function(e) {
+        e.stopPropagation();
+        var dropdown = this.closest('.onevr-filter-dropdown');
+        var wasOpen = dropdown.classList.contains('open');
 
-    // Location filters
-    document.getElementById('onevr-loc-filters').onclick = function(e) {
-      if (e.target.classList.contains('onevr-filter')) {
-        this.querySelectorAll('.onevr-filter').forEach(function(f) { f.classList.remove('active'); });
-        e.target.classList.add('active');
-        filterState.activeLoc = e.target.getAttribute('data-val');
+        // Close all dropdowns first
+        document.querySelectorAll('.onevr-filter-dropdown').forEach(function(d) {
+          d.classList.remove('open');
+        });
+
+        // Toggle the clicked one
+        if (!wasOpen) {
+          dropdown.classList.add('open');
+        }
+      };
+    });
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.onevr-filter-dropdown')) {
+        document.querySelectorAll('.onevr-filter-dropdown').forEach(function(d) {
+          d.classList.remove('open');
+        });
+      }
+    });
+
+    // Role dropdown items
+    var roleMenu = document.getElementById('onevr-role-menu');
+    if (roleMenu) {
+      roleMenu.onclick = function(e) {
+        var item = e.target.closest('.onevr-dropdown-item');
+        if (item) {
+          this.querySelectorAll('.onevr-dropdown-item').forEach(function(i) { i.classList.remove('active'); });
+          item.classList.add('active');
+          filterState.activeRole = item.getAttribute('data-val');
+          this.closest('.onevr-filter-dropdown').classList.remove('open');
+          filterList();
+        }
+      };
+    }
+
+    // Location dropdown items
+    var locMenu = document.getElementById('onevr-loc-menu');
+    if (locMenu) {
+      locMenu.onclick = function(e) {
+        var item = e.target.closest('.onevr-dropdown-item');
+        if (item) {
+          this.querySelectorAll('.onevr-dropdown-item').forEach(function(i) { i.classList.remove('active'); });
+          item.classList.add('active');
+          filterState.activeLoc = item.getAttribute('data-val');
+          this.closest('.onevr-filter-dropdown').classList.remove('open');
+          filterList();
+        }
+      };
+    }
+
+    // Quick filter dropdown items (toggle behavior)
+    var quickMenu = document.getElementById('onevr-quick-menu');
+    if (quickMenu) {
+      quickMenu.onclick = function(e) {
+        var item = e.target.closest('.onevr-dropdown-item');
+        if (item) {
+          var val = item.getAttribute('data-val');
+
+          // Handle exclusive filters (SE/DK)
+          if (val === 'se' && filterState.filters.dk) {
+            filterState.filters.dk = false;
+            this.querySelector('[data-val="dk"]').classList.remove('active');
+          } else if (val === 'dk' && filterState.filters.se) {
+            filterState.filters.se = false;
+            this.querySelector('[data-val="se"]').classList.remove('active');
+          }
+
+          filterState.filters[val] = !filterState.filters[val];
+          item.classList.toggle('active', filterState.filters[val]);
+          filterList();
+        }
+      };
+    }
+
+    // Active filter chips - remove on click
+    document.getElementById('onevr-active-filters').onclick = function(e) {
+      var removeBtn = e.target.closest('.onevr-chip-remove');
+      if (removeBtn) {
+        var chip = removeBtn.closest('.onevr-chip');
+        var type = chip.getAttribute('data-type');
+        var val = chip.getAttribute('data-val');
+
+        if (type === 'role') {
+          filterState.activeRole = 'all';
+          var roleMenu = document.getElementById('onevr-role-menu');
+          if (roleMenu) {
+            roleMenu.querySelectorAll('.onevr-dropdown-item').forEach(function(i) { i.classList.remove('active'); });
+            roleMenu.querySelector('[data-val="all"]').classList.add('active');
+          }
+        } else if (type === 'loc') {
+          filterState.activeLoc = 'all';
+          var locMenu = document.getElementById('onevr-loc-menu');
+          if (locMenu) {
+            locMenu.querySelectorAll('.onevr-dropdown-item').forEach(function(i) { i.classList.remove('active'); });
+            locMenu.querySelector('[data-val="all"]').classList.add('active');
+          }
+        } else if (type === 'quick') {
+          filterState.filters[val] = false;
+          var quickMenu = document.getElementById('onevr-quick-menu');
+          if (quickMenu) {
+            var item = quickMenu.querySelector('[data-val="' + val + '"]');
+            if (item) item.classList.remove('active');
+          }
+        }
+
         filterList();
       }
     };

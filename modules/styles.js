@@ -258,45 +258,141 @@
     .onevr-btn-close:active { background: rgba(255,59,48,.2); }
 
     /* ============================================
-       FILTERS
+       FILTER BAR & DROPDOWNS
        ============================================ */
-    .onevr-filters {
+    .onevr-filter-bar {
       display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
     }
 
-    .onevr-filter {
-      padding: 8px 14px;
+    .onevr-filter-dropdown {
+      position: relative;
+      flex: 1;
+    }
+
+    .onevr-filter-trigger {
+      width: 100%;
+      padding: 10px 14px;
       background: rgba(118,118,128,.08);
       border: none;
-      border-radius: 20px;
+      border-radius: 10px;
+      color: rgba(60,60,67,.9);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all .2s;
+    }
+
+    .onevr-filter-trigger:active {
+      transform: scale(.97);
+      background: rgba(118,118,128,.15);
+    }
+
+    .onevr-filter-trigger.has-filter {
+      background: linear-gradient(135deg, #007aff, #0a84ff);
+      color: #fff;
+    }
+
+    .onevr-filter-arrow {
+      font-size: 12px;
+      transition: transform .2s;
+    }
+
+    .onevr-filter-dropdown.open .onevr-filter-arrow {
+      transform: rotate(180deg);
+    }
+
+    .onevr-dropdown-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.15);
+      z-index: 100;
+      max-height: 240px;
+      overflow-y: auto;
+      padding: 6px;
+    }
+
+    .onevr-filter-dropdown.open .onevr-dropdown-menu {
+      display: block;
+    }
+
+    .onevr-dropdown-item {
+      width: 100%;
+      padding: 10px 12px;
+      background: none;
+      border: none;
+      border-radius: 8px;
       color: rgba(60,60,67,.9);
       cursor: pointer;
       font-size: 14px;
       font-weight: 500;
-      transition: all .2s;
+      text-align: left;
+      transition: background .15s;
+      display: block;
     }
 
-    .onevr-filter:active { transform: scale(.95); }
+    .onevr-dropdown-item:hover,
+    .onevr-dropdown-item:active {
+      background: rgba(118,118,128,.1);
+    }
 
-    .onevr-filter.active {
+    .onevr-dropdown-item.active {
+      background: rgba(0,122,255,.1);
+      color: #007aff;
+      font-weight: 600;
+    }
+
+    /* Active filters chips */
+    .onevr-active-filters {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-height: 0;
+    }
+
+    .onevr-active-filters:empty {
+      display: none;
+    }
+
+    .onevr-active-filters:not(:empty) {
+      margin-bottom: 10px;
+    }
+
+    .onevr-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
       background: linear-gradient(135deg, #007aff, #0a84ff);
       color: #fff;
-      box-shadow: 0 2px 8px rgba(0,122,255,.3);
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 500;
     }
 
-    .onevr-filter-label {
-      font-size: 12px;
-      color: rgba(60,60,67,.6);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      margin-bottom: 8px;
-      margin-top: 14px;
+    .onevr-chip-remove {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,.8);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0;
+      line-height: 1;
     }
 
-    .onevr-filter-label:first-child { margin-top: 0; }
+    .onevr-chip-remove:hover {
+      color: #fff;
+    }
 
     /* ============================================
        PERSON CARDS
@@ -549,9 +645,36 @@
         color: #ff453a;
       }
 
-      .onevr-filter {
+      .onevr-filter-trigger {
         background: rgba(118,118,128,.2);
         color: rgba(235,235,245,.9);
+      }
+
+      .onevr-filter-trigger.has-filter {
+        background: linear-gradient(135deg, #0a84ff, #007aff);
+      }
+
+      .onevr-dropdown-menu {
+        background: #2c2c2e;
+        box-shadow: 0 4px 20px rgba(0,0,0,.4);
+      }
+
+      .onevr-dropdown-item {
+        color: rgba(235,235,245,.9);
+      }
+
+      .onevr-dropdown-item:hover,
+      .onevr-dropdown-item:active {
+        background: rgba(118,118,128,.2);
+      }
+
+      .onevr-dropdown-item.active {
+        background: rgba(10,132,255,.2);
+        color: #0a84ff;
+      }
+
+      .onevr-chip {
+        background: linear-gradient(135deg, #0a84ff, #007aff);
       }
 
       .onevr-date-btn, .onevr-date-picker {
