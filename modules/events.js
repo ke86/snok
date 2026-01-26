@@ -22,7 +22,8 @@
       dk: false,
       utb: false,
       insutb: false,
-      adm: false
+      adm: false,
+      jobbar: false
     }
   };
 
@@ -99,12 +100,13 @@
     }
 
     var quickLabels = {
-      se: '🇸🇪 Sverige',
-      dk: '🇩🇰 Danmark',
-      res: '🔄 Reserver',
-      utb: '📚 Utb',
-      insutb: '👨‍🏫 INSUTB',
-      adm: '🏢 ADM'
+      se: '🇸🇪',
+      dk: '🇩🇰',
+      res: 'Res',
+      utb: 'Utb',
+      insutb: 'INS',
+      adm: 'ADM',
+      jobbar: '🟢'
     };
 
     Object.keys(filterState.filters).forEach(function(key) {
@@ -150,6 +152,13 @@
       var show = true;
       var p = currentData.people[+el.getAttribute('data-idx')];
       var f = filterState.filters;
+      var working = isWorkingNow(p);
+
+      // Update working-now indicator on badge
+      var badge = el.querySelector('.onevr-badge');
+      if (badge) {
+        badge.classList.toggle('onevr-working-now', working);
+      }
 
       if (f.res && !p.isRes && p.role !== 'Reserv') show = false;
       if (f.changed && !p.isChanged) show = false;
@@ -159,6 +168,8 @@
       if (f.insutb && !(p.turnr && /INSUTB/i.test(p.turnr))) show = false;
       // ADM filter checks turnr, not badge
       if (f.adm && !(p.turnr && /ADM/i.test(p.turnr))) show = false;
+      // Jobbar nu filter
+      if (f.jobbar && !working) show = false;
       if (filterState.activeRole !== 'all' && p.badge !== filterState.activeRole) show = false;
       // Skip location filter for TIL persons - they should always show regardless of location
       if (filterState.activeLoc !== 'all' && p.locName !== filterState.activeLoc && !isTilPerson(p)) show = false;
@@ -666,7 +677,8 @@
         dk: false,
         utb: false,
         insutb: false,
-        adm: false
+        adm: false,
+        jobbar: false
       }
     };
   }

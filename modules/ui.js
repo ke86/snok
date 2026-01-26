@@ -91,7 +91,8 @@
    * Build quick filters HTML
    */
   function buildQuickFilters() {
-    return '<button class="onevr-dropdown-item" data-type="quick" data-val="se">Sverige</button>' +
+    return '<button class="onevr-dropdown-item" data-type="quick" data-val="jobbar">Jobbar nu</button>' +
+      '<button class="onevr-dropdown-item" data-type="quick" data-val="se">Sverige</button>' +
       '<button class="onevr-dropdown-item" data-type="quick" data-val="dk">Danmark</button>' +
       '<button class="onevr-dropdown-item" data-type="quick" data-val="res">Reserver</button>' +
       '<button class="onevr-dropdown-item" data-type="quick" data-val="utb">Utb</button>' +

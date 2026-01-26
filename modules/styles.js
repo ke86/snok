@@ -436,6 +436,11 @@
     .onevr-badge-adm { background: linear-gradient(135deg, #ff2d55, #ff375f); color: #fff; }
     .onevr-badge-ovr { background: linear-gradient(135deg, #636366, #6e6e73); color: #fff; }
 
+    .onevr-badge.onevr-working-now {
+      outline: 2px dashed #30d158;
+      outline-offset: 2px;
+    }
+
     /* ============================================
        PERSON INFO
        ============================================ */
