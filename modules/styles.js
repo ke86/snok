@@ -250,17 +250,6 @@
       50% { opacity: 0.8; transform: scale(1.02); }
     }
 
-    .onevr-btn-vakans {
-      background: linear-gradient(135deg, #ff3b30, #ff6b6b);
-      color: #fff;
-      box-shadow: 0 2px 8px rgba(255,59,48,.3);
-    }
-
-    .onevr-btn-vakans:active {
-      transform: scale(.98);
-      background: linear-gradient(135deg, #d63027, #ff3b30);
-    }
-
     .onevr-btn-close {
       background: rgba(255,59,48,.1);
       color: #ff3b30;
@@ -268,99 +257,30 @@
 
     .onevr-btn-close:active { background: rgba(255,59,48,.2); }
 
-    .onevr-version {
-      text-align: center;
-      font-size: 11px;
-      color: rgba(60,60,67,.4);
-      margin-top: 12px;
-      letter-spacing: .5px;
-    }
-
-    /* ============================================
-       THEME TOGGLE
-       ============================================ */
-    .onevr-theme-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 0;
-      margin-top: 12px;
-      border-top: .5px solid rgba(0,0,0,.08);
-    }
-
-    .onevr-theme-label {
-      font-size: 14px;
-      font-weight: 500;
-      color: rgba(60,60,67,.9);
-    }
-
-    .onevr-theme-switch {
-      display: flex;
-      background: rgba(118,118,128,.12);
-      border-radius: 10px;
-      padding: 3px;
-      gap: 2px;
-    }
-
-    .onevr-theme-btn {
-      padding: 8px 12px;
-      border: none;
-      background: none;
-      border-radius: 8px;
-      font-size: 14px;
-      cursor: pointer;
-      transition: all .2s;
-      color: rgba(60,60,67,.6);
-    }
-
-    .onevr-theme-btn.active {
-      background: #fff;
-      box-shadow: 0 1px 3px rgba(0,0,0,.1);
-      color: #000;
-    }
-
-    .onevr-theme-btn:active {
-      transform: scale(.95);
-    }
-
     /* ============================================
        LOAD TIMES MENU
        ============================================ */
-    .onevr-load-menu {
-      background: #fff;
-      border-radius: 14px;
-      padding: 14px;
-      margin-top: 8px;
-      box-shadow: 0 4px 20px rgba(0,0,0,.1);
-    }
-
-    .onevr-load-pills {
+    .onevr-load-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 12px;
       margin-bottom: 10px;
     }
 
-    .onevr-load-pill {
-      padding: 8px 14px;
-      background: rgba(118,118,128,.1);
-      border: none;
-      border-radius: 18px;
+    .onevr-load-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
       color: rgba(60,60,67,.9);
       font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all .2s;
+      font-weight: 500;
     }
 
-    .onevr-load-pill:active {
-      transform: scale(.95);
-    }
-
-    .onevr-load-pill.active {
-      background: linear-gradient(135deg, #007aff, #0a84ff);
-      color: #fff;
-      box-shadow: 0 2px 8px rgba(0,122,255,.3);
+    .onevr-load-check input {
+      width: 18px;
+      height: 18px;
+      accent-color: #007aff;
     }
 
     .onevr-load-actions {
@@ -757,337 +677,42 @@
     @keyframes onevr-spin { to { transform: rotate(360deg); } }
 
     /* ============================================
-       EXPORT MODAL
-       ============================================ */
-    .onevr-export-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.5);
-      -webkit-backdrop-filter: blur(10px);
-      backdrop-filter: blur(10px);
-      z-index: 100001;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-
-    .onevr-export-content {
-      background: #fff;
-      border-radius: 16px;
-      width: 100%;
-      max-width: 380px;
-      max-height: 80vh;
-      overflow: hidden;
-      box-shadow: 0 10px 40px rgba(0,0,0,.25);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .onevr-export-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px;
-      border-bottom: .5px solid rgba(0,0,0,.1);
-      font-weight: 600;
-      font-size: 17px;
-      color: #000;
-    }
-
-    .onevr-export-close {
-      background: none;
-      border: none;
-      font-size: 20px;
-      color: rgba(60,60,67,.6);
-      cursor: pointer;
-      padding: 4px;
-    }
-
-    .onevr-export-close:hover { color: #000; }
-
-    .onevr-export-info {
-      padding: 12px 20px;
-      background: rgba(0,122,255,.08);
-      color: rgba(60,60,67,.8);
-      font-size: 14px;
-    }
-
-    .onevr-export-info strong {
-      color: #007aff;
-    }
-
-    .onevr-export-textarea {
-      flex: 1;
-      min-height: 200px;
-      max-height: 300px;
-      margin: 16px 20px;
-      padding: 12px;
-      background: rgba(118,118,128,.08);
-      border: none;
-      border-radius: 10px;
-      font-family: 'SF Mono', 'Menlo', monospace;
-      font-size: 12px;
-      color: #000;
-      resize: none;
-    }
-
-    .onevr-export-textarea:focus {
-      outline: none;
-      background: rgba(118,118,128,.12);
-    }
-
-    .onevr-export-actions {
-      padding: 0 20px 20px;
-    }
-
-    .onevr-export-copy {
-      width: 100%;
-      padding: 14px;
-      background: linear-gradient(135deg, #007aff, #0a84ff);
-      color: #fff;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all .2s;
-    }
-
-    .onevr-export-copy:active {
-      transform: scale(.98);
-    }
-
-    /* ============================================
-       VACANCY MODAL
-       ============================================ */
-    .onevr-vacancy-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.5);
-      -webkit-backdrop-filter: blur(10px);
-      backdrop-filter: blur(10px);
-      z-index: 100001;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-
-    .onevr-vacancy-content {
-      background: #fff;
-      border-radius: 20px;
-      width: 100%;
-      max-width: 400px;
-      max-height: 85vh;
-      overflow: hidden;
-      box-shadow: 0 10px 40px rgba(0,0,0,.25);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .onevr-vacancy-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 18px 20px;
-      background: linear-gradient(135deg, #ff3b30, #ff6b6b);
-      color: #fff;
-      font-weight: 700;
-      font-size: 18px;
-    }
-
-    .onevr-vacancy-close {
-      background: rgba(255,255,255,.2);
-      border: none;
-      font-size: 18px;
-      color: #fff;
-      cursor: pointer;
-      padding: 6px 10px;
-      border-radius: 8px;
-    }
-
-    .onevr-vacancy-close:active {
-      background: rgba(255,255,255,.3);
-    }
-
-    .onevr-vacancy-date {
-      padding: 14px 20px;
-      background: rgba(0,122,255,.08);
-      color: rgba(60,60,67,.9);
-      font-size: 15px;
-      text-align: center;
-    }
-
-    .onevr-vacancy-date strong {
-      color: #007aff;
-    }
-
-    .onevr-vacancy-stats {
-      display: flex;
-      padding: 16px;
-      gap: 12px;
-      border-bottom: .5px solid rgba(0,0,0,.1);
-    }
-
-    .onevr-vacancy-stat {
-      flex: 1;
-      text-align: center;
-      padding: 12px 8px;
-      background: rgba(118,118,128,.06);
-      border-radius: 12px;
-    }
-
-    .onevr-vacancy-stat-num {
-      display: block;
-      font-size: 28px;
-      font-weight: 700;
-      line-height: 1;
-    }
-
-    .onevr-vacancy-stat-label {
-      display: block;
-      font-size: 11px;
-      color: rgba(60,60,67,.6);
-      margin-top: 4px;
-      text-transform: uppercase;
-      letter-spacing: .5px;
-    }
-
-    .onevr-stat-expected { color: #007aff; }
-    .onevr-stat-current { color: #34c759; }
-    .onevr-stat-vacancy { color: #ff3b30; }
-
-    .onevr-vacancy-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-      max-height: 300px;
-    }
-
-    .onevr-vacancy-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-    }
-
-    .onevr-vacancy-item {
-      padding: 10px 8px;
-      background: linear-gradient(135deg, #ff3b30, #ff6b6b);
-      color: #fff;
-      border-radius: 10px;
-      font-size: 13px;
-      font-weight: 600;
-      text-align: center;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .onevr-vacancy-empty {
-      text-align: center;
-      padding: 40px 20px;
-      color: #34c759;
-      font-size: 18px;
-      font-weight: 600;
-    }
-
-    /* ============================================
-       FORCED DARK MODE (user selected)
-       ============================================ */
-    .onevr-modal.onevr-dark { background: linear-gradient(180deg, #000, #1c1c1e); }
-    .onevr-modal.onevr-dark .onevr-header { background: rgba(28,28,30,.72); border-bottom-color: rgba(255,255,255,.1); }
-    .onevr-modal.onevr-dark .onevr-search { background: rgba(118,118,128,.24); color: #fff; }
-    .onevr-modal.onevr-dark .onevr-search::placeholder { color: rgba(235,235,245,.6); }
-    .onevr-modal.onevr-dark .onevr-section, .onevr-modal.onevr-dark .onevr-card, .onevr-modal.onevr-dark .onevr-empty { background: #1c1c1e; }
-    .onevr-modal.onevr-dark .onevr-btn { background: rgba(118,118,128,.2); color: rgba(235,235,245,.9); }
-    .onevr-modal.onevr-dark .onevr-name { color: #fff; }
-    .onevr-modal.onevr-dark .onevr-person { border-bottom-color: rgba(84,84,88,.6); }
-    .onevr-modal.onevr-dark .onevr-turnr { color: rgba(235,235,245,.6); background: rgba(10,132,255,.15); }
-    .onevr-modal.onevr-dark .onevr-filter-label, .onevr-modal.onevr-dark .onevr-section-title { color: rgba(235,235,245,.6); }
-    .onevr-modal.onevr-dark .onevr-date-btn, .onevr-modal.onevr-dark .onevr-date-picker { background: rgba(10,132,255,.2); color: #0a84ff; }
-    .onevr-modal.onevr-dark .onevr-loc-badge { background: rgba(10,132,255,.2); color: #0a84ff; }
-    .onevr-modal.onevr-dark .onevr-status-bar { background: rgba(10,132,255,.15); color: rgba(235,235,245,.8); }
-    .onevr-modal.onevr-dark .onevr-filter-trigger { background: rgba(118,118,128,.2); color: rgba(235,235,245,.9); }
-    .onevr-modal.onevr-dark .onevr-dropdown-menu { background: #2c2c2e; }
-    .onevr-modal.onevr-dark .onevr-dropdown-item { color: rgba(235,235,245,.9); }
-    .onevr-modal.onevr-dark .onevr-theme-toggle { border-top-color: rgba(255,255,255,.08); }
-    .onevr-modal.onevr-dark .onevr-theme-label { color: rgba(235,235,245,.9); }
-    .onevr-modal.onevr-dark .onevr-theme-switch { background: rgba(118,118,128,.24); }
-    .onevr-modal.onevr-dark .onevr-theme-btn { color: rgba(235,235,245,.6); }
-    .onevr-modal.onevr-dark .onevr-theme-btn.active { background: #3a3a3c; color: #fff; }
-    .onevr-modal.onevr-dark .onevr-version { color: rgba(235,235,245,.3); }
-
-    /* ============================================
        DARK MODE
        ============================================ */
     @media (prefers-color-scheme: dark) {
-      .onevr-modal:not(.onevr-light) { background: linear-gradient(180deg, #000, #1c1c1e); }
+      .onevr-modal { background: linear-gradient(180deg, #000, #1c1c1e); }
 
-      .onevr-modal:not(.onevr-light) .onevr-header {
+      .onevr-header {
         background: rgba(28,28,30,.72);
         border-bottom-color: rgba(255,255,255,.1);
       }
 
-      .onevr-modal:not(.onevr-light) .onevr-search {
+      .onevr-search {
         background: rgba(118,118,128,.24);
         color: #fff;
       }
 
-      .onevr-modal:not(.onevr-light) .onevr-search::placeholder { color: rgba(235,235,245,.6); }
+      .onevr-search::placeholder { color: rgba(235,235,245,.6); }
 
-      .onevr-modal:not(.onevr-light) .onevr-section, .onevr-modal:not(.onevr-light) .onevr-card, .onevr-modal:not(.onevr-light) .onevr-empty { background: #1c1c1e; }
+      .onevr-section, .onevr-card, .onevr-empty { background: #1c1c1e; }
 
-      .onevr-modal:not(.onevr-light) .onevr-section-header:active { background: rgba(255,255,255,.05); }
+      .onevr-section-header:active { background: rgba(255,255,255,.05); }
 
-      .onevr-modal:not(.onevr-light) .onevr-btn {
+      .onevr-btn {
         background: rgba(118,118,128,.2);
         color: rgba(235,235,245,.9);
       }
 
-      .onevr-modal:not(.onevr-light) .onevr-btn:active { background: rgba(118,118,128,.3); }
-      .onevr-modal:not(.onevr-light) .onevr-btn.active { background: linear-gradient(135deg, #30d158, #34c759); }
+      .onevr-btn:active { background: rgba(118,118,128,.3); }
+      .onevr-btn.active { background: linear-gradient(135deg, #30d158, #34c759); }
 
-      .onevr-modal:not(.onevr-light) .onevr-btn-close {
+      .onevr-btn-close {
         background: rgba(255,69,58,.2);
         color: #ff453a;
       }
 
-      .onevr-modal:not(.onevr-light) .onevr-version {
-        color: rgba(235,235,245,.3);
-      }
-
-      .onevr-modal:not(.onevr-light) .onevr-theme-toggle {
-        border-top-color: rgba(255,255,255,.08);
-      }
-
-      .onevr-modal:not(.onevr-light) .onevr-theme-label {
+      .onevr-load-check {
         color: rgba(235,235,245,.9);
-      }
-
-      .onevr-theme-switch {
-        background: rgba(118,118,128,.24);
-      }
-
-      .onevr-theme-btn {
-        color: rgba(235,235,245,.6);
-      }
-
-      .onevr-theme-btn.active {
-        background: #3a3a3c;
-        color: #fff;
-      }
-
-      .onevr-load-menu {
-        background: #2c2c2e;
-        box-shadow: 0 4px 20px rgba(0,0,0,.4);
-      }
-
-      .onevr-load-pill {
-        background: rgba(118,118,128,.24);
-        color: rgba(235,235,245,.9);
-      }
-
-      .onevr-load-pill.active {
-        background: linear-gradient(135deg, #0a84ff, #007aff);
       }
 
       .onevr-load-btn-cancel {
@@ -1172,66 +797,169 @@
 
       .onevr-loading-text { color: #fff; }
 
-      .onevr-export-content {
-        background: #2c2c2e;
-      }
-
-      .onevr-export-header {
-        color: #fff;
-        border-bottom-color: rgba(255,255,255,.1);
-      }
-
-      .onevr-export-close { color: rgba(235,235,245,.6); }
-      .onevr-export-close:hover { color: #fff; }
-
-      .onevr-export-info {
-        background: rgba(10,132,255,.15);
-        color: rgba(235,235,245,.8);
-      }
-
-      .onevr-export-info strong { color: #0a84ff; }
-
-      .onevr-export-textarea {
-        background: rgba(118,118,128,.24);
-        color: #fff;
-      }
-
-      .onevr-export-textarea:focus {
-        background: rgba(118,118,128,.3);
-      }
-
-      .onevr-export-copy {
-        background: linear-gradient(135deg, #0a84ff, #007aff);
-      }
-
-      .onevr-vacancy-content {
-        background: #1c1c1e;
-      }
-
-      .onevr-vacancy-date {
-        background: rgba(10,132,255,.15);
-        color: rgba(235,235,245,.9);
-      }
-
+      .onevr-vacancy-content { background: #1c1c1e; }
+      .onevr-vacancy-date { background: rgba(10,132,255,.15); color: rgba(235,235,245,.9); }
       .onevr-vacancy-date strong { color: #0a84ff; }
-
-      .onevr-vacancy-stats {
-        border-bottom-color: rgba(255,255,255,.1);
-      }
-
-      .onevr-vacancy-stat {
-        background: rgba(118,118,128,.2);
-      }
-
-      .onevr-vacancy-stat-label {
-        color: rgba(235,235,245,.6);
-      }
-
+      .onevr-vacancy-stats { border-bottom-color: rgba(255,255,255,.1); }
+      .onevr-vacancy-stat { background: rgba(118,118,128,.2); }
+      .onevr-vacancy-stat-label { color: rgba(235,235,245,.6); }
       .onevr-stat-expected { color: #0a84ff; }
       .onevr-stat-current { color: #30d158; }
       .onevr-stat-vacancy { color: #ff453a; }
-
       .onevr-vacancy-empty { color: #30d158; }
+    }
+
+    /* ============================================
+       VACANCY BUTTON
+       ============================================ */
+    .onevr-btn-vakans {
+      background: linear-gradient(135deg, #ff3b30, #ff6b6b);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(255,59,48,.3);
+    }
+
+    .onevr-btn-vakans:active {
+      transform: scale(.98);
+      background: linear-gradient(135deg, #d63027, #ff3b30);
+    }
+
+    /* ============================================
+       VERSION INFO
+       ============================================ */
+    .onevr-version {
+      text-align: center;
+      font-size: 11px;
+      color: rgba(60,60,67,.4);
+      margin-top: 12px;
+      letter-spacing: .5px;
+    }
+
+    /* ============================================
+       VACANCY MODAL
+       ============================================ */
+    .onevr-vacancy-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.5);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      z-index: 100001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .onevr-vacancy-content {
+      background: #fff;
+      border-radius: 20px;
+      width: 100%;
+      max-width: 400px;
+      max-height: 85vh;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,.25);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .onevr-vacancy-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      background: linear-gradient(135deg, #ff3b30, #ff6b6b);
+      color: #fff;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .onevr-vacancy-close {
+      background: rgba(255,255,255,.2);
+      border: none;
+      font-size: 18px;
+      color: #fff;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 8px;
+    }
+
+    .onevr-vacancy-close:active { background: rgba(255,255,255,.3); }
+
+    .onevr-vacancy-date {
+      padding: 14px 20px;
+      background: rgba(0,122,255,.08);
+      color: rgba(60,60,67,.9);
+      font-size: 15px;
+      text-align: center;
+    }
+
+    .onevr-vacancy-date strong { color: #007aff; }
+
+    .onevr-vacancy-stats {
+      display: flex;
+      padding: 16px;
+      gap: 12px;
+      border-bottom: .5px solid rgba(0,0,0,.1);
+    }
+
+    .onevr-vacancy-stat {
+      flex: 1;
+      text-align: center;
+      padding: 12px 8px;
+      background: rgba(118,118,128,.06);
+      border-radius: 12px;
+    }
+
+    .onevr-vacancy-stat-num {
+      display: block;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .onevr-vacancy-stat-label {
+      display: block;
+      font-size: 11px;
+      color: rgba(60,60,67,.6);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .onevr-stat-expected { color: #007aff; }
+    .onevr-stat-current { color: #34c759; }
+    .onevr-stat-vacancy { color: #ff3b30; }
+
+    .onevr-vacancy-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      max-height: 300px;
+    }
+
+    .onevr-vacancy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .onevr-vacancy-item {
+      padding: 10px 8px;
+      background: linear-gradient(135deg, #ff3b30, #ff6b6b);
+      color: #fff;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-vacancy-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: #34c759;
+      font-size: 18px;
+      font-weight: 600;
     }
   `;
 

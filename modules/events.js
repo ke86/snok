@@ -5,9 +5,7 @@
 (function() {
   'use strict';
 
-  var CFG = window.OneVR.config || {
-    ui: { dateNavDelay: 2500, loadTimeDelay: 350, labelSelector: '.label, .item-label, span' }
-  };
+  var CFG = window.OneVR.config;
   var utils = window.OneVR.utils;
   var scraper = window.OneVR.scraper;
   var ui = window.OneVR.ui;
@@ -316,17 +314,10 @@
 
       // Create menu
       menu = document.createElement('div');
+      menu.style.cssText = 'background:#fff;border-radius:14px;padding:16px;margin-top:8px;box-shadow:0 4px 24px rgba(0,0,0,.12)';
       menu.innerHTML = buildLoadTimesMenu(roleCounts, resNoTime, tpNoTime);
 
       loadTimesEl.parentNode.insertBefore(menu, loadTimesEl.nextSibling);
-
-      // Pill toggle handlers
-      menu.querySelectorAll('.onevr-load-pill').forEach(function(pill) {
-        pill.onclick = function(e) {
-          e.stopPropagation();
-          this.classList.toggle('active');
-        };
-      });
 
       // Cancel button
       menu.querySelector('#onevr-load-cancel').onclick = function(e) {
@@ -345,20 +336,20 @@
   }
 
   function buildLoadTimesMenu(roleCounts, resNoTime, tpNoTime) {
-    var allPills = '';
+    var roleChecks = '';
     Object.keys(roleCounts).forEach(function(role) {
-      allPills += '<button class="onevr-load-pill" data-type="role" data-val="' + role + '">' + role + '</button>';
+      roleChecks += '<label class="onevr-load-check"><input type="checkbox" data-type="role" value="' + role + '">' + role + '</label>';
     });
-    allPills += '<button class="onevr-load-pill" data-type="special" data-val="res">Res</button>';
-    allPills += '<button class="onevr-load-pill" data-type="special" data-val="tp">TP</button>';
 
-    return '<div class="onevr-load-menu">' +
-      '<div class="onevr-load-pills">' + allPills + '</div>' +
+    return '<div class="onevr-load-row">' + roleChecks + '</div>' +
+      '<div class="onevr-load-row">' +
+        '<label class="onevr-load-check"><input type="checkbox" data-type="special" value="res">Res</label>' +
+        '<label class="onevr-load-check"><input type="checkbox" data-type="special" value="tp">TP</label>' +
+      '</div>' +
       '<div class="onevr-load-actions">' +
         '<button id="onevr-load-start" class="onevr-load-btn onevr-load-btn-start">Starta</button>' +
         '<button id="onevr-load-cancel" class="onevr-load-btn onevr-load-btn-cancel">Avbryt</button>' +
-      '</div>' +
-    '</div>';
+      '</div>';
   }
 
   function startLoadingTimes(menu, noTimePeople, loadTimesEl) {
@@ -366,13 +357,12 @@
     var includeRes = false;
     var includeTp = false;
 
-    menu.querySelectorAll('.onevr-load-pill.active[data-type="role"]').forEach(function(pill) {
-      selectedRoles.push(pill.getAttribute('data-val'));
+    menu.querySelectorAll('input[data-type="role"]:checked').forEach(function(cb) {
+      selectedRoles.push(cb.value);
     });
-    menu.querySelectorAll('.onevr-load-pill.active[data-type="special"]').forEach(function(pill) {
-      var val = pill.getAttribute('data-val');
-      if (val === 'res') includeRes = true;
-      if (val === 'tp') includeTp = true;
+    menu.querySelectorAll('input[data-type="special"]:checked').forEach(function(cb) {
+      if (cb.value === 'res') includeRes = true;
+      if (cb.value === 'tp') includeTp = true;
     });
 
     menu.remove();
@@ -482,99 +472,6 @@
       if (w < mx) setTimeout(ck, 200);
       else cb(null, '');
     })();
-  }
-
-  /**
-   * Show vacancies modal for LF Malmö
-   */
-  function showVacancies() {
-    console.log('[OneVR] showVacancies called');
-    console.log('[OneVR] window.OneVR =', window.OneVR);
-    console.log('[OneVR] window.OneVR.vacancies =', window.OneVR.vacancies);
-
-    if (!currentData) {
-      console.error('[OneVR] No currentData!');
-      return;
-    }
-
-    var vacancies = window.OneVR.vacancies;
-    if (!vacancies) {
-      console.error('[OneVR] Vacancies module not loaded. OneVR keys:', Object.keys(window.OneVR || {}));
-      return;
-    }
-
-    var isoDate = currentData.isoDate || window.OneVR.state.navDate;
-    var result = vacancies.findVacancies(currentData.people, isoDate, 'LKF', 'Malmö');
-
-    // Get weekday
-    var weekdays = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
-    var dateObj = new Date(isoDate);
-    var weekday = weekdays[dateObj.getDay()];
-
-    // Build vacancy list HTML
-    var vacancyHTML = '';
-    if (result.vacancies.length === 0) {
-      vacancyHTML = '<div class="onevr-vacancy-empty">✓ Inga vakanser!</div>';
-    } else {
-      vacancyHTML = '<div class="onevr-vacancy-grid">';
-      result.vacancies.forEach(function(t) {
-        vacancyHTML += '<div class="onevr-vacancy-item">' + t + '</div>';
-      });
-      vacancyHTML += '</div>';
-    }
-
-    // Create modal
-    var modal = document.createElement('div');
-    modal.className = 'onevr-vacancy-modal';
-    modal.innerHTML = '<div class="onevr-vacancy-content">' +
-      '<div class="onevr-vacancy-header">' +
-        '<span>Vakanser - LF Malmö</span>' +
-        '<button class="onevr-vacancy-close">✕</button>' +
-      '</div>' +
-      '<div class="onevr-vacancy-date">' +
-        '<strong>' + weekday + '</strong> ' + isoDate +
-      '</div>' +
-      '<div class="onevr-vacancy-stats">' +
-        '<div class="onevr-vacancy-stat">' +
-          '<span class="onevr-vacancy-stat-num onevr-stat-expected">' + result.expected.length + '</span>' +
-          '<span class="onevr-vacancy-stat-label">Förväntade</span>' +
-        '</div>' +
-        '<div class="onevr-vacancy-stat">' +
-          '<span class="onevr-vacancy-stat-num onevr-stat-current">' + result.current.length + '</span>' +
-          '<span class="onevr-vacancy-stat-label">Bemannade</span>' +
-        '</div>' +
-        '<div class="onevr-vacancy-stat">' +
-          '<span class="onevr-vacancy-stat-num onevr-stat-vacancy">' + result.vacancies.length + '</span>' +
-          '<span class="onevr-vacancy-stat-label">Vakanser</span>' +
-        '</div>' +
-      '</div>' +
-      '<div class="onevr-vacancy-list">' +
-        vacancyHTML +
-      '</div>' +
-    '</div>';
-
-    document.body.appendChild(modal);
-
-    // Close button
-    modal.querySelector('.onevr-vacancy-close').onclick = function() {
-      modal.remove();
-      // Clear search
-      var searchEl = document.getElementById('onevr-search');
-      var clearEl = document.getElementById('onevr-search-clear');
-      if (searchEl) {
-        searchEl.value = '';
-        filterState.searchQ = '';
-        clearEl.classList.remove('show');
-        filterList();
-      }
-    };
-
-    // Click outside to close
-    modal.onclick = function(e) {
-      if (e.target === modal) {
-        modal.querySelector('.onevr-vacancy-close').click();
-      }
-    };
   }
 
   /**
@@ -761,7 +658,7 @@
     // Load times
     setupLoadTimes();
 
-    // Vakanser button click
+    // Vakanser button
     var vakansBtn = document.getElementById('onevr-vakanser-btn');
     if (vakansBtn) {
       vakansBtn.onclick = function() {
@@ -769,36 +666,78 @@
       };
     }
 
-    // Theme toggle
-    var themeSwitch = document.getElementById('onevr-theme-switch');
-    if (themeSwitch) {
-      themeSwitch.onclick = function(e) {
-        var btn = e.target.closest('.onevr-theme-btn');
-        if (!btn) return;
-
-        var theme = btn.getAttribute('data-theme');
-        this.querySelectorAll('.onevr-theme-btn').forEach(function(b) {
-          b.classList.remove('active');
-        });
-        btn.classList.add('active');
-
-        var modal = document.querySelector('.onevr-modal');
-        if (!modal) return;
-
-        // Remove existing theme classes
-        modal.classList.remove('onevr-light', 'onevr-dark');
-
-        if (theme === 'light') {
-          modal.classList.add('onevr-light');
-        } else if (theme === 'dark') {
-          modal.classList.add('onevr-dark');
-        }
-        // 'auto' uses system preference (no class needed)
-      };
-    }
-
     // Initial status bar update
     updateStatusBar();
+  }
+
+  /**
+   * Show vacancies modal for LKF Malmö
+   */
+  function showVacancies() {
+    if (!currentData) return;
+
+    var vacancies = window.OneVR.vacancies;
+    if (!vacancies) {
+      console.error('[OneVR] Vacancies module not loaded');
+      return;
+    }
+
+    var isoDate = currentData.isoDate || window.OneVR.state.navDate;
+    var result = vacancies.findVacancies(currentData.people, isoDate, 'LKF', 'Malmö');
+
+    // Get weekday
+    var weekdays = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
+    var dateObj = new Date(isoDate);
+    var weekday = weekdays[dateObj.getDay()];
+
+    // Build vacancy list HTML
+    var vacancyHTML = '';
+    if (result.vacancies.length === 0) {
+      vacancyHTML = '<div class="onevr-vacancy-empty">✓ Inga vakanser!</div>';
+    } else {
+      vacancyHTML = '<div class="onevr-vacancy-grid">';
+      result.vacancies.forEach(function(t) {
+        vacancyHTML += '<div class="onevr-vacancy-item">' + t + '</div>';
+      });
+      vacancyHTML += '</div>';
+    }
+
+    // Build modal
+    var modal = document.createElement('div');
+    modal.className = 'onevr-vacancy-modal';
+    modal.innerHTML =
+      '<div class="onevr-vacancy-content">' +
+        '<div class="onevr-vacancy-header">' +
+          '<span>Vakanser - LKF Malmö</span>' +
+          '<button class="onevr-vacancy-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-vacancy-date">' + weekday + ' <strong>' + isoDate + '</strong></div>' +
+        '<div class="onevr-vacancy-stats">' +
+          '<div class="onevr-vacancy-stat">' +
+            '<span class="onevr-vacancy-stat-num onevr-stat-expected">' + result.expected.length + '</span>' +
+            '<span class="onevr-vacancy-stat-label">Förväntade</span>' +
+          '</div>' +
+          '<div class="onevr-vacancy-stat">' +
+            '<span class="onevr-vacancy-stat-num onevr-stat-current">' + result.current.length + '</span>' +
+            '<span class="onevr-vacancy-stat-label">Bemannade</span>' +
+          '</div>' +
+          '<div class="onevr-vacancy-stat">' +
+            '<span class="onevr-vacancy-stat-num onevr-stat-vacancy">' + result.vacancies.length + '</span>' +
+            '<span class="onevr-vacancy-stat-label">Vakanser</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="onevr-vacancy-list">' + vacancyHTML + '</div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+
+    // Close handlers
+    modal.querySelector('.onevr-vacancy-close').onclick = function() {
+      modal.remove();
+    };
+    modal.onclick = function(e) {
+      if (e.target === modal) modal.remove();
+    };
   }
 
   /**

@@ -5,22 +5,7 @@
 (function() {
   'use strict';
 
-  // Default config if not loaded
-  var defaultConfig = {
-    patterns: {
-      tilShift: '^(PL|IL|SL|DK)\\d$',
-      tdsShift: '^TDS\\d$',
-      tpSuffix: 'TP$',
-      flShift: '^FL\\d*$',
-      turnNumber: '^\\d{5,6}[A-Z]{0,2}$',
-      reserve: '^RESERV?\\d*$',
-      changedReserve: '^\\d{6}-\\d{6}$'
-    },
-    tilTimes: {},
-    tilLabels: {}
-  };
-
-  var CFG = window.OneVR.config || defaultConfig;
+  var CFG = window.OneVR.config;
 
   // Build regex patterns from config
   var patterns = {
