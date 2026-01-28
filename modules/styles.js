@@ -260,27 +260,41 @@
     /* ============================================
        LOAD TIMES MENU
        ============================================ */
-    .onevr-load-row {
+    .onevr-load-menu {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      margin-top: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.1);
+    }
+
+    .onevr-load-pills {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 8px;
       margin-bottom: 10px;
     }
 
-    .onevr-load-check {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      cursor: pointer;
+    .onevr-load-pill {
+      padding: 8px 14px;
+      background: rgba(118,118,128,.1);
+      border: none;
+      border-radius: 18px;
       color: rgba(60,60,67,.9);
       font-size: 14px;
-      font-weight: 500;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
     }
 
-    .onevr-load-check input {
-      width: 18px;
-      height: 18px;
-      accent-color: #007aff;
+    .onevr-load-pill:active {
+      transform: scale(.95);
+    }
+
+    .onevr-load-pill.active {
+      background: linear-gradient(135deg, #007aff, #0a84ff);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0,122,255,.3);
     }
 
     .onevr-load-actions {
@@ -711,8 +725,18 @@
         color: #ff453a;
       }
 
-      .onevr-load-check {
+      .onevr-load-menu {
+        background: #2c2c2e;
+        box-shadow: 0 4px 20px rgba(0,0,0,.4);
+      }
+
+      .onevr-load-pill {
+        background: rgba(118,118,128,.24);
         color: rgba(235,235,245,.9);
+      }
+
+      .onevr-load-pill.active {
+        background: linear-gradient(135deg, #0a84ff, #007aff);
       }
 
       .onevr-load-btn-cancel {

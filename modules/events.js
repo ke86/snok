@@ -314,10 +314,17 @@
 
       // Create menu
       menu = document.createElement('div');
-      menu.style.cssText = 'background:#fff;border-radius:14px;padding:16px;margin-top:8px;box-shadow:0 4px 24px rgba(0,0,0,.12)';
       menu.innerHTML = buildLoadTimesMenu(roleCounts, resNoTime, tpNoTime);
 
       loadTimesEl.parentNode.insertBefore(menu, loadTimesEl.nextSibling);
+
+      // Pill toggle handlers
+      menu.querySelectorAll('.onevr-load-pill').forEach(function(pill) {
+        pill.onclick = function(e) {
+          e.stopPropagation();
+          this.classList.toggle('active');
+        };
+      });
 
       // Cancel button
       menu.querySelector('#onevr-load-cancel').onclick = function(e) {
@@ -336,20 +343,22 @@
   }
 
   function buildLoadTimesMenu(roleCounts, resNoTime, tpNoTime) {
-    var roleChecks = '';
+    var rolePills = '';
     Object.keys(roleCounts).forEach(function(role) {
-      roleChecks += '<label class="onevr-load-check"><input type="checkbox" data-type="role" value="' + role + '">' + role + '</label>';
+      rolePills += '<button class="onevr-load-pill" data-type="role" data-val="' + role + '">' + role + '</button>';
     });
 
-    return '<div class="onevr-load-row">' + roleChecks + '</div>' +
-      '<div class="onevr-load-row">' +
-        '<label class="onevr-load-check"><input type="checkbox" data-type="special" value="res">Res</label>' +
-        '<label class="onevr-load-check"><input type="checkbox" data-type="special" value="tp">TP</label>' +
+    return '<div class="onevr-load-menu">' +
+      '<div class="onevr-load-pills">' + rolePills + '</div>' +
+      '<div class="onevr-load-pills">' +
+        '<button class="onevr-load-pill" data-type="special" data-val="res">Res</button>' +
+        '<button class="onevr-load-pill" data-type="special" data-val="tp">TP</button>' +
       '</div>' +
       '<div class="onevr-load-actions">' +
         '<button id="onevr-load-start" class="onevr-load-btn onevr-load-btn-start">Starta</button>' +
         '<button id="onevr-load-cancel" class="onevr-load-btn onevr-load-btn-cancel">Avbryt</button>' +
-      '</div>';
+      '</div>' +
+    '</div>';
   }
 
   function startLoadingTimes(menu, noTimePeople, loadTimesEl) {
@@ -357,12 +366,13 @@
     var includeRes = false;
     var includeTp = false;
 
-    menu.querySelectorAll('input[data-type="role"]:checked').forEach(function(cb) {
-      selectedRoles.push(cb.value);
+    menu.querySelectorAll('.onevr-load-pill.active[data-type="role"]').forEach(function(pill) {
+      selectedRoles.push(pill.getAttribute('data-val'));
     });
-    menu.querySelectorAll('input[data-type="special"]:checked').forEach(function(cb) {
-      if (cb.value === 'res') includeRes = true;
-      if (cb.value === 'tp') includeTp = true;
+    menu.querySelectorAll('.onevr-load-pill.active[data-type="special"]').forEach(function(pill) {
+      var val = pill.getAttribute('data-val');
+      if (val === 'res') includeRes = true;
+      if (val === 'tp') includeTp = true;
     });
 
     menu.remove();
