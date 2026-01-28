@@ -102,7 +102,7 @@
     var date = new Date(isoDate);
     var weekday = date.getDay(); // 0=sön, 1=mån, etc.
 
-    if (role === 'LF' && location === 'Malmö') {
+    if (role === 'LKF' && location === 'Malmö') {
       return LKF_MALMO[weekday] || [];
     }
 

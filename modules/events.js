@@ -495,7 +495,7 @@
     }
 
     var isoDate = currentData.isoDate || window.OneVR.state.navDate;
-    var result = vacancies.findVacancies(currentData.people, isoDate, 'LF', 'Malmö');
+    var result = vacancies.findVacancies(currentData.people, isoDate, 'LKF', 'Malmö');
 
     // Get weekday
     var weekdays = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
