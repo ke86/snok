@@ -260,40 +260,78 @@
     /* ============================================
        LOAD TIMES MENU
        ============================================ */
+    .onevr-load-menu {
+      background: linear-gradient(180deg, rgba(44,44,46,.98), rgba(28,28,30,.98));
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      backdrop-filter: saturate(180%) blur(20px);
+      border-radius: 16px;
+      padding: 16px;
+      margin-top: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      border: 1px solid rgba(255,255,255,.1);
+    }
+
+    .onevr-load-title {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .onevr-load-title::before {
+      content: '⏱';
+    }
+
     .onevr-load-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 10px;
+      gap: 10px;
+      margin-bottom: 14px;
     }
 
     .onevr-load-check {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       cursor: pointer;
-      color: rgba(60,60,67,.9);
+      color: rgba(255,255,255,.9);
       font-size: 14px;
       font-weight: 500;
+      padding: 8px 12px;
+      background: rgba(118,118,128,.3);
+      border-radius: 10px;
+      transition: all .2s;
+    }
+
+    .onevr-load-check:hover {
+      background: rgba(118,118,128,.4);
+    }
+
+    .onevr-load-check.checked {
+      background: linear-gradient(135deg, #007aff, #0a84ff);
+      box-shadow: 0 2px 8px rgba(0,122,255,.3);
     }
 
     .onevr-load-check input {
-      width: 18px;
-      height: 18px;
-      accent-color: #007aff;
+      width: 16px;
+      height: 16px;
+      accent-color: #fff;
     }
 
     .onevr-load-actions {
       display: flex;
-      gap: 8px;
-      margin-top: 4px;
+      gap: 10px;
+      margin-top: 6px;
     }
 
     .onevr-load-btn {
-      padding: 10px 16px;
+      padding: 12px 20px;
       border: none;
-      border-radius: 10px;
-      font-size: 14px;
+      border-radius: 12px;
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
       transition: all .2s;
@@ -301,21 +339,24 @@
 
     .onevr-load-btn-start {
       flex: 1;
-      background: linear-gradient(135deg, #007aff, #0a84ff);
+      background: linear-gradient(135deg, #34c759, #30d158);
       color: #fff;
+      box-shadow: 0 4px 12px rgba(52,199,89,.3);
     }
 
     .onevr-load-btn-start:active {
-      transform: scale(.98);
+      transform: scale(.97);
+      box-shadow: 0 2px 8px rgba(52,199,89,.4);
     }
 
     .onevr-load-btn-cancel {
-      background: rgba(118,118,128,.12);
-      color: rgba(60,60,67,.6);
+      background: rgba(118,118,128,.3);
+      color: rgba(255,255,255,.8);
     }
 
     .onevr-load-btn-cancel:active {
-      background: rgba(118,118,128,.2);
+      background: rgba(118,118,128,.5);
+      transform: scale(.97);
     }
 
     /* ============================================

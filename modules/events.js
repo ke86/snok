@@ -314,7 +314,7 @@
 
       // Create menu
       menu = document.createElement('div');
-      menu.style.cssText = 'background:#fff;border-radius:14px;padding:16px;margin-top:8px;box-shadow:0 4px 24px rgba(0,0,0,.12)';
+      menu.className = 'onevr-load-menu';
       menu.innerHTML = buildLoadTimesMenu(roleCounts, resNoTime, tpNoTime);
 
       loadTimesEl.parentNode.insertBefore(menu, loadTimesEl.nextSibling);
@@ -338,16 +338,18 @@
   function buildLoadTimesMenu(roleCounts, resNoTime, tpNoTime) {
     var roleChecks = '';
     Object.keys(roleCounts).forEach(function(role) {
-      roleChecks += '<label class="onevr-load-check"><input type="checkbox" data-type="role" value="' + role + '">' + role + '</label>';
+      var count = roleCounts[role];
+      roleChecks += '<label class="onevr-load-check"><input type="checkbox" data-type="role" value="' + role + '">' + role + ' (' + count + ')</label>';
     });
 
-    return '<div class="onevr-load-row">' + roleChecks + '</div>' +
+    return '<div class="onevr-load-title">Ladda tider för</div>' +
+      '<div class="onevr-load-row">' + roleChecks + '</div>' +
       '<div class="onevr-load-row">' +
-        '<label class="onevr-load-check"><input type="checkbox" data-type="special" value="res">Res</label>' +
-        '<label class="onevr-load-check"><input type="checkbox" data-type="special" value="tp">TP</label>' +
+        '<label class="onevr-load-check"><input type="checkbox" data-type="special" value="res">Reserv' + (resNoTime ? ' (' + resNoTime + ')' : '') + '</label>' +
+        '<label class="onevr-load-check"><input type="checkbox" data-type="special" value="tp">TP' + (tpNoTime ? ' (' + tpNoTime + ')' : '') + '</label>' +
       '</div>' +
       '<div class="onevr-load-actions">' +
-        '<button id="onevr-load-start" class="onevr-load-btn onevr-load-btn-start">Starta</button>' +
+        '<button id="onevr-load-start" class="onevr-load-btn onevr-load-btn-start">▶ Starta</button>' +
         '<button id="onevr-load-cancel" class="onevr-load-btn onevr-load-btn-cancel">Avbryt</button>' +
       '</div>';
   }
