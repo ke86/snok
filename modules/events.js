@@ -343,17 +343,15 @@
   }
 
   function buildLoadTimesMenu(roleCounts, resNoTime, tpNoTime) {
-    var rolePills = '';
+    var allPills = '';
     Object.keys(roleCounts).forEach(function(role) {
-      rolePills += '<button class="onevr-load-pill" data-type="role" data-val="' + role + '">' + role + '</button>';
+      allPills += '<button class="onevr-load-pill" data-type="role" data-val="' + role + '">' + role + '</button>';
     });
+    allPills += '<button class="onevr-load-pill" data-type="special" data-val="res">Res</button>';
+    allPills += '<button class="onevr-load-pill" data-type="special" data-val="tp">TP</button>';
 
     return '<div class="onevr-load-menu">' +
-      '<div class="onevr-load-pills">' + rolePills + '</div>' +
-      '<div class="onevr-load-pills">' +
-        '<button class="onevr-load-pill" data-type="special" data-val="res">Res</button>' +
-        '<button class="onevr-load-pill" data-type="special" data-val="tp">TP</button>' +
-      '</div>' +
+      '<div class="onevr-load-pills">' + allPills + '</div>' +
       '<div class="onevr-load-actions">' +
         '<button id="onevr-load-start" class="onevr-load-btn onevr-load-btn-start">Starta</button>' +
         '<button id="onevr-load-cancel" class="onevr-load-btn onevr-load-btn-cancel">Avbryt</button>' +
