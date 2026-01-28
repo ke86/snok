@@ -268,6 +268,14 @@
 
     .onevr-btn-close:active { background: rgba(255,59,48,.2); }
 
+    .onevr-version {
+      text-align: center;
+      font-size: 11px;
+      color: rgba(60,60,67,.4);
+      margin-top: 12px;
+      letter-spacing: .5px;
+    }
+
     /* ============================================
        LOAD TIMES MENU
        ============================================ */
@@ -968,6 +976,10 @@
       .onevr-btn-close {
         background: rgba(255,69,58,.2);
         color: #ff453a;
+      }
+
+      .onevr-version {
+        color: rgba(235,235,245,.3);
       }
 
       .onevr-load-menu {

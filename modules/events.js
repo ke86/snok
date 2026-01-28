@@ -597,22 +597,8 @@
     var clearEl = document.getElementById('onevr-search-clear');
 
     searchEl.oninput = function() {
-      var val = this.value.toLowerCase();
-      filterState.searchQ = val;
+      filterState.searchQ = this.value.toLowerCase();
       clearEl.classList.toggle('show', this.value.length > 0);
-
-      // Show/hide Vakanser button and open settings when searching
-      var vakansBtn = document.getElementById('onevr-vakanser-btn');
-      var settingsSection = document.getElementById('onevr-settings-section');
-      if (vakansBtn) {
-        var showVakans = val && 'vakanser'.indexOf(val) === 0;
-        vakansBtn.style.display = showVakans ? 'block' : 'none';
-        // Auto-open settings when vakanser is found
-        if (showVakans && settingsSection) {
-          settingsSection.classList.add('open');
-        }
-      }
-
       filterList();
     };
 

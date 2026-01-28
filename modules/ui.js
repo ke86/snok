@@ -121,7 +121,8 @@
     var loadTimesBtn = stats.noTime > 0
       ? '<button class="onevr-btn" id="onevr-load-times">⏱ Ladda tider (' + stats.noTime + ' utan tid)</button>'
       : '';
-    var vakansBtn = '<button class="onevr-btn onevr-btn-vakans" id="onevr-vakanser-btn" style="display:none;">🔴 Vakanser - LF Malmö</button>';
+    var vakansBtn = '<button class="onevr-btn onevr-btn-vakans" id="onevr-vakanser-btn">🔴 Vakanser - LF Malmö</button>';
+    var versionInfo = '<div class="onevr-version">OneVR v26</div>';
 
     return '<div class="onevr-modal">' +
       '<div class="onevr-header">' +
@@ -146,6 +147,7 @@
               loadTimesBtn +
               vakansBtn +
             '</div>' +
+            versionInfo +
           '</div>' +
         '</div>' +
         '<div class="onevr-filter-bar">' +
