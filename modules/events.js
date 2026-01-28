@@ -483,6 +483,92 @@
   }
 
   /**
+   * Show vacancies modal for LF Malmö
+   */
+  function showVacancies() {
+    if (!currentData) return;
+
+    var vacancies = window.OneVR.vacancies;
+    if (!vacancies) {
+      console.error('[OneVR] Vacancies module not loaded');
+      return;
+    }
+
+    var isoDate = currentData.isoDate || window.OneVR.state.navDate;
+    var result = vacancies.findVacancies(currentData.people, isoDate, 'LF', 'Malmö');
+
+    // Get weekday
+    var weekdays = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
+    var dateObj = new Date(isoDate);
+    var weekday = weekdays[dateObj.getDay()];
+
+    // Build vacancy list HTML
+    var vacancyHTML = '';
+    if (result.vacancies.length === 0) {
+      vacancyHTML = '<div class="onevr-vacancy-empty">✓ Inga vakanser!</div>';
+    } else {
+      vacancyHTML = '<div class="onevr-vacancy-grid">';
+      result.vacancies.forEach(function(t) {
+        vacancyHTML += '<div class="onevr-vacancy-item">' + t + '</div>';
+      });
+      vacancyHTML += '</div>';
+    }
+
+    // Create modal
+    var modal = document.createElement('div');
+    modal.className = 'onevr-vacancy-modal';
+    modal.innerHTML = '<div class="onevr-vacancy-content">' +
+      '<div class="onevr-vacancy-header">' +
+        '<span>Vakanser - LF Malmö</span>' +
+        '<button class="onevr-vacancy-close">✕</button>' +
+      '</div>' +
+      '<div class="onevr-vacancy-date">' +
+        '<strong>' + weekday + '</strong> ' + isoDate +
+      '</div>' +
+      '<div class="onevr-vacancy-stats">' +
+        '<div class="onevr-vacancy-stat">' +
+          '<span class="onevr-vacancy-stat-num onevr-stat-expected">' + result.expected.length + '</span>' +
+          '<span class="onevr-vacancy-stat-label">Förväntade</span>' +
+        '</div>' +
+        '<div class="onevr-vacancy-stat">' +
+          '<span class="onevr-vacancy-stat-num onevr-stat-current">' + result.current.length + '</span>' +
+          '<span class="onevr-vacancy-stat-label">Bemannade</span>' +
+        '</div>' +
+        '<div class="onevr-vacancy-stat">' +
+          '<span class="onevr-vacancy-stat-num onevr-stat-vacancy">' + result.vacancies.length + '</span>' +
+          '<span class="onevr-vacancy-stat-label">Vakanser</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="onevr-vacancy-list">' +
+        vacancyHTML +
+      '</div>' +
+    '</div>';
+
+    document.body.appendChild(modal);
+
+    // Close button
+    modal.querySelector('.onevr-vacancy-close').onclick = function() {
+      modal.remove();
+      // Clear search
+      var searchEl = document.getElementById('onevr-search');
+      var clearEl = document.getElementById('onevr-search-clear');
+      if (searchEl) {
+        searchEl.value = '';
+        filterState.searchQ = '';
+        clearEl.classList.remove('show');
+        filterList();
+      }
+    };
+
+    // Click outside to close
+    modal.onclick = function(e) {
+      if (e.target === modal) {
+        modal.querySelector('.onevr-vacancy-close').click();
+      }
+    };
+  }
+
+  /**
    * Setup export turnr button - exports currently filtered/visible turnr
    */
   function setupExportTurnr() {
@@ -600,8 +686,16 @@
     var clearEl = document.getElementById('onevr-search-clear');
 
     searchEl.oninput = function() {
-      filterState.searchQ = this.value.toLowerCase();
+      var val = this.value.toLowerCase();
+      filterState.searchQ = val;
       clearEl.classList.toggle('show', this.value.length > 0);
+
+      // Check for "vakanser" search trigger
+      if (val === 'vakanser' || val === 'vakans') {
+        showVacancies();
+        return;
+      }
+
       filterList();
     };
 

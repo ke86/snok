@@ -793,6 +793,138 @@
     }
 
     /* ============================================
+       VACANCY MODAL
+       ============================================ */
+    .onevr-vacancy-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.5);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      z-index: 100001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .onevr-vacancy-content {
+      background: #fff;
+      border-radius: 20px;
+      width: 100%;
+      max-width: 400px;
+      max-height: 85vh;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,.25);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .onevr-vacancy-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      background: linear-gradient(135deg, #ff3b30, #ff6b6b);
+      color: #fff;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .onevr-vacancy-close {
+      background: rgba(255,255,255,.2);
+      border: none;
+      font-size: 18px;
+      color: #fff;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 8px;
+    }
+
+    .onevr-vacancy-close:active {
+      background: rgba(255,255,255,.3);
+    }
+
+    .onevr-vacancy-date {
+      padding: 14px 20px;
+      background: rgba(0,122,255,.08);
+      color: rgba(60,60,67,.9);
+      font-size: 15px;
+      text-align: center;
+    }
+
+    .onevr-vacancy-date strong {
+      color: #007aff;
+    }
+
+    .onevr-vacancy-stats {
+      display: flex;
+      padding: 16px;
+      gap: 12px;
+      border-bottom: .5px solid rgba(0,0,0,.1);
+    }
+
+    .onevr-vacancy-stat {
+      flex: 1;
+      text-align: center;
+      padding: 12px 8px;
+      background: rgba(118,118,128,.06);
+      border-radius: 12px;
+    }
+
+    .onevr-vacancy-stat-num {
+      display: block;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .onevr-vacancy-stat-label {
+      display: block;
+      font-size: 11px;
+      color: rgba(60,60,67,.6);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .onevr-stat-expected { color: #007aff; }
+    .onevr-stat-current { color: #34c759; }
+    .onevr-stat-vacancy { color: #ff3b30; }
+
+    .onevr-vacancy-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      max-height: 300px;
+    }
+
+    .onevr-vacancy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .onevr-vacancy-item {
+      padding: 10px 8px;
+      background: linear-gradient(135deg, #ff3b30, #ff6b6b);
+      color: #fff;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-vacancy-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: #34c759;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    /* ============================================
        DARK MODE
        ============================================ */
     @media (prefers-color-scheme: dark) {
@@ -954,6 +1086,35 @@
       .onevr-export-copy {
         background: linear-gradient(135deg, #0a84ff, #007aff);
       }
+
+      .onevr-vacancy-content {
+        background: #1c1c1e;
+      }
+
+      .onevr-vacancy-date {
+        background: rgba(10,132,255,.15);
+        color: rgba(235,235,245,.9);
+      }
+
+      .onevr-vacancy-date strong { color: #0a84ff; }
+
+      .onevr-vacancy-stats {
+        border-bottom-color: rgba(255,255,255,.1);
+      }
+
+      .onevr-vacancy-stat {
+        background: rgba(118,118,128,.2);
+      }
+
+      .onevr-vacancy-stat-label {
+        color: rgba(235,235,245,.6);
+      }
+
+      .onevr-stat-expected { color: #0a84ff; }
+      .onevr-stat-current { color: #30d158; }
+      .onevr-stat-vacancy { color: #ff453a; }
+
+      .onevr-vacancy-empty { color: #30d158; }
     }
   `;
 
