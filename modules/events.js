@@ -488,11 +488,18 @@
    * Show vacancies modal for LF Malmö
    */
   function showVacancies() {
-    if (!currentData) return;
+    console.log('[OneVR] showVacancies called');
+    console.log('[OneVR] window.OneVR =', window.OneVR);
+    console.log('[OneVR] window.OneVR.vacancies =', window.OneVR.vacancies);
+
+    if (!currentData) {
+      console.error('[OneVR] No currentData!');
+      return;
+    }
 
     var vacancies = window.OneVR.vacancies;
     if (!vacancies) {
-      console.error('[OneVR] Vacancies module not loaded');
+      console.error('[OneVR] Vacancies module not loaded. OneVR keys:', Object.keys(window.OneVR || {}));
       return;
     }
 

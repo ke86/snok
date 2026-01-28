@@ -5,8 +5,13 @@
 (function() {
   'use strict';
 
+  console.log('[OneVR] Vacancies module starting...');
+
   // Ensure OneVR namespace exists
-  window.OneVR = window.OneVR || {};
+  if (!window.OneVR) {
+    console.error('[OneVR] OneVR namespace missing! Creating it...');
+    window.OneVR = {};
+  }
 
   // Turlista för LKF Malmö
   // Index: 0=sön, 1=mån, 2=tis, 3=ons, 4=tor, 5=fre, 6=lör
@@ -153,5 +158,6 @@
     }
   };
 
-  console.log('[OneVR] Vacancies loaded');
+  console.log('[OneVR] Vacancies loaded, window.OneVR.vacancies =', window.OneVR.vacancies);
+  console.log('[OneVR] OneVR keys:', Object.keys(window.OneVR));
 })();
