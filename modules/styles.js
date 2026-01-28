@@ -961,46 +961,39 @@
 
     .onevr-vacancy-date strong { color: #007aff; }
 
-    .onevr-vacancy-stats {
-      display: flex;
-      padding: 16px;
-      gap: 12px;
-      border-bottom: .5px solid rgba(0,0,0,.1);
-    }
-
-    .onevr-vacancy-stat {
-      flex: 1;
-      text-align: center;
-      padding: 12px 8px;
-      background: rgba(118,118,128,.06);
-      border-radius: 12px;
-    }
-
-    .onevr-vacancy-stat-num {
-      display: block;
-      font-size: 28px;
-      font-weight: 700;
-      line-height: 1;
-    }
-
-    .onevr-vacancy-stat-label {
-      display: block;
-      font-size: 11px;
-      color: rgba(60,60,67,.6);
-      margin-top: 4px;
-      text-transform: uppercase;
-      letter-spacing: .5px;
-    }
-
-    .onevr-stat-expected { color: #007aff; }
-    .onevr-stat-current { color: #34c759; }
-    .onevr-stat-vacancy { color: #ff3b30; }
-
     .onevr-vacancy-list {
       flex: 1;
       overflow-y: auto;
       padding: 16px;
-      max-height: 300px;
+      max-height: 400px;
+    }
+
+    .onevr-vacancy-section {
+      margin-bottom: 16px;
+    }
+
+    .onevr-vacancy-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .onevr-vacancy-section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+    }
+
+    .onevr-vacancy-section-reserve {
+      background: rgba(255,59,48,.1);
+      color: #ff3b30;
+    }
+
+    .onevr-vacancy-section-other {
+      background: rgba(142,142,147,.1);
+      color: #636366;
     }
 
     .onevr-vacancy-grid {
@@ -1011,13 +1004,22 @@
 
     .onevr-vacancy-item {
       padding: 10px 8px;
-      background: linear-gradient(135deg, #ff3b30, #ff6b6b);
       color: #fff;
       border-radius: 10px;
       font-size: 13px;
       font-weight: 600;
       text-align: center;
       font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-vacancy-reserve {
+      background: linear-gradient(135deg, #ff3b30, #ff6b6b);
+      box-shadow: 0 2px 8px rgba(255,59,48,.3);
+    }
+
+    .onevr-vacancy-other {
+      background: linear-gradient(135deg, #636366, #8e8e93);
+      box-shadow: 0 2px 8px rgba(99,99,102,.3);
     }
 
     .onevr-vacancy-empty {

@@ -682,6 +682,15 @@
   }
 
   /**
+   * Check if turnr is a reserve turn (ends with 81, 82, 91, 92, 93)
+   */
+  function isReserveTurn(turnr) {
+    if (!turnr) return false;
+    var num = turnr.replace(/[A-Z]+$/i, ''); // Remove letter suffix
+    return /(?:81|82|91|92|93)$/.test(num);
+  }
+
+  /**
    * Show vacancies modal for LKF Malmö
    */
   function showVacancies() {
@@ -701,16 +710,43 @@
     var dateObj = new Date(isoDate);
     var weekday = weekdays[dateObj.getDay()];
 
-    // Build vacancy list HTML
+    // Split vacancies into reserve turns and other turns
+    var reserveTurns = [];
+    var otherTurns = [];
+    result.vacancies.forEach(function(t) {
+      if (isReserveTurn(t)) {
+        reserveTurns.push(t);
+      } else {
+        otherTurns.push(t);
+      }
+    });
+
+    // Build vacancy sections HTML
     var vacancyHTML = '';
     if (result.vacancies.length === 0) {
       vacancyHTML = '<div class="onevr-vacancy-empty">✓ Inga vakanser!</div>';
     } else {
-      vacancyHTML = '<div class="onevr-vacancy-grid">';
-      result.vacancies.forEach(function(t) {
-        vacancyHTML += '<div class="onevr-vacancy-item">' + t + '</div>';
-      });
-      vacancyHTML += '</div>';
+      // Reserve turns section (red)
+      if (reserveTurns.length > 0) {
+        vacancyHTML += '<div class="onevr-vacancy-section">' +
+          '<div class="onevr-vacancy-section-title onevr-vacancy-section-reserve">⚠️ Reservturer (' + reserveTurns.length + ')</div>' +
+          '<div class="onevr-vacancy-grid">';
+        reserveTurns.forEach(function(t) {
+          vacancyHTML += '<div class="onevr-vacancy-item onevr-vacancy-reserve">' + t + '</div>';
+        });
+        vacancyHTML += '</div></div>';
+      }
+
+      // Other turns section (gray)
+      if (otherTurns.length > 0) {
+        vacancyHTML += '<div class="onevr-vacancy-section">' +
+          '<div class="onevr-vacancy-section-title onevr-vacancy-section-other">📋 Övriga turer (' + otherTurns.length + ')</div>' +
+          '<div class="onevr-vacancy-grid">';
+        otherTurns.forEach(function(t) {
+          vacancyHTML += '<div class="onevr-vacancy-item onevr-vacancy-other">' + t + '</div>';
+        });
+        vacancyHTML += '</div></div>';
+      }
     }
 
     // Build modal
@@ -723,20 +759,6 @@
           '<button class="onevr-vacancy-close">✕</button>' +
         '</div>' +
         '<div class="onevr-vacancy-date">' + weekday + ' <strong>' + isoDate + '</strong></div>' +
-        '<div class="onevr-vacancy-stats">' +
-          '<div class="onevr-vacancy-stat">' +
-            '<span class="onevr-vacancy-stat-num onevr-stat-expected">' + result.expected.length + '</span>' +
-            '<span class="onevr-vacancy-stat-label">Förväntade</span>' +
-          '</div>' +
-          '<div class="onevr-vacancy-stat">' +
-            '<span class="onevr-vacancy-stat-num onevr-stat-current">' + result.current.length + '</span>' +
-            '<span class="onevr-vacancy-stat-label">Bemannade</span>' +
-          '</div>' +
-          '<div class="onevr-vacancy-stat">' +
-            '<span class="onevr-vacancy-stat-num onevr-stat-vacancy">' + result.vacancies.length + '</span>' +
-            '<span class="onevr-vacancy-stat-label">Vakanser</span>' +
-          '</div>' +
-        '</div>' +
         '<div class="onevr-vacancy-list">' + vacancyHTML + '</div>' +
       '</div>';
 
