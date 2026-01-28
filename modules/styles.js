@@ -691,6 +691,108 @@
     @keyframes onevr-spin { to { transform: rotate(360deg); } }
 
     /* ============================================
+       EXPORT MODAL
+       ============================================ */
+    .onevr-export-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.5);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      z-index: 100001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .onevr-export-content {
+      background: #fff;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 380px;
+      max-height: 80vh;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,.25);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .onevr-export-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: .5px solid rgba(0,0,0,.1);
+      font-weight: 600;
+      font-size: 17px;
+      color: #000;
+    }
+
+    .onevr-export-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: rgba(60,60,67,.6);
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .onevr-export-close:hover { color: #000; }
+
+    .onevr-export-info {
+      padding: 12px 20px;
+      background: rgba(0,122,255,.08);
+      color: rgba(60,60,67,.8);
+      font-size: 14px;
+    }
+
+    .onevr-export-info strong {
+      color: #007aff;
+    }
+
+    .onevr-export-textarea {
+      flex: 1;
+      min-height: 200px;
+      max-height: 300px;
+      margin: 16px 20px;
+      padding: 12px;
+      background: rgba(118,118,128,.08);
+      border: none;
+      border-radius: 10px;
+      font-family: 'SF Mono', 'Menlo', monospace;
+      font-size: 12px;
+      color: #000;
+      resize: none;
+    }
+
+    .onevr-export-textarea:focus {
+      outline: none;
+      background: rgba(118,118,128,.12);
+    }
+
+    .onevr-export-actions {
+      padding: 0 20px 20px;
+    }
+
+    .onevr-export-copy {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #007aff, #0a84ff);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .onevr-export-copy:active {
+      transform: scale(.98);
+    }
+
+    /* ============================================
        DARK MODE
        ============================================ */
     @media (prefers-color-scheme: dark) {
@@ -820,6 +922,38 @@
       }
 
       .onevr-loading-text { color: #fff; }
+
+      .onevr-export-content {
+        background: #2c2c2e;
+      }
+
+      .onevr-export-header {
+        color: #fff;
+        border-bottom-color: rgba(255,255,255,.1);
+      }
+
+      .onevr-export-close { color: rgba(235,235,245,.6); }
+      .onevr-export-close:hover { color: #fff; }
+
+      .onevr-export-info {
+        background: rgba(10,132,255,.15);
+        color: rgba(235,235,245,.8);
+      }
+
+      .onevr-export-info strong { color: #0a84ff; }
+
+      .onevr-export-textarea {
+        background: rgba(118,118,128,.24);
+        color: #fff;
+      }
+
+      .onevr-export-textarea:focus {
+        background: rgba(118,118,128,.3);
+      }
+
+      .onevr-export-copy {
+        background: linear-gradient(135deg, #0a84ff, #007aff);
+      }
     }
   `;
 

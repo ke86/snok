@@ -483,6 +483,86 @@
   }
 
   /**
+   * Setup export turnr button (LF Malmö)
+   */
+  function setupExportTurnr() {
+    var exportBtn = document.getElementById('onevr-export-turnr');
+    if (!exportBtn) return;
+
+    exportBtn.onclick = function() {
+      if (!currentData) return;
+
+      // Filter for LF (lokförare) in Malmö
+      var lfMalmo = currentData.people.filter(function(p) {
+        return p.badge === 'LF' && p.locName === 'Malmö';
+      });
+
+      // Collect unique turnr
+      var turnrSet = {};
+      lfMalmo.forEach(function(p) {
+        if (p.turnr && p.turnr !== '-') {
+          // Clean up turnr (remove TIL labels, etc)
+          var cleanTurnr = p.turnr.trim();
+          turnrSet[cleanTurnr] = true;
+        }
+      });
+
+      var turnrList = Object.keys(turnrSet).sort();
+      var dateStr = currentData.isoDate || window.OneVR.state.navDate || 'unknown';
+
+      // Get weekday
+      var weekdays = ['sön', 'mån', 'tis', 'ons', 'tor', 'fre', 'lör'];
+      var dateObj = new Date(dateStr);
+      var weekday = weekdays[dateObj.getDay()];
+
+      // Build export text
+      var exportText = '// LF Malmö - ' + dateStr + ' (' + weekday + ')\n';
+      exportText += '// Totalt: ' + turnrList.length + ' turer\n';
+      exportText += JSON.stringify(turnrList, null, 2);
+
+      // Create modal to display result
+      var modal = document.createElement('div');
+      modal.className = 'onevr-export-modal';
+      modal.innerHTML = '<div class="onevr-export-content">' +
+        '<div class="onevr-export-header">' +
+          '<span>Exportera turnr - LF Malmö</span>' +
+          '<button class="onevr-export-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-export-info">' +
+          '<strong>' + dateStr + '</strong> (' + weekday + ') - ' + turnrList.length + ' turer' +
+        '</div>' +
+        '<textarea class="onevr-export-textarea" readonly>' + exportText + '</textarea>' +
+        '<div class="onevr-export-actions">' +
+          '<button class="onevr-btn onevr-export-copy">📋 Kopiera</button>' +
+        '</div>' +
+      '</div>';
+
+      document.body.appendChild(modal);
+
+      // Close button
+      modal.querySelector('.onevr-export-close').onclick = function() {
+        modal.remove();
+      };
+
+      // Click outside to close
+      modal.onclick = function(e) {
+        if (e.target === modal) modal.remove();
+      };
+
+      // Copy button
+      modal.querySelector('.onevr-export-copy').onclick = function() {
+        var textarea = modal.querySelector('.onevr-export-textarea');
+        textarea.select();
+        document.execCommand('copy');
+        this.textContent = '✓ Kopierat!';
+        setTimeout(function() {
+          modal.remove();
+        }, 800);
+      };
+    };
+  }
+
+  /**
    * Bind all event handlers
    */
   function bindEvents(data) {
@@ -665,6 +745,9 @@
 
     // Load times
     setupLoadTimes();
+
+    // Export turnr (LF Malmö)
+    setupExportTurnr();
 
     // Initial status bar update
     updateStatusBar();
