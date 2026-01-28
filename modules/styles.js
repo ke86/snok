@@ -277,6 +277,53 @@
     }
 
     /* ============================================
+       THEME TOGGLE
+       ============================================ */
+    .onevr-theme-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      margin-top: 12px;
+      border-top: .5px solid rgba(0,0,0,.08);
+    }
+
+    .onevr-theme-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: rgba(60,60,67,.9);
+    }
+
+    .onevr-theme-switch {
+      display: flex;
+      background: rgba(118,118,128,.12);
+      border-radius: 10px;
+      padding: 3px;
+      gap: 2px;
+    }
+
+    .onevr-theme-btn {
+      padding: 8px 12px;
+      border: none;
+      background: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all .2s;
+      color: rgba(60,60,67,.6);
+    }
+
+    .onevr-theme-btn.active {
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,.1);
+      color: #000;
+    }
+
+    .onevr-theme-btn:active {
+      transform: scale(.95);
+    }
+
+    /* ============================================
        LOAD TIMES MENU
        ============================================ */
     .onevr-load-menu {
@@ -944,42 +991,89 @@
     }
 
     /* ============================================
+       FORCED DARK MODE (user selected)
+       ============================================ */
+    .onevr-modal.onevr-dark { background: linear-gradient(180deg, #000, #1c1c1e); }
+    .onevr-modal.onevr-dark .onevr-header { background: rgba(28,28,30,.72); border-bottom-color: rgba(255,255,255,.1); }
+    .onevr-modal.onevr-dark .onevr-search { background: rgba(118,118,128,.24); color: #fff; }
+    .onevr-modal.onevr-dark .onevr-search::placeholder { color: rgba(235,235,245,.6); }
+    .onevr-modal.onevr-dark .onevr-section, .onevr-modal.onevr-dark .onevr-card, .onevr-modal.onevr-dark .onevr-empty { background: #1c1c1e; }
+    .onevr-modal.onevr-dark .onevr-btn { background: rgba(118,118,128,.2); color: rgba(235,235,245,.9); }
+    .onevr-modal.onevr-dark .onevr-name { color: #fff; }
+    .onevr-modal.onevr-dark .onevr-person { border-bottom-color: rgba(84,84,88,.6); }
+    .onevr-modal.onevr-dark .onevr-turnr { color: rgba(235,235,245,.6); background: rgba(10,132,255,.15); }
+    .onevr-modal.onevr-dark .onevr-filter-label, .onevr-modal.onevr-dark .onevr-section-title { color: rgba(235,235,245,.6); }
+    .onevr-modal.onevr-dark .onevr-date-btn, .onevr-modal.onevr-dark .onevr-date-picker { background: rgba(10,132,255,.2); color: #0a84ff; }
+    .onevr-modal.onevr-dark .onevr-loc-badge { background: rgba(10,132,255,.2); color: #0a84ff; }
+    .onevr-modal.onevr-dark .onevr-status-bar { background: rgba(10,132,255,.15); color: rgba(235,235,245,.8); }
+    .onevr-modal.onevr-dark .onevr-filter-trigger { background: rgba(118,118,128,.2); color: rgba(235,235,245,.9); }
+    .onevr-modal.onevr-dark .onevr-dropdown-menu { background: #2c2c2e; }
+    .onevr-modal.onevr-dark .onevr-dropdown-item { color: rgba(235,235,245,.9); }
+    .onevr-modal.onevr-dark .onevr-theme-toggle { border-top-color: rgba(255,255,255,.08); }
+    .onevr-modal.onevr-dark .onevr-theme-label { color: rgba(235,235,245,.9); }
+    .onevr-modal.onevr-dark .onevr-theme-switch { background: rgba(118,118,128,.24); }
+    .onevr-modal.onevr-dark .onevr-theme-btn { color: rgba(235,235,245,.6); }
+    .onevr-modal.onevr-dark .onevr-theme-btn.active { background: #3a3a3c; color: #fff; }
+    .onevr-modal.onevr-dark .onevr-version { color: rgba(235,235,245,.3); }
+
+    /* ============================================
        DARK MODE
        ============================================ */
     @media (prefers-color-scheme: dark) {
-      .onevr-modal { background: linear-gradient(180deg, #000, #1c1c1e); }
+      .onevr-modal:not(.onevr-light) { background: linear-gradient(180deg, #000, #1c1c1e); }
 
-      .onevr-header {
+      .onevr-modal:not(.onevr-light) .onevr-header {
         background: rgba(28,28,30,.72);
         border-bottom-color: rgba(255,255,255,.1);
       }
 
-      .onevr-search {
+      .onevr-modal:not(.onevr-light) .onevr-search {
         background: rgba(118,118,128,.24);
         color: #fff;
       }
 
-      .onevr-search::placeholder { color: rgba(235,235,245,.6); }
+      .onevr-modal:not(.onevr-light) .onevr-search::placeholder { color: rgba(235,235,245,.6); }
 
-      .onevr-section, .onevr-card, .onevr-empty { background: #1c1c1e; }
+      .onevr-modal:not(.onevr-light) .onevr-section, .onevr-modal:not(.onevr-light) .onevr-card, .onevr-modal:not(.onevr-light) .onevr-empty { background: #1c1c1e; }
 
-      .onevr-section-header:active { background: rgba(255,255,255,.05); }
+      .onevr-modal:not(.onevr-light) .onevr-section-header:active { background: rgba(255,255,255,.05); }
 
-      .onevr-btn {
+      .onevr-modal:not(.onevr-light) .onevr-btn {
         background: rgba(118,118,128,.2);
         color: rgba(235,235,245,.9);
       }
 
-      .onevr-btn:active { background: rgba(118,118,128,.3); }
-      .onevr-btn.active { background: linear-gradient(135deg, #30d158, #34c759); }
+      .onevr-modal:not(.onevr-light) .onevr-btn:active { background: rgba(118,118,128,.3); }
+      .onevr-modal:not(.onevr-light) .onevr-btn.active { background: linear-gradient(135deg, #30d158, #34c759); }
 
-      .onevr-btn-close {
+      .onevr-modal:not(.onevr-light) .onevr-btn-close {
         background: rgba(255,69,58,.2);
         color: #ff453a;
       }
 
-      .onevr-version {
+      .onevr-modal:not(.onevr-light) .onevr-version {
         color: rgba(235,235,245,.3);
+      }
+
+      .onevr-modal:not(.onevr-light) .onevr-theme-toggle {
+        border-top-color: rgba(255,255,255,.08);
+      }
+
+      .onevr-modal:not(.onevr-light) .onevr-theme-label {
+        color: rgba(235,235,245,.9);
+      }
+
+      .onevr-theme-switch {
+        background: rgba(118,118,128,.24);
+      }
+
+      .onevr-theme-btn {
+        color: rgba(235,235,245,.6);
+      }
+
+      .onevr-theme-btn.active {
+        background: #3a3a3c;
+        color: #fff;
       }
 
       .onevr-load-menu {

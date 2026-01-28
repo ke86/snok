@@ -760,6 +760,34 @@
       };
     }
 
+    // Theme toggle
+    var themeSwitch = document.getElementById('onevr-theme-switch');
+    if (themeSwitch) {
+      themeSwitch.onclick = function(e) {
+        var btn = e.target.closest('.onevr-theme-btn');
+        if (!btn) return;
+
+        var theme = btn.getAttribute('data-theme');
+        this.querySelectorAll('.onevr-theme-btn').forEach(function(b) {
+          b.classList.remove('active');
+        });
+        btn.classList.add('active');
+
+        var modal = document.querySelector('.onevr-modal');
+        if (!modal) return;
+
+        // Remove existing theme classes
+        modal.classList.remove('onevr-light', 'onevr-dark');
+
+        if (theme === 'light') {
+          modal.classList.add('onevr-light');
+        } else if (theme === 'dark') {
+          modal.classList.add('onevr-dark');
+        }
+        // 'auto' uses system preference (no class needed)
+      };
+    }
+
     // Initial status bar update
     updateStatusBar();
   }
