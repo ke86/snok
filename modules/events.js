@@ -483,7 +483,7 @@
   }
 
   /**
-   * Setup export turnr button (LF Malmö)
+   * Setup export turnr button - exports currently filtered/visible turnr
    */
   function setupExportTurnr() {
     var exportBtn = document.getElementById('onevr-export-turnr');
@@ -492,16 +492,19 @@
     exportBtn.onclick = function() {
       if (!currentData) return;
 
-      // Filter for LF (lokförare) in Malmö
-      var lfMalmo = currentData.people.filter(function(p) {
-        return p.badge === 'LF' && p.locName === 'Malmö';
+      // Get currently visible people (filtered)
+      var visiblePeople = [];
+      document.querySelectorAll('.onevr-person').forEach(function(el) {
+        if (el.style.display !== 'none') {
+          var idx = +el.getAttribute('data-idx');
+          visiblePeople.push(currentData.people[idx]);
+        }
       });
 
-      // Collect unique turnr
+      // Collect unique turnr from visible people
       var turnrSet = {};
-      lfMalmo.forEach(function(p) {
+      visiblePeople.forEach(function(p) {
         if (p.turnr && p.turnr !== '-') {
-          // Clean up turnr (remove TIL labels, etc)
           var cleanTurnr = p.turnr.trim();
           turnrSet[cleanTurnr] = true;
         }
@@ -515,8 +518,14 @@
       var dateObj = new Date(dateStr);
       var weekday = weekdays[dateObj.getDay()];
 
+      // Build filter description
+      var filterDesc = [];
+      if (filterState.activeRole !== 'all') filterDesc.push(filterState.activeRole);
+      if (filterState.activeLoc !== 'all') filterDesc.push(filterState.activeLoc);
+      var filterText = filterDesc.length > 0 ? filterDesc.join(' - ') : 'Alla';
+
       // Build export text
-      var exportText = '// LF Malmö - ' + dateStr + ' (' + weekday + ')\n';
+      var exportText = '// ' + filterText + ' - ' + dateStr + ' (' + weekday + ')\n';
       exportText += '// Totalt: ' + turnrList.length + ' turer\n';
       exportText += JSON.stringify(turnrList, null, 2);
 
@@ -525,11 +534,11 @@
       modal.className = 'onevr-export-modal';
       modal.innerHTML = '<div class="onevr-export-content">' +
         '<div class="onevr-export-header">' +
-          '<span>Exportera turnr - LF Malmö</span>' +
+          '<span>Exportera turnr</span>' +
           '<button class="onevr-export-close">✕</button>' +
         '</div>' +
         '<div class="onevr-export-info">' +
-          '<strong>' + dateStr + '</strong> (' + weekday + ') - ' + turnrList.length + ' turer' +
+          '<strong>' + filterText + '</strong> | ' + dateStr + ' (' + weekday + ') | ' + turnrList.length + ' turer' +
         '</div>' +
         '<textarea class="onevr-export-textarea" readonly>' + exportText + '</textarea>' +
         '<div class="onevr-export-actions">' +

@@ -121,7 +121,7 @@
     var loadTimesBtn = stats.noTime > 0
       ? '<button class="onevr-btn" id="onevr-load-times">⏱ Ladda tider (' + stats.noTime + ' utan tid)</button>'
       : '';
-    var exportBtn = '<button class="onevr-btn" id="onevr-export-turnr">📋 Exportera turnr (LF Malmö)</button>';
+    var exportBtn = '<button class="onevr-btn" id="onevr-export-turnr">📋 Exportera filtrerade turnr</button>';
 
     return '<div class="onevr-modal">' +
       '<div class="onevr-header">' +
