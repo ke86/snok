@@ -250,6 +250,17 @@
       50% { opacity: 0.8; transform: scale(1.02); }
     }
 
+    .onevr-btn-vakans {
+      background: linear-gradient(135deg, #ff3b30, #ff6b6b);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(255,59,48,.3);
+    }
+
+    .onevr-btn-vakans:active {
+      transform: scale(.98);
+      background: linear-gradient(135deg, #d63027, #ff3b30);
+    }
+
     .onevr-btn-close {
       background: rgba(255,59,48,.1);
       color: #ff3b30;

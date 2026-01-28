@@ -112,17 +112,6 @@
 
     // Build person list
     var listHTML = '<div class="onevr-card">';
-
-    // Add Vakanser row (hidden by default, shown when searching)
-    listHTML += '<div class="onevr-person onevr-vakanser-row" id="onevr-vakanser-row" style="display:none;">' +
-      '<div class="onevr-badge" style="background:linear-gradient(135deg,#ff3b30,#ff6b6b);">VAK</div>' +
-      '<div class="onevr-main">' +
-        '<div class="onevr-name-row"><span class="onevr-name">Vakanser</span></div>' +
-        '<div class="onevr-sub"><span class="onevr-time">LF Malmö</span></div>' +
-      '</div>' +
-      '<div class="onevr-tags"><span class="onevr-tag" style="background:#ff3b30;">→</span></div>' +
-    '</div>';
-
     people.forEach(function(p, idx) {
       listHTML += buildPersonHTML(p, idx);
     });
@@ -132,6 +121,7 @@
     var loadTimesBtn = stats.noTime > 0
       ? '<button class="onevr-btn" id="onevr-load-times">⏱ Ladda tider (' + stats.noTime + ' utan tid)</button>'
       : '';
+    var vakansBtn = '<button class="onevr-btn onevr-btn-vakans" id="onevr-vakanser-btn" style="display:none;">🔴 Vakanser - LF Malmö</button>';
 
     return '<div class="onevr-modal">' +
       '<div class="onevr-header">' +
@@ -154,6 +144,7 @@
           '<div class="onevr-section-content">' +
             '<div class="onevr-settings-grid">' +
               loadTimesBtn +
+              vakansBtn +
             '</div>' +
           '</div>' +
         '</div>' +

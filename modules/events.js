@@ -601,13 +601,16 @@
       filterState.searchQ = val;
       clearEl.classList.toggle('show', this.value.length > 0);
 
-      // Show/hide Vakanser row based on search
-      var vakansRow = document.getElementById('onevr-vakanser-row');
-      console.log('[OneVR] vakansRow:', vakansRow, 'val:', val);
-      if (vakansRow) {
+      // Show/hide Vakanser button and open settings when searching
+      var vakansBtn = document.getElementById('onevr-vakanser-btn');
+      var settingsSection = document.getElementById('onevr-settings-section');
+      if (vakansBtn) {
         var showVakans = val && 'vakanser'.indexOf(val) === 0;
-        console.log('[OneVR] showVakans:', showVakans);
-        vakansRow.style.display = showVakans ? 'flex' : 'none';
+        vakansBtn.style.display = showVakans ? 'block' : 'none';
+        // Auto-open settings when vakanser is found
+        if (showVakans && settingsSection) {
+          settingsSection.classList.add('open');
+        }
       }
 
       filterList();
@@ -763,12 +766,10 @@
     // Load times
     setupLoadTimes();
 
-    // Vakanser row click
-    var vakansRow = document.getElementById('onevr-vakanser-row');
-    console.log('[OneVR] Binding vakansRow click:', vakansRow);
-    if (vakansRow) {
-      vakansRow.onclick = function() {
-        console.log('[OneVR] Vakanser row clicked!');
+    // Vakanser button click
+    var vakansBtn = document.getElementById('onevr-vakanser-btn');
+    if (vakansBtn) {
+      vakansBtn.onclick = function() {
         showVacancies();
       };
     }
