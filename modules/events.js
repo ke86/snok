@@ -501,10 +501,19 @@
     // Search
     var searchEl = document.getElementById('onevr-search');
     var clearEl = document.getElementById('onevr-search-clear');
+    var vakansBtn = document.getElementById('onevr-vakanser-btn');
+
+    function updateVakansButtonVisibility() {
+      if (!vakansBtn) return;
+      var searchMatch = filterState.searchQ === 'vakanser';
+      var isFutureDate = !isToday();
+      vakansBtn.style.display = (searchMatch && isFutureDate) ? '' : 'none';
+    }
 
     searchEl.oninput = function() {
       filterState.searchQ = this.value.toLowerCase();
       clearEl.classList.toggle('show', this.value.length > 0);
+      updateVakansButtonVisibility();
       filterList();
     };
 
@@ -512,6 +521,7 @@
       searchEl.value = '';
       filterState.searchQ = '';
       clearEl.classList.remove('show');
+      updateVakansButtonVisibility();
       filterList();
       searchEl.focus();
     };
@@ -658,8 +668,7 @@
     // Load times
     setupLoadTimes();
 
-    // Vakanser button
-    var vakansBtn = document.getElementById('onevr-vakanser-btn');
+    // Vakanser button click handler (vakansBtn already defined above)
     if (vakansBtn) {
       vakansBtn.onclick = function() {
         showVacancies();

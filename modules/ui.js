@@ -119,9 +119,10 @@
 
     // Settings buttons
     var loadTimesBtn = stats.noTime > 0
-      ? '<button class="onevr-btn" id="onevr-load-times">⏱ Ladda tider (' + stats.noTime + ' utan tid)</button>'
+      ? '<button class="onevr-btn onevr-btn-load" id="onevr-load-times">⏱ Ladda tider <span class="onevr-btn-count">' + stats.noTime + ' utan tid</span></button>'
       : '';
-    var vakansBtn = '<button class="onevr-btn onevr-btn-vakans" id="onevr-vakanser-btn">🔴 Vakanser - LKF Malmö</button>';
+    // Vakanser button - hidden by default, shown when searching "Vakanser" and date is tomorrow+
+    var vakansBtn = '<button class="onevr-btn onevr-btn-vakans" id="onevr-vakanser-btn" style="display:none;">🔴 Vakanser - LKF Malmö</button>';
     var versionInfo = '<div class="onevr-version">OneVR v17</div>';
 
     return '<div class="onevr-modal">' +

@@ -810,6 +810,31 @@
     }
 
     /* ============================================
+       LOAD TIMES BUTTON
+       ============================================ */
+    .onevr-btn-load {
+      background: linear-gradient(135deg, #007aff, #0a84ff);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0,122,255,.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .onevr-btn-load:active {
+      transform: scale(.98);
+      background: linear-gradient(135deg, #0066cc, #007aff);
+    }
+
+    .onevr-btn-count {
+      background: rgba(255,255,255,.2);
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* ============================================
        VACANCY BUTTON
        ============================================ */
     .onevr-btn-vakans {
