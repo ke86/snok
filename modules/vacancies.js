@@ -5,6 +5,9 @@
 (function() {
   'use strict';
 
+  // Ensure OneVR namespace exists
+  window.OneVR = window.OneVR || {};
+
   // Turlista för LKF Malmö
   // Index: 0=sön, 1=mån, 2=tis, 3=ons, 4=tor, 5=fre, 6=lör
   var LKF_MALMO = {
