@@ -569,95 +569,6 @@
   }
 
   /**
-   * Setup export turnr button - exports currently filtered/visible turnr
-   */
-  function setupExportTurnr() {
-    var exportBtn = document.getElementById('onevr-export-turnr');
-    if (!exportBtn) return;
-
-    exportBtn.onclick = function() {
-      if (!currentData) return;
-
-      // Get currently visible people (filtered)
-      var visiblePeople = [];
-      document.querySelectorAll('.onevr-person').forEach(function(el) {
-        if (el.style.display !== 'none') {
-          var idx = +el.getAttribute('data-idx');
-          visiblePeople.push(currentData.people[idx]);
-        }
-      });
-
-      // Collect unique turnr from visible people
-      var turnrSet = {};
-      visiblePeople.forEach(function(p) {
-        if (p.turnr && p.turnr !== '-') {
-          var cleanTurnr = p.turnr.trim();
-          turnrSet[cleanTurnr] = true;
-        }
-      });
-
-      var turnrList = Object.keys(turnrSet).sort();
-      var dateStr = currentData.isoDate || window.OneVR.state.navDate || 'unknown';
-
-      // Get weekday
-      var weekdays = ['sön', 'mån', 'tis', 'ons', 'tor', 'fre', 'lör'];
-      var dateObj = new Date(dateStr);
-      var weekday = weekdays[dateObj.getDay()];
-
-      // Build filter description
-      var filterDesc = [];
-      if (filterState.activeRole !== 'all') filterDesc.push(filterState.activeRole);
-      if (filterState.activeLoc !== 'all') filterDesc.push(filterState.activeLoc);
-      var filterText = filterDesc.length > 0 ? filterDesc.join(' - ') : 'Alla';
-
-      // Build export text
-      var exportText = '// ' + filterText + ' - ' + dateStr + ' (' + weekday + ')\n';
-      exportText += '// Totalt: ' + turnrList.length + ' turer\n';
-      exportText += JSON.stringify(turnrList, null, 2);
-
-      // Create modal to display result
-      var modal = document.createElement('div');
-      modal.className = 'onevr-export-modal';
-      modal.innerHTML = '<div class="onevr-export-content">' +
-        '<div class="onevr-export-header">' +
-          '<span>Exportera turnr</span>' +
-          '<button class="onevr-export-close">✕</button>' +
-        '</div>' +
-        '<div class="onevr-export-info">' +
-          '<strong>' + filterText + '</strong> | ' + dateStr + ' (' + weekday + ') | ' + turnrList.length + ' turer' +
-        '</div>' +
-        '<textarea class="onevr-export-textarea" readonly>' + exportText + '</textarea>' +
-        '<div class="onevr-export-actions">' +
-          '<button class="onevr-btn onevr-export-copy">📋 Kopiera</button>' +
-        '</div>' +
-      '</div>';
-
-      document.body.appendChild(modal);
-
-      // Close button
-      modal.querySelector('.onevr-export-close').onclick = function() {
-        modal.remove();
-      };
-
-      // Click outside to close
-      modal.onclick = function(e) {
-        if (e.target === modal) modal.remove();
-      };
-
-      // Copy button
-      modal.querySelector('.onevr-export-copy').onclick = function() {
-        var textarea = modal.querySelector('.onevr-export-textarea');
-        textarea.select();
-        document.execCommand('copy');
-        this.textContent = '✓ Kopierat!';
-        setTimeout(function() {
-          modal.remove();
-        }, 800);
-      };
-    };
-  }
-
-  /**
    * Bind all event handlers
    */
   function bindEvents(data) {
@@ -692,8 +603,10 @@
 
       // Show/hide Vakanser row based on search
       var vakansRow = document.getElementById('onevr-vakanser-row');
+      console.log('[OneVR] vakansRow:', vakansRow, 'val:', val);
       if (vakansRow) {
         var showVakans = val && 'vakanser'.indexOf(val) === 0;
+        console.log('[OneVR] showVakans:', showVakans);
         vakansRow.style.display = showVakans ? 'flex' : 'none';
       }
 
@@ -850,13 +763,12 @@
     // Load times
     setupLoadTimes();
 
-    // Export turnr (LF Malmö)
-    setupExportTurnr();
-
     // Vakanser row click
     var vakansRow = document.getElementById('onevr-vakanser-row');
+    console.log('[OneVR] Binding vakansRow click:', vakansRow);
     if (vakansRow) {
       vakansRow.onclick = function() {
+        console.log('[OneVR] Vakanser row clicked!');
         showVacancies();
       };
     }
