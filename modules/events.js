@@ -5,7 +5,9 @@
 (function() {
   'use strict';
 
-  var CFG = window.OneVR.config;
+  var CFG = window.OneVR.config || {
+    ui: { dateNavDelay: 2500, loadTimeDelay: 350, labelSelector: '.label, .item-label, span' }
+  };
   var utils = window.OneVR.utils;
   var scraper = window.OneVR.scraper;
   var ui = window.OneVR.ui;

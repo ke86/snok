@@ -130,7 +130,7 @@
         '<button class="onevr-theme-btn active" data-theme="auto">Auto</button>' +
       '</div>' +
     '</div>';
-    var versionInfo = '<div class="onevr-version">OneVR v27</div>';
+    var versionInfo = '<div class="onevr-version">OneVR v28</div>';
 
     return '<div class="onevr-modal">' +
       '<div class="onevr-header">' +
