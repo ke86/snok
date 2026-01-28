@@ -112,6 +112,17 @@
 
     // Build person list
     var listHTML = '<div class="onevr-card">';
+
+    // Add Vakanser row (hidden by default, shown when searching)
+    listHTML += '<div class="onevr-person onevr-vakanser-row" id="onevr-vakanser-row" style="display:none;">' +
+      '<div class="onevr-badge" style="background:linear-gradient(135deg,#ff3b30,#ff6b6b);">VAK</div>' +
+      '<div class="onevr-main">' +
+        '<div class="onevr-name-row"><span class="onevr-name">Vakanser</span></div>' +
+        '<div class="onevr-sub"><span class="onevr-time">LF Malmö</span></div>' +
+      '</div>' +
+      '<div class="onevr-tags"><span class="onevr-tag" style="background:#ff3b30;">→</span></div>' +
+    '</div>';
+
     people.forEach(function(p, idx) {
       listHTML += buildPersonHTML(p, idx);
     });

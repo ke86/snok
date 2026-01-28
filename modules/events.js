@@ -690,10 +690,11 @@
       filterState.searchQ = val;
       clearEl.classList.toggle('show', this.value.length > 0);
 
-      // Check for "vakanser" search trigger
-      if (val === 'vakanser' || val === 'vakans') {
-        showVacancies();
-        return;
+      // Show/hide Vakanser row based on search
+      var vakansRow = document.getElementById('onevr-vakanser-row');
+      if (vakansRow) {
+        var showVakans = val && 'vakanser'.indexOf(val) === 0;
+        vakansRow.style.display = showVakans ? 'flex' : 'none';
       }
 
       filterList();
@@ -851,6 +852,14 @@
 
     // Export turnr (LF Malmö)
     setupExportTurnr();
+
+    // Vakanser row click
+    var vakansRow = document.getElementById('onevr-vakanser-row');
+    if (vakansRow) {
+      vakansRow.onclick = function() {
+        showVacancies();
+      };
+    }
 
     // Initial status bar update
     updateStatusBar();
