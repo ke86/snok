@@ -755,101 +755,358 @@
 
           // Remove loading and show dagvy
           loadingModal.remove();
-          showDagvyModal(person, segments);
+          showDagvyModal(person, [{ date: currentData.isoDate || window.OneVR.state.navDate, segments: segments, turnr: person.turnr, start: person.start, end: person.end }]);
         }, 6000);
       }, 200);
     });
   }
 
   /**
-   * Show dagvy modal with scraped data
+   * Open multi-day dagvy: scrape today + 2 days ahead
+   * Navigates through dates, scrapes personnel for each day, finds the person, scrapes dagvy
    */
-  function showDagvyModal(person, segments) {
-    var isoDate = currentData.isoDate || window.OneVR.state.navDate;
-    var weekdays = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
-    var dateObj = new Date(isoDate);
-    var weekday = weekdays[dateObj.getDay()];
+  function openMultiDagvy(person, overlay) {
+    var startDate = currentData.isoDate || window.OneVR.state.navDate;
+    var personName = person.name;
+    var firstName = personName.split(' ')[0];
+    var totalDays = 3;
+    var daysCollected = [];
 
-    // Build segments HTML
-    var segHTML = '';
-    if (!segments || segments.length === 0) {
-      segHTML = '<div class="onevr-dagvy-empty">Kunde inte hämta dagvy</div>';
-    } else {
-      segments.forEach(function(seg) {
-        var isTrain = !!seg.trainNr;
-        var timeStr = seg.timeStart && seg.timeEnd ? seg.timeStart + ' – ' + seg.timeEnd : '';
-        var routeStr = '';
-        if (seg.fromStation && seg.toStation) {
-          routeStr = seg.fromStation + ' → ' + seg.toStation;
-        } else if (seg.fromStation) {
-          routeStr = seg.fromStation;
-        }
+    var cdkC = document.querySelector('.cdk-overlay-container');
+    if (cdkC) { cdkC.style.opacity = '0'; cdkC.style.pointerEvents = 'none'; }
 
-        if (isTrain) {
-          // Train segment — train nr is clickable to show crew
-          var vehicleStr = seg.vehicles.length ? seg.vehicles.join(', ') : '';
-          segHTML += '<div class="onevr-dagvy-seg onevr-dagvy-train">' +
-            '<div class="onevr-dagvy-seg-left">' +
-              '<span class="onevr-dagvy-seg-time">' + timeStr + '</span>' +
-              '<span class="onevr-dagvy-seg-route">' + routeStr + '</span>' +
-            '</div>' +
-            '<div class="onevr-dagvy-seg-right">' +
-              '<span class="onevr-dagvy-train-nr onevr-dagvy-train-link" data-train="' + seg.trainNr + '">🚆 ' + seg.trainNr + ' ›</span>' +
-              '<span class="onevr-dagvy-train-type">' + seg.trainType + '</span>' +
-              (vehicleStr ? '<span class="onevr-dagvy-vehicle">' + vehicleStr + '</span>' : '') +
-            '</div>' +
-          '</div>';
-        } else {
-          // Activity segment
-          var actName = seg.activity || 'Aktivitet';
-          var icon = '📍';
-          if (actName.match(/gångtid/i)) icon = '🚶';
-          else if (actName.match(/orderläsning/i)) icon = '📖';
-          else if (actName.match(/plattform/i)) icon = '🏗️';
-          else if (actName.match(/tågpassning/i)) icon = '👀';
-          else if (actName.match(/rast/i)) icon = '☕';
-          else if (actName.match(/utcheckning/i)) icon = '🏁';
-          else if (actName.match(/incheckning/i)) icon = '✅';
+    // Show loading modal with progress
+    var loadingModal = document.createElement('div');
+    loadingModal.className = 'onevr-dagvy-modal';
+    loadingModal.innerHTML =
+      '<div class="onevr-dagvy-content">' +
+        '<div class="onevr-dagvy-header">' +
+          '<span>📋 Hämtar 3 dagar...</span>' +
+          '<button class="onevr-dagvy-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-dagvy-loading">' +
+          '<div class="onevr-spinner"></div>' +
+          '<div class="onevr-multi-progress" id="onevr-multi-progress">Dag 1 av 3 – ' + firstName + '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(loadingModal);
 
-          segHTML += '<div class="onevr-dagvy-seg onevr-dagvy-activity">' +
-            '<div class="onevr-dagvy-seg-left">' +
-              '<span class="onevr-dagvy-seg-time">' + timeStr + '</span>' +
-              '<span class="onevr-dagvy-seg-route">' + routeStr + '</span>' +
-            '</div>' +
-            '<div class="onevr-dagvy-seg-right">' +
-              '<span class="onevr-dagvy-act-name">' + icon + ' ' + actName + '</span>' +
-            '</div>' +
-          '</div>';
-        }
+    var cancelled = false;
+    var cleanUp = function() {
+      cancelled = true;
+      loadingModal.remove();
+      if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+    };
+    loadingModal.querySelector('.onevr-dagvy-close').onclick = cleanUp;
+    loadingModal.onclick = function(e) { if (e.target === loadingModal) cleanUp(); };
+
+    overlay.style.display = 'none';
+
+    var progressEl = document.getElementById('onevr-multi-progress');
+
+    function updateProgress(dayNum, text) {
+      if (progressEl) progressEl.textContent = 'Dag ' + dayNum + ' av ' + totalDays + ' – ' + text;
+    }
+
+    // ─── Day 0: scrape current day (already loaded) ───
+    function scrapeDay0() {
+      if (cancelled) return;
+      updateProgress(1, 'Skrapar dagvy...');
+
+      var el = currentData.elements[person.elIdx];
+      if (!el) {
+        // Person not found on current day
+        daysCollected.push({ date: startDate, segments: [], turnr: person.turnr, start: person.start, end: person.end, notFound: false });
+        navigateForward(1);
+        return;
+      }
+
+      var tE = findTurnLabel(el) || el;
+      el.scrollIntoView({ behavior: 'instant', block: 'center' });
+
+      waitClose(function() {
+        if (cancelled) return;
+        setTimeout(function() {
+          tE.click();
+          waitModal(firstName, function(pane) {
+            var segments = pane ? scraper.scrapeDagvy(pane) : [];
+            // Close popup
+            var bd = document.querySelector('.cdk-overlay-backdrop');
+            if (bd) bd.click();
+            var cb = document.querySelector('.icon-close');
+            if (cb) cb.click();
+
+            daysCollected.push({ date: startDate, segments: segments, turnr: person.turnr, start: person.start, end: person.end, notFound: false });
+            navigateForward(1);
+          }, 6000);
+        }, 200);
       });
     }
 
-    // Count trains
-    var trainCount = segments.filter(function(s) { return !!s.trainNr; }).length;
-    var actCount = segments.filter(function(s) { return !s.trainNr; }).length;
+    // ─── Navigate forward one day and scrape ───
+    function navigateForward(dayOffset) {
+      if (cancelled) return;
+      if (dayOffset >= totalDays) {
+        // Done! Navigate back to start date
+        navigateBack();
+        return;
+      }
+
+      updateProgress(dayOffset + 1, 'Navigerar...');
+
+      var nextBtn = document.querySelector('.icon-next');
+      if (!nextBtn) {
+        // Can't navigate — fill remaining days as not found
+        for (var i = dayOffset; i < totalDays; i++) {
+          daysCollected.push({ date: utils.addDays(startDate, i), segments: [], notFound: true, turnr: '', start: '-', end: '-' });
+        }
+        navigateBack();
+        return;
+      }
+
+      nextBtn.click();
+      var targetDate = utils.addDays(startDate, dayOffset);
+
+      setTimeout(function() {
+        if (cancelled) return;
+        updateProgress(dayOffset + 1, 'Söker ' + firstName + '...');
+
+        // Re-scrape personnel for this day
+        var dayScraped = scraper.scrapePersonnel();
+        var dayPeople = dayScraped.people;
+        var dayElements = dayScraped.elements;
+
+        // Find the person by name
+        var foundPerson = null;
+        var foundEl = null;
+        for (var i = 0; i < dayPeople.length; i++) {
+          if (dayPeople[i].name === personName) {
+            foundPerson = dayPeople[i];
+            foundEl = dayElements[dayPeople[i].elIdx];
+            break;
+          }
+        }
+
+        if (!foundPerson || !foundEl) {
+          // Person not scheduled this day
+          daysCollected.push({ date: targetDate, segments: [], notFound: true, turnr: '', start: '-', end: '-' });
+          navigateForward(dayOffset + 1);
+          return;
+        }
+
+        updateProgress(dayOffset + 1, 'Skrapar dagvy...');
+
+        var tE = findTurnLabel(foundEl) || foundEl;
+        foundEl.scrollIntoView({ behavior: 'instant', block: 'center' });
+
+        waitClose(function() {
+          if (cancelled) return;
+          setTimeout(function() {
+            tE.click();
+            waitModal(firstName, function(pane) {
+              var segments = pane ? scraper.scrapeDagvy(pane) : [];
+              // Close popup
+              var bd = document.querySelector('.cdk-overlay-backdrop');
+              if (bd) bd.click();
+              var cb = document.querySelector('.icon-close');
+              if (cb) cb.click();
+
+              daysCollected.push({ date: targetDate, segments: segments, turnr: foundPerson.turnr, start: foundPerson.start, end: foundPerson.end, notFound: false });
+              navigateForward(dayOffset + 1);
+            }, 6000);
+          }, 200);
+        });
+      }, CFG.ui.dateNavDelay);
+    }
+
+    // ─── Navigate back to start date ───
+    function navigateBack() {
+      if (cancelled) return;
+      updateProgress(totalDays, 'Navigerar tillbaka...');
+
+      var prevBtn = document.querySelector('.icon-prev');
+      var stepsBack = totalDays - 1; // We moved forward (totalDays-1) times
+      var step = 0;
+
+      function doStep() {
+        if (cancelled) return;
+        if (step < stepsBack) {
+          if (prevBtn) prevBtn.click();
+          step++;
+          setTimeout(doStep, CFG.ui.loadTimeDelay);
+        } else {
+          // Back at original date — restore state
+          window.OneVR.state.navDate = startDate;
+          setTimeout(function() {
+            if (cancelled) return;
+            if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+            overlay.style.display = '';
+            loadingModal.remove();
+
+            // Show multi-day dagvy modal
+            showDagvyModal(person, daysCollected);
+          }, 1000);
+        }
+      }
+
+      doStep();
+    }
+
+    // Start the process
+    scrapeDay0();
+  }
+
+  /**
+   * Build segments HTML for a single day's dagvy data
+   */
+  function buildSegmentsHTML(segments) {
+    if (!segments || segments.length === 0) {
+      return '<div class="onevr-dagvy-empty">Kunde inte hämta dagvy</div>';
+    }
+
+    var html = '';
+    segments.forEach(function(seg) {
+      var isTrain = !!seg.trainNr;
+      var timeStr = seg.timeStart && seg.timeEnd ? seg.timeStart + ' – ' + seg.timeEnd : '';
+      var routeStr = '';
+      if (seg.fromStation && seg.toStation) {
+        routeStr = seg.fromStation + ' → ' + seg.toStation;
+      } else if (seg.fromStation) {
+        routeStr = seg.fromStation;
+      }
+
+      if (isTrain) {
+        var vehicleStr = seg.vehicles.length ? seg.vehicles.join(', ') : '';
+        html += '<div class="onevr-dagvy-seg onevr-dagvy-train">' +
+          '<div class="onevr-dagvy-seg-left">' +
+            '<span class="onevr-dagvy-seg-time">' + timeStr + '</span>' +
+            '<span class="onevr-dagvy-seg-route">' + routeStr + '</span>' +
+          '</div>' +
+          '<div class="onevr-dagvy-seg-right">' +
+            '<span class="onevr-dagvy-train-nr onevr-dagvy-train-link" data-train="' + seg.trainNr + '">🚆 ' + seg.trainNr + ' ›</span>' +
+            '<span class="onevr-dagvy-train-type">' + seg.trainType + '</span>' +
+            (vehicleStr ? '<span class="onevr-dagvy-vehicle">' + vehicleStr + '</span>' : '') +
+          '</div>' +
+        '</div>';
+      } else {
+        var actName = seg.activity || 'Aktivitet';
+        var icon = '📍';
+        if (actName.match(/gångtid/i)) icon = '🚶';
+        else if (actName.match(/orderläsning/i)) icon = '📖';
+        else if (actName.match(/plattform/i)) icon = '🏗️';
+        else if (actName.match(/tågpassning/i)) icon = '👀';
+        else if (actName.match(/rast/i)) icon = '☕';
+        else if (actName.match(/utcheckning/i)) icon = '🏁';
+        else if (actName.match(/incheckning/i)) icon = '✅';
+
+        html += '<div class="onevr-dagvy-seg onevr-dagvy-activity">' +
+          '<div class="onevr-dagvy-seg-left">' +
+            '<span class="onevr-dagvy-seg-time">' + timeStr + '</span>' +
+            '<span class="onevr-dagvy-seg-route">' + routeStr + '</span>' +
+          '</div>' +
+          '<div class="onevr-dagvy-seg-right">' +
+            '<span class="onevr-dagvy-act-name">' + icon + ' ' + actName + '</span>' +
+          '</div>' +
+        '</div>';
+      }
+    });
+    return html;
+  }
+
+  /**
+   * Show dagvy modal with scraped data
+   * @param {object} person - Person object
+   * @param {Array} days - Array of { date, segments, turnr, start, end, notFound }
+   */
+  function showDagvyModal(person, days) {
+    var weekdays = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+    var weekdaysFull = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
+    var isMultiDay = days.length > 1;
+
+    // Build day sections
+    var allDaysHTML = '';
+    var totalTrains = 0;
+    var totalActs = 0;
+
+    days.forEach(function(day, dayIdx) {
+      var dateObj = new Date(day.date);
+      var weekday = isMultiDay ? weekdays[dateObj.getDay()] : weekdaysFull[dateObj.getDay()];
+      var dateStr = day.date.substring(5); // MM-DD
+
+      var trainCount = day.segments.filter(function(s) { return !!s.trainNr; }).length;
+      var actCount = day.segments.filter(function(s) { return !s.trainNr; }).length;
+      totalTrains += trainCount;
+      totalActs += actCount;
+
+      var timeStr = day.start && day.start !== '-' ? day.start + ' – ' + day.end : '—';
+
+      if (isMultiDay) {
+        // Multi-day: each day gets a collapsible section
+        var dayClass = day.notFound ? 'onevr-day-section onevr-day-notfound' : 'onevr-day-section';
+        var defaultOpen = dayIdx === 0 ? ' onevr-day-open' : '';
+
+        allDaysHTML += '<div class="' + dayClass + defaultOpen + '">' +
+          '<div class="onevr-day-header" data-day-idx="' + dayIdx + '">' +
+            '<div class="onevr-day-header-left">' +
+              '<span class="onevr-day-weekday">' + weekday + '</span>' +
+              '<span class="onevr-day-date">' + dateStr + '</span>' +
+            '</div>' +
+            '<div class="onevr-day-header-right">' +
+              (day.notFound
+                ? '<span class="onevr-day-off">Ej schemalagd</span>'
+                : '<span class="onevr-day-turnr">' + day.turnr + '</span>' +
+                  '<span class="onevr-day-time">' + timeStr + '</span>' +
+                  '<span class="onevr-day-count">🚆 ' + trainCount + '</span>'
+              ) +
+              '<span class="onevr-day-arrow">▾</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="onevr-day-content">' +
+            (day.notFound
+              ? '<div class="onevr-dagvy-empty">Ej schemalagd denna dag</div>'
+              : buildSegmentsHTML(day.segments)
+            ) +
+          '</div>' +
+        '</div>';
+      } else {
+        // Single-day: flat list like before
+        allDaysHTML += '<div class="onevr-dagvy-info">' +
+          '<div class="onevr-dagvy-info-row">' +
+            '<span class="onevr-dagvy-badge onevr-badge-' + person.badgeColor + '">' + person.badge + '</span>' +
+            '<span class="onevr-dagvy-turnr">' + day.turnr + '</span>' +
+            '<span class="onevr-dagvy-date">' + weekday + ' ' + day.date + '</span>' +
+          '</div>' +
+          '<div class="onevr-dagvy-info-row">' +
+            '<span class="onevr-dagvy-time">🕐 ' + timeStr + '</span>' +
+            '<span class="onevr-dagvy-stats">🚆 ' + trainCount + ' tåg · 📍 ' + actCount + ' aktiviteter</span>' +
+          '</div>' +
+          (person.phone ? '<div class="onevr-dagvy-info-row"><span class="onevr-dagvy-contact">📞 ' + person.phone + '</span></div>' : '') +
+          (person.trains && person.trains.length ? '<div class="onevr-dagvy-info-row"><span class="onevr-dagvy-trains">🚆 Tåg: ' + person.trains.join(', ') + '</span></div>' : '') +
+        '</div>' +
+        '<div class="onevr-dagvy-list">' + buildSegmentsHTML(day.segments) + '</div>';
+      }
+    });
+
+    // Build header subtitle
+    var headerSubtitle = isMultiDay
+      ? days.length + ' dagar · 🚆 ' + totalTrains + ' tåg'
+      : '';
 
     var modal = document.createElement('div');
     modal.className = 'onevr-dagvy-modal';
     modal.innerHTML =
       '<div class="onevr-dagvy-content">' +
         '<div class="onevr-dagvy-header">' +
-          '<span>📋 ' + person.name + '</span>' +
+          '<div>' +
+            '<span>📋 ' + person.name + '</span>' +
+            (headerSubtitle ? '<div class="onevr-dagvy-header-sub">' + headerSubtitle + '</div>' : '') +
+          '</div>' +
           '<button class="onevr-dagvy-close">✕</button>' +
         '</div>' +
-        '<div class="onevr-dagvy-info">' +
-          '<div class="onevr-dagvy-info-row">' +
-            '<span class="onevr-dagvy-badge onevr-badge-' + person.badgeColor + '">' + person.badge + '</span>' +
-            '<span class="onevr-dagvy-turnr">' + person.turnr + '</span>' +
-            '<span class="onevr-dagvy-date">' + weekday + ' ' + isoDate + '</span>' +
-          '</div>' +
-          '<div class="onevr-dagvy-info-row">' +
-            '<span class="onevr-dagvy-time">🕐 ' + (person.start !== '-' ? person.start + ' – ' + person.end : '—') + '</span>' +
-            '<span class="onevr-dagvy-stats">🚆 ' + trainCount + ' tåg · 📍 ' + actCount + ' aktiviteter</span>' +
-          '</div>' +
-          (person.phone ? '<div class="onevr-dagvy-info-row"><span class="onevr-dagvy-contact">📞 ' + person.phone + '</span></div>' : '') +
-          (person.trains && person.trains.length ? '<div class="onevr-dagvy-info-row"><span class="onevr-dagvy-trains">🚆 Tåg: ' + person.trains.join(', ') + '</span></div>' : '') +
-        '</div>' +
-        '<div class="onevr-dagvy-list">' + segHTML + '</div>' +
+        (isMultiDay
+          ? '<div class="onevr-multi-days">' + allDaysHTML + '</div>'
+          : allDaysHTML
+        ) +
       '</div>';
 
     document.body.appendChild(modal);
@@ -857,7 +1114,16 @@
     modal.querySelector('.onevr-dagvy-close').onclick = function() { modal.remove(); };
     modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
 
-    // Click on train number to show crew
+    // Multi-day: toggle day sections
+    if (isMultiDay) {
+      modal.querySelectorAll('.onevr-day-header').forEach(function(header) {
+        header.onclick = function() {
+          header.parentElement.classList.toggle('onevr-day-open');
+        };
+      });
+    }
+
+    // Click on train number to show crew (only works for current day's trains)
     modal.querySelectorAll('.onevr-dagvy-train-link').forEach(function(link) {
       link.onclick = function() {
         var trainNr = link.getAttribute('data-train');
@@ -1205,7 +1471,7 @@
             (trainsStr ? '<span class="onevr-export-trains">🚆 ' + trainsStr + '</span>' : '') +
             (p.phone ? '<span class="onevr-export-phone">📞 ' + p.phone + '</span>' : '') +
           '</div>' +
-          '<div class="onevr-export-person-action">📋 Visa dagvy ›</div>' +
+          '<div class="onevr-export-person-action">📋 Visa dagvy (3 dagar) ›</div>' +
         '</div>';
       });
     }
@@ -1237,7 +1503,7 @@
     modal.querySelector('.onevr-dagvy-close').onclick = function() { modal.remove(); };
     modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
 
-    // Click on person to open dagvy
+    // Click on person to open multi-day dagvy
     var personEls = modal.querySelectorAll('.onevr-export-person');
     personEls.forEach(function(el) {
       el.onclick = function() {
@@ -1246,7 +1512,7 @@
         if (person) {
           modal.remove();
           var overlay = document.querySelector('.onevr-overlay');
-          openDagvy(person, overlay);
+          openMultiDagvy(person, overlay);
         }
       };
     });

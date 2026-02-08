@@ -900,6 +900,19 @@
       .onevr-crew-member-name { color: #fff; }
       .onevr-crew-member-role { color: rgba(235,235,245,.5); }
       .onevr-crew-member-phone { color: #0a84ff; }
+
+      .onevr-multi-progress { color: rgba(235,235,245,.5); }
+      .onevr-day-section { border-bottom-color: rgba(255,255,255,.06); }
+      .onevr-day-header:active { background: rgba(255,255,255,.05); }
+      .onevr-day-weekday { color: #0a84ff; }
+      .onevr-day-date { color: rgba(235,235,245,.5); }
+      .onevr-day-turnr { color: #0a84ff; }
+      .onevr-day-time { color: rgba(235,235,245,.5); }
+      .onevr-day-count { color: #30d158; }
+      .onevr-day-off { color: #636366; }
+      .onevr-day-arrow { color: #48484a; }
+      .onevr-day-content { background: rgba(255,255,255,.03); }
+      .onevr-day-notfound .onevr-day-weekday { color: #636366; }
     }
 
     /* ============================================
@@ -1679,6 +1692,122 @@
       font-size: 12px;
       color: #007aff;
       white-space: nowrap;
+    }
+
+    /* ============================================
+       MULTI-DAY DAGVY
+       ============================================ */
+    .onevr-dagvy-header-sub {
+      font-size: 12px;
+      font-weight: 500;
+      opacity: .75;
+      margin-top: 2px;
+    }
+
+    .onevr-multi-days {
+      flex: 1;
+      overflow-y: auto;
+      max-height: calc(85vh - 70px);
+    }
+
+    .onevr-multi-progress {
+      margin-top: 12px;
+      color: rgba(60,60,67,.6);
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .onevr-day-section {
+      border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+
+    .onevr-day-section:last-child { border-bottom: none; }
+
+    .onevr-day-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: background .15s;
+    }
+
+    .onevr-day-header:active { background: rgba(0,0,0,.03); }
+
+    .onevr-day-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .onevr-day-weekday {
+      font-size: 15px;
+      font-weight: 700;
+      color: #007aff;
+      min-width: 32px;
+    }
+
+    .onevr-day-date {
+      font-size: 14px;
+      font-weight: 500;
+      color: rgba(60,60,67,.6);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-day-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .onevr-day-turnr {
+      font-size: 13px;
+      font-weight: 700;
+      color: #007aff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-day-time {
+      font-size: 12px;
+      color: rgba(60,60,67,.6);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-day-count {
+      font-size: 12px;
+      color: #009041;
+      font-weight: 600;
+    }
+
+    .onevr-day-off {
+      font-size: 12px;
+      color: #8e8e93;
+      font-style: italic;
+    }
+
+    .onevr-day-arrow {
+      color: #c7c7cc;
+      font-size: 16px;
+      transition: transform .25s;
+    }
+
+    .onevr-day-open .onevr-day-arrow { transform: rotate(180deg); }
+
+    .onevr-day-content {
+      display: none;
+      background: rgba(0,0,0,.02);
+    }
+
+    .onevr-day-open .onevr-day-content { display: block; }
+
+    .onevr-day-notfound .onevr-day-weekday {
+      color: #8e8e93;
+    }
+
+    .onevr-day-notfound .onevr-day-header {
+      opacity: .7;
     }
   `;
 
