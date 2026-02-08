@@ -158,6 +158,31 @@
         }
       }
 
+      // Parse section-letter data (J, F, E, H)
+      var personalNr = '';
+      var phone = '';
+      var email = '';
+      var trains = [];
+
+      for (var si = 0; si < lines.length; si++) {
+        if (lines[si] === 'J' && lines[si + 1]) {
+          personalNr = lines[si + 1];
+        } else if (lines[si] === 'F' && lines[si + 1]) {
+          phone = lines[si + 1];
+        } else if (lines[si] === 'E' && lines[si + 1]) {
+          email = lines[si + 1];
+        } else if (lines[si] === 'H') {
+          // H section: all following lines until next single-letter section are train numbers
+          for (var hi = si + 1; hi < lines.length; hi++) {
+            if (lines[hi].match(/^\d{3,5}$/)) {
+              trains.push(lines[hi]);
+            } else if (lines[hi].length === 1 && lines[hi].match(/^[A-Z]$/)) {
+              break; // Next section
+            }
+          }
+        }
+      }
+
       // Get times
       var startTime = timeMatch ? timeMatch[1] : '-';
       var endTime = timeMatch ? timeMatch[2] : '-';
@@ -224,6 +249,10 @@
           isRes: turnInfo.isRes,
           overnight: turnInfo.overnight,
           isChanged: turnInfo.isChanged,
+          personalNr: personalNr,
+          phone: phone,
+          email: email,
+          trains: trains,
           elIdx: elements.length - 1
         });
       }
@@ -259,12 +288,121 @@
     };
   }
 
+  /**
+   * List of colleagues whose dagvy can be scraped
+   */
+  var DAGVY_NAMES = [
+    'Kenny Eriksson'
+  ];
+
+  /**
+   * Check if a person name is in the dagvy tracking list
+   */
+  function isDagvyTracked(name) {
+    for (var i = 0; i < DAGVY_NAMES.length; i++) {
+      if (name === DAGVY_NAMES[i]) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Scrape dagvy (day view) from an open cdk-overlay-pane
+   * Returns structured array of segments
+   */
+  function scrapeDagvy(overlayPane) {
+    if (!overlayPane) return [];
+
+    var pieces = overlayPane.querySelectorAll('.piece-container');
+    var segments = [];
+
+    pieces.forEach(function(piece) {
+      var seg = {
+        fromStation: '',
+        toStation: '',
+        timeStart: '',
+        timeEnd: '',
+        activity: '',
+        trainNr: '',
+        trainType: '',
+        vehicles: []
+      };
+
+      // Parse time row: (Station) HH:MM - HH:MM (Station)
+      var pieceTime = piece.querySelector('.piece-time');
+      if (pieceTime) {
+        var labels = pieceTime.querySelectorAll('.storybook-label');
+        if (labels.length >= 3) {
+          seg.fromStation = (labels[0].innerText || '').trim().replace(/[()]/g, '');
+          var timeText = (labels[1].innerText || '').trim();
+          var tm = timeText.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
+          if (tm) {
+            seg.timeStart = tm[1].length === 4 ? '0' + tm[1] : tm[1];
+            seg.timeEnd = tm[2].length === 4 ? '0' + tm[2] : tm[2];
+          }
+          seg.toStation = (labels[2].innerText || '').trim().replace(/[()]/g, '');
+        } else if (labels.length === 2) {
+          seg.fromStation = (labels[0].innerText || '').trim().replace(/[()]/g, '');
+          var timeText2 = (labels[1].innerText || '').trim();
+          var tm2 = timeText2.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
+          if (tm2) {
+            seg.timeStart = tm2[1].length === 4 ? '0' + tm2[1] : tm2[1];
+            seg.timeEnd = tm2[2].length === 4 ? '0' + tm2[2] : tm2[2];
+          }
+        }
+      }
+
+      // Parse trip details (train info)
+      var tripMain = piece.querySelector('.trip-main');
+      if (tripMain) {
+        var tripNrEl = tripMain.querySelector('.trip-number .storybook-label');
+        if (tripNrEl) seg.trainNr = (tripNrEl.innerText || '').trim();
+
+        var tripDescEl = tripMain.querySelector('.trip-description .storybook-label');
+        if (tripDescEl) seg.trainType = (tripDescEl.innerText || '').trim();
+      }
+
+      // Parse vehicles
+      var vehicleEls = piece.querySelectorAll('.trip-vehicle .storybook-label');
+      vehicleEls.forEach(function(v) {
+        var vt = (v.innerText || '').trim();
+        if (vt) seg.vehicles.push(vt);
+      });
+
+      // If no train info, check for activity description
+      if (!seg.trainNr) {
+        var actEl = piece.querySelector('.activity-desc-label .storybook-label');
+        if (actEl) {
+          seg.activity = (actEl.innerText || '').trim();
+        } else {
+          // Fallback: look for text after the time row
+          var text = (piece.innerText || '').trim();
+          var lines = text.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+          // Activity is usually the last meaningful line that isn't a station/time
+          for (var i = lines.length - 1; i >= 0; i--) {
+            var ln = lines[i];
+            if (ln && !ln.match(/^\(/) && !ln.match(/\d{1,2}:\d{2}/) && ln.length > 2) {
+              seg.activity = ln;
+              break;
+            }
+          }
+        }
+      }
+
+      segments.push(seg);
+    });
+
+    return segments;
+  }
+
   // Export to global namespace
   window.OneVR.scraper = {
     scrapeLocations: scrapeLocations,
     buildCache: buildCache,
     scrapePersonnel: scrapePersonnel,
-    calculateStats: calculateStats
+    calculateStats: calculateStats,
+    scrapeDagvy: scrapeDagvy,
+    isDagvyTracked: isDagvyTracked,
+    DAGVY_NAMES: DAGVY_NAMES
   };
 
   console.log('[OneVR] Scraper loaded');

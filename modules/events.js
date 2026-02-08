@@ -645,8 +645,21 @@
       }
     };
 
-    // Click on turnr to scroll to element
+    // Click on dagvy button to scrape and show day view
     document.getElementById('onevr-list').onclick = function(e) {
+      // Dagvy button click
+      var dagBtn = e.target.closest('.onevr-dagvy-btn');
+      if (dagBtn) {
+        e.stopPropagation();
+        var pIdx = +dagBtn.getAttribute('data-dagvy-idx');
+        var person = currentData.people[pIdx];
+        if (person) {
+          openDagvy(person, overlay);
+        }
+        return;
+      }
+
+      // Click on turnr to scroll to element
       var tE = e.target.closest('.onevr-turnr');
       if (tE) {
         var eI = +tE.getAttribute('data-elidx');
@@ -687,6 +700,175 @@
 
     // Initial status bar update
     updateStatusBar();
+  }
+
+  /**
+   * Open dagvy: click on person element, wait for popup, scrape, show modal
+   */
+  function openDagvy(person, overlay) {
+    var el = currentData.elements[person.elIdx];
+    if (!el) return;
+
+    var cdkC = document.querySelector('.cdk-overlay-container');
+    if (cdkC) {
+      cdkC.style.opacity = '0';
+      cdkC.style.pointerEvents = 'none';
+    }
+
+    // Show loading indicator
+    var loadingModal = document.createElement('div');
+    loadingModal.className = 'onevr-dagvy-modal';
+    loadingModal.innerHTML =
+      '<div class="onevr-dagvy-content">' +
+        '<div class="onevr-dagvy-header">' +
+          '<span>📋 Laddar dagvy...</span>' +
+          '<button class="onevr-dagvy-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-dagvy-loading">' +
+          '<div class="onevr-spinner"></div>' +
+          '<div style="margin-top:12px;color:rgba(60,60,67,.6);">Hämtar ' + person.name.split(' ')[0] + 's schema</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(loadingModal);
+
+    loadingModal.querySelector('.onevr-dagvy-close').onclick = function() {
+      loadingModal.remove();
+      if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+    };
+    loadingModal.onclick = function(e) {
+      if (e.target === loadingModal) {
+        loadingModal.remove();
+        if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+      }
+    };
+
+    overlay.style.display = 'none';
+    var tE = findTurnLabel(el) || el;
+    el.scrollIntoView({ behavior: 'instant', block: 'center' });
+
+    waitClose(function() {
+      setTimeout(function() {
+        tE.click();
+        var firstName = person.name.split(' ')[0];
+        waitModal(firstName, function(pane, txt) {
+          // Scrape the dagvy data
+          var segments = [];
+          if (pane) {
+            segments = scraper.scrapeDagvy(pane);
+          }
+
+          // Close the system popup
+          var bd = document.querySelector('.cdk-overlay-backdrop');
+          if (bd) bd.click();
+          var cb = document.querySelector('.icon-close');
+          if (cb) cb.click();
+
+          if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+          overlay.style.display = '';
+
+          // Remove loading and show dagvy
+          loadingModal.remove();
+          showDagvyModal(person, segments);
+        }, 6000);
+      }, 200);
+    });
+  }
+
+  /**
+   * Show dagvy modal with scraped data
+   */
+  function showDagvyModal(person, segments) {
+    var isoDate = currentData.isoDate || window.OneVR.state.navDate;
+    var weekdays = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
+    var dateObj = new Date(isoDate);
+    var weekday = weekdays[dateObj.getDay()];
+
+    // Build segments HTML
+    var segHTML = '';
+    if (!segments || segments.length === 0) {
+      segHTML = '<div class="onevr-dagvy-empty">Kunde inte hämta dagvy</div>';
+    } else {
+      segments.forEach(function(seg) {
+        var isTrain = !!seg.trainNr;
+        var timeStr = seg.timeStart && seg.timeEnd ? seg.timeStart + ' – ' + seg.timeEnd : '';
+        var routeStr = '';
+        if (seg.fromStation && seg.toStation) {
+          routeStr = seg.fromStation + ' → ' + seg.toStation;
+        } else if (seg.fromStation) {
+          routeStr = seg.fromStation;
+        }
+
+        if (isTrain) {
+          // Train segment
+          var vehicleStr = seg.vehicles.length ? seg.vehicles.join(', ') : '';
+          segHTML += '<div class="onevr-dagvy-seg onevr-dagvy-train">' +
+            '<div class="onevr-dagvy-seg-left">' +
+              '<span class="onevr-dagvy-seg-time">' + timeStr + '</span>' +
+              '<span class="onevr-dagvy-seg-route">' + routeStr + '</span>' +
+            '</div>' +
+            '<div class="onevr-dagvy-seg-right">' +
+              '<span class="onevr-dagvy-train-nr">🚆 ' + seg.trainNr + '</span>' +
+              '<span class="onevr-dagvy-train-type">' + seg.trainType + '</span>' +
+              (vehicleStr ? '<span class="onevr-dagvy-vehicle">' + vehicleStr + '</span>' : '') +
+            '</div>' +
+          '</div>';
+        } else {
+          // Activity segment
+          var actName = seg.activity || 'Aktivitet';
+          var icon = '📍';
+          if (actName.match(/gångtid/i)) icon = '🚶';
+          else if (actName.match(/orderläsning/i)) icon = '📖';
+          else if (actName.match(/plattform/i)) icon = '🏗️';
+          else if (actName.match(/tågpassning/i)) icon = '👀';
+          else if (actName.match(/rast/i)) icon = '☕';
+          else if (actName.match(/utcheckning/i)) icon = '🏁';
+          else if (actName.match(/incheckning/i)) icon = '✅';
+
+          segHTML += '<div class="onevr-dagvy-seg onevr-dagvy-activity">' +
+            '<div class="onevr-dagvy-seg-left">' +
+              '<span class="onevr-dagvy-seg-time">' + timeStr + '</span>' +
+              '<span class="onevr-dagvy-seg-route">' + routeStr + '</span>' +
+            '</div>' +
+            '<div class="onevr-dagvy-seg-right">' +
+              '<span class="onevr-dagvy-act-name">' + icon + ' ' + actName + '</span>' +
+            '</div>' +
+          '</div>';
+        }
+      });
+    }
+
+    // Count trains
+    var trainCount = segments.filter(function(s) { return !!s.trainNr; }).length;
+    var actCount = segments.filter(function(s) { return !s.trainNr; }).length;
+
+    var modal = document.createElement('div');
+    modal.className = 'onevr-dagvy-modal';
+    modal.innerHTML =
+      '<div class="onevr-dagvy-content">' +
+        '<div class="onevr-dagvy-header">' +
+          '<span>📋 ' + person.name + '</span>' +
+          '<button class="onevr-dagvy-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-dagvy-info">' +
+          '<div class="onevr-dagvy-info-row">' +
+            '<span class="onevr-dagvy-badge onevr-badge-' + person.badgeColor + '">' + person.badge + '</span>' +
+            '<span class="onevr-dagvy-turnr">' + person.turnr + '</span>' +
+            '<span class="onevr-dagvy-date">' + weekday + ' ' + isoDate + '</span>' +
+          '</div>' +
+          '<div class="onevr-dagvy-info-row">' +
+            '<span class="onevr-dagvy-time">🕐 ' + (person.start !== '-' ? person.start + ' – ' + person.end : '—') + '</span>' +
+            '<span class="onevr-dagvy-stats">🚆 ' + trainCount + ' tåg · 📍 ' + actCount + ' aktiviteter</span>' +
+          '</div>' +
+          (person.phone ? '<div class="onevr-dagvy-info-row"><span class="onevr-dagvy-contact">📞 ' + person.phone + '</span></div>' : '') +
+          (person.trains && person.trains.length ? '<div class="onevr-dagvy-info-row"><span class="onevr-dagvy-trains">🚆 Tåg: ' + person.trains.join(', ') + '</span></div>' : '') +
+        '</div>' +
+        '<div class="onevr-dagvy-list">' + segHTML + '</div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('.onevr-dagvy-close').onclick = function() { modal.remove(); };
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
   }
 
   /**

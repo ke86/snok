@@ -857,6 +857,26 @@
       .onevr-pin-key:active { background: #3a3a3c; }
       .onevr-pin-key-del { color: #ff453a; }
       .onevr-version { color: rgba(235,235,245,.3); }
+
+      .onevr-person-tracked { border-left-color: #0a84ff; }
+      .onevr-dagvy-content { background: #1c1c1e; }
+      .onevr-dagvy-info { background: rgba(10,132,255,.1); border-bottom-color: rgba(255,255,255,.08); }
+      .onevr-dagvy-turnr { color: #0a84ff; }
+      .onevr-dagvy-date { color: rgba(235,235,245,.5); }
+      .onevr-dagvy-time { color: rgba(235,235,245,.7); }
+      .onevr-dagvy-stats { color: rgba(235,235,245,.4); }
+      .onevr-dagvy-seg { border-bottom-color: rgba(255,255,255,.06); }
+      .onevr-dagvy-seg-time { color: #fff; }
+      .onevr-dagvy-seg-route { color: rgba(235,235,245,.4); }
+      .onevr-dagvy-train { background: rgba(0,144,65,.08); }
+      .onevr-dagvy-train-nr { color: #30d158; }
+      .onevr-dagvy-train-type { color: #30d158; }
+      .onevr-dagvy-vehicle { background: #30d158; color: #000; }
+      .onevr-dagvy-act-name { color: rgba(235,235,245,.7); }
+      .onevr-dagvy-contact { color: #0a84ff; }
+      .onevr-dagvy-trains { color: rgba(235,235,245,.5); }
+      .onevr-dagvy-empty { color: rgba(235,235,245,.4); }
+      .onevr-dagvy-loading div { color: rgba(235,235,245,.5) !important; }
     }
 
     /* ============================================
@@ -1185,6 +1205,236 @@
 
     .onevr-pin-shake {
       animation: onevr-shake .4s ease;
+    }
+
+    /* ============================================
+       DAGVY BUTTON (on person card)
+       ============================================ */
+    .onevr-dagvy-btn {
+      background: linear-gradient(135deg, #007aff, #5856d6);
+      border: none;
+      color: #fff;
+      font-size: 14px;
+      padding: 2px 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-left: 6px;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform .1s ease;
+    }
+
+    .onevr-dagvy-btn:active {
+      transform: scale(.9);
+    }
+
+    .onevr-person-tracked {
+      border-left: 3px solid #007aff;
+    }
+
+    /* ============================================
+       DAGVY MODAL
+       ============================================ */
+    .onevr-dagvy-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.5);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      z-index: 100001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .onevr-dagvy-content {
+      background: #fff;
+      border-radius: 20px;
+      width: 100%;
+      max-width: 420px;
+      max-height: 85vh;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,.25);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .onevr-dagvy-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #007aff, #5856d6);
+      color: #fff;
+      font-weight: 700;
+      font-size: 17px;
+    }
+
+    .onevr-dagvy-close {
+      background: rgba(255,255,255,.2);
+      border: none;
+      font-size: 18px;
+      color: #fff;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 8px;
+    }
+
+    .onevr-dagvy-close:active { background: rgba(255,255,255,.3); }
+
+    .onevr-dagvy-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .onevr-dagvy-info {
+      padding: 12px 16px;
+      background: rgba(0,122,255,.06);
+      border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+
+    .onevr-dagvy-info-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+
+    .onevr-dagvy-info-row:last-child { margin-bottom: 0; }
+
+    .onevr-dagvy-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+      color: #fff;
+    }
+
+    .onevr-dagvy-turnr {
+      font-weight: 700;
+      font-size: 14px;
+      color: #007aff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-dagvy-date {
+      font-size: 13px;
+      color: rgba(60,60,67,.6);
+      margin-left: auto;
+    }
+
+    .onevr-dagvy-time {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(60,60,67,.8);
+    }
+
+    .onevr-dagvy-stats {
+      font-size: 12px;
+      color: rgba(60,60,67,.5);
+      margin-left: auto;
+    }
+
+    .onevr-dagvy-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+      max-height: 55vh;
+    }
+
+    .onevr-dagvy-seg {
+      display: flex;
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(0,0,0,.05);
+      gap: 12px;
+    }
+
+    .onevr-dagvy-seg:last-child { border-bottom: none; }
+
+    .onevr-dagvy-seg-left {
+      display: flex;
+      flex-direction: column;
+      min-width: 110px;
+    }
+
+    .onevr-dagvy-seg-time {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1c1c1e;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-dagvy-seg-route {
+      font-size: 11px;
+      color: rgba(60,60,67,.5);
+      margin-top: 2px;
+    }
+
+    .onevr-dagvy-seg-right {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      justify-content: center;
+    }
+
+    .onevr-dagvy-train {
+      background: rgba(0,144,65,.04);
+    }
+
+    .onevr-dagvy-train-nr {
+      font-size: 15px;
+      font-weight: 700;
+      color: #009041;
+    }
+
+    .onevr-dagvy-train-type {
+      font-size: 12px;
+      color: #009041;
+      opacity: .7;
+    }
+
+    .onevr-dagvy-vehicle {
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      background: #009041;
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-top: 4px;
+      display: inline-block;
+      width: fit-content;
+    }
+
+    .onevr-dagvy-activity {
+      background: transparent;
+    }
+
+    .onevr-dagvy-act-name {
+      font-size: 13px;
+      color: rgba(60,60,67,.8);
+      font-weight: 500;
+    }
+
+    .onevr-dagvy-contact {
+      font-size: 13px;
+      color: #007aff;
+    }
+
+    .onevr-dagvy-trains {
+      font-size: 12px;
+      color: rgba(60,60,67,.6);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-dagvy-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: rgba(60,60,67,.5);
+      font-size: 16px;
     }
   `;
 
