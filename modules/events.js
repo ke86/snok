@@ -34,6 +34,125 @@
   // Structure: { [personName]: { days: [ { date, segments, turnr, start, end, notFound, crews: { [trainNr]: crewData } } ] } }
   window.OneVR.dagvyStore = window.OneVR.dagvyStore || {};
 
+  // ─── Firestore helpers ───────────────────────
+
+  /**
+   * Convert JS value to Firestore REST API typed value
+   */
+  function toFirestoreValue(val) {
+    if (val === null || val === undefined) return { nullValue: null };
+    if (typeof val === 'boolean') return { booleanValue: val };
+    if (typeof val === 'number') {
+      if (Number.isInteger(val)) return { integerValue: String(val) };
+      return { doubleValue: val };
+    }
+    if (typeof val === 'string') return { stringValue: val };
+    if (Array.isArray(val)) {
+      return { arrayValue: { values: val.map(toFirestoreValue) } };
+    }
+    if (typeof val === 'object') {
+      var fields = {};
+      Object.keys(val).forEach(function(k) {
+        fields[k] = toFirestoreValue(val[k]);
+      });
+      return { mapValue: { fields: fields } };
+    }
+    return { stringValue: String(val) };
+  }
+
+  /**
+   * Upload dagvy data to Firestore
+   * Collection: dagvy, Document: personName
+   */
+  function uploadToFirebase(personName, storeData, cb) {
+    var projectId = CFG.firebase && CFG.firebase.projectId;
+    if (!projectId) { cb(false, 'Firebase ej konfigurerat'); return; }
+
+    var docId = encodeURIComponent(personName);
+    var url = 'https://firestore.googleapis.com/v1/projects/' + projectId +
+              '/databases/(default)/documents/dagvy/' + docId;
+
+    // Build clean data for Firestore
+    var cleanDays = storeData.days.map(function(day) {
+      var cleanSegs = day.segments.map(function(seg) {
+        return {
+          timeStart: seg.timeStart || '',
+          timeEnd: seg.timeEnd || '',
+          fromStation: seg.fromStation || '',
+          toStation: seg.toStation || '',
+          trainNr: seg.trainNr || '',
+          trainType: seg.trainType || '',
+          vehicles: seg.vehicles || [],
+          activity: seg.activity || ''
+        };
+      });
+
+      // Convert crews object to array for Firestore
+      var crewsList = [];
+      if (day.crews) {
+        Object.keys(day.crews).forEach(function(trainNr) {
+          var c = day.crews[trainNr];
+          if (c) {
+            crewsList.push({
+              trainNr: c.trainNr || trainNr,
+              vehicles: c.vehicles || [],
+              date: c.date || day.date,
+              crew: (c.crew || []).map(function(m) {
+                return {
+                  name: m.name || '',
+                  role: m.role || '',
+                  location: m.location || '',
+                  fromStation: m.fromStation || '',
+                  toStation: m.toStation || '',
+                  timeStart: m.timeStart || '',
+                  timeEnd: m.timeEnd || '',
+                  phone: m.phone || ''
+                };
+              })
+            });
+          }
+        });
+      }
+
+      return {
+        date: day.date || '',
+        turnr: day.turnr || '',
+        start: day.start || '',
+        end: day.end || '',
+        notFound: !!day.notFound,
+        segments: cleanSegs,
+        crews: crewsList
+      };
+    });
+
+    var docData = {
+      fields: {
+        personName: { stringValue: personName },
+        scrapedAt: { stringValue: new Date().toISOString() },
+        daysCount: { integerValue: String(cleanDays.length) },
+        days: toFirestoreValue(cleanDays)
+      }
+    };
+
+    fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(docData)
+    })
+    .then(function(r) {
+      if (!r.ok) return r.json().then(function(e) { throw new Error(e.error ? e.error.message : 'HTTP ' + r.status); });
+      return r.json();
+    })
+    .then(function() {
+      console.log('[OneVR] Firebase upload OK for ' + personName);
+      cb(true);
+    })
+    .catch(function(err) {
+      console.error('[OneVR] Firebase upload failed:', err);
+      cb(false, err.message || 'Okänt fel');
+    });
+  }
+
   /**
    * Check if viewing today's date
    */
@@ -1267,6 +1386,14 @@
       ? days.length + ' dagar · 🚆 ' + totalTrains + ' tåg' + (totalCrews > 0 ? ' · 👥 ' + totalCrews + ' besättningar' : '')
       : '';
 
+    // Check if data is in store (for Firebase upload)
+    var hasStoreData = window.OneVR.dagvyStore && window.OneVR.dagvyStore[person.name];
+    var firebaseBtn = hasStoreData
+      ? '<div class="onevr-dagvy-footer">' +
+          '<button class="onevr-firebase-btn" id="onevr-firebase-upload">☁️ Skicka till Firebase</button>' +
+        '</div>'
+      : '';
+
     var modal = document.createElement('div');
     modal.className = 'onevr-dagvy-modal';
     modal.innerHTML =
@@ -1282,12 +1409,40 @@
           ? '<div class="onevr-multi-days">' + allDaysHTML + '</div>'
           : allDaysHTML
         ) +
+        firebaseBtn +
       '</div>';
 
     document.body.appendChild(modal);
 
     modal.querySelector('.onevr-dagvy-close').onclick = function() { modal.remove(); };
     modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+
+    // Firebase upload handler
+    var fbBtn = modal.querySelector('#onevr-firebase-upload');
+    if (fbBtn) {
+      fbBtn.onclick = function() {
+        fbBtn.disabled = true;
+        fbBtn.textContent = '☁️ Skickar...';
+        fbBtn.classList.add('onevr-firebase-sending');
+
+        uploadToFirebase(person.name, window.OneVR.dagvyStore[person.name], function(ok, errMsg) {
+          if (ok) {
+            fbBtn.textContent = '✅ Skickat!';
+            fbBtn.classList.remove('onevr-firebase-sending');
+            fbBtn.classList.add('onevr-firebase-done');
+          } else {
+            fbBtn.textContent = '❌ Fel: ' + (errMsg || 'Okänt');
+            fbBtn.classList.remove('onevr-firebase-sending');
+            fbBtn.classList.add('onevr-firebase-error');
+            fbBtn.disabled = false;
+            setTimeout(function() {
+              fbBtn.textContent = '☁️ Försök igen';
+              fbBtn.classList.remove('onevr-firebase-error');
+            }, 3000);
+          }
+        });
+      };
+    }
 
     // Multi-day: toggle day sections
     if (isMultiDay) {

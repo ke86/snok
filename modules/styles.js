@@ -921,6 +921,9 @@
       .onevr-inline-crew-role { color: rgba(235,235,245,.5); }
       .onevr-inline-crew-route { color: rgba(235,235,245,.4); }
       .onevr-inline-crew-phone { color: #0a84ff; }
+
+      .onevr-dagvy-footer { border-top-color: rgba(255,255,255,.06); }
+      .onevr-firebase-btn { background: linear-gradient(135deg, #ff9f0a, #ff6b00); }
     }
 
     /* ============================================
@@ -1900,6 +1903,51 @@
       color: #007aff;
       white-space: nowrap;
       flex-shrink: 0;
+    }
+
+    /* ============================================
+       FIREBASE UPLOAD BUTTON
+       ============================================ */
+    .onevr-dagvy-footer {
+      padding: 12px 16px;
+      border-top: 1px solid rgba(0,0,0,.06);
+    }
+
+    .onevr-firebase-btn {
+      width: 100%;
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #ff9500, #ff6b00);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .onevr-firebase-btn:active {
+      transform: scale(.97);
+      opacity: .9;
+    }
+
+    .onevr-firebase-btn:disabled {
+      cursor: default;
+    }
+
+    .onevr-firebase-sending {
+      background: linear-gradient(135deg, #8e8e93, #a0a0a5);
+      animation: onevr-pulse 1.5s ease-in-out infinite;
+    }
+
+    .onevr-firebase-done {
+      background: linear-gradient(135deg, #34c759, #30d158);
+      box-shadow: 0 2px 12px rgba(52,199,89,.3);
+    }
+
+    .onevr-firebase-error {
+      background: linear-gradient(135deg, #ff3b30, #ff6b6b);
     }
   `;
 

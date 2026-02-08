@@ -109,6 +109,10 @@
     "loadTimeDelay": 800
   },
 
+  "firebase": {
+    "projectId": "vemjobbaridag"
+  },
+
   "theme": {
     "light": {
       "background": "linear-gradient(180deg,#f2f2f7,#e5e5ea)",
