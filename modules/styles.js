@@ -919,6 +919,7 @@
       .onevr-inline-crew-self { background: rgba(10,132,255,.1); border-left-color: #0a84ff; }
       .onevr-inline-crew-name { color: #fff; }
       .onevr-inline-crew-role { color: rgba(235,235,245,.5); }
+      .onevr-inline-crew-route { color: rgba(235,235,245,.4); }
       .onevr-inline-crew-phone { color: #0a84ff; }
     }
 
@@ -1854,10 +1855,9 @@
     .onevr-inline-crew-member {
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 5px 0;
+      gap: 8px;
+      padding: 6px 0;
       border-bottom: 1px solid rgba(0,0,0,.04);
-      flex-wrap: wrap;
     }
 
     .onevr-inline-crew-member:last-child { border-bottom: none; }
@@ -1865,9 +1865,16 @@
     .onevr-inline-crew-self {
       background: rgba(0,122,255,.06);
       border-radius: 6px;
-      padding: 5px 6px;
+      padding: 6px 8px;
       margin: 0 -6px;
       border-left: 2px solid #007aff;
+    }
+
+    .onevr-inline-crew-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
     }
 
     .onevr-inline-crew-name {
@@ -1881,10 +1888,18 @@
       color: rgba(60,60,67,.6);
     }
 
+    .onevr-inline-crew-route {
+      font-size: 11px;
+      color: rgba(60,60,67,.5);
+      font-variant-numeric: tabular-nums;
+      margin-top: 1px;
+    }
+
     .onevr-inline-crew-phone {
       font-size: 11px;
       color: #007aff;
-      margin-left: auto;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
   `;
 

@@ -1091,9 +1091,24 @@
     // Crew members
     crewData.crew.forEach(function(m) {
       var isSelf = originName && m.name === originName;
+      var routeStr = '';
+      if (m.fromStation && m.toStation) {
+        routeStr = m.fromStation + ' → ' + m.toStation;
+      } else if (m.fromStation) {
+        routeStr = m.fromStation;
+      }
+      var timeStr = '';
+      if (m.timeStart && m.timeEnd) {
+        timeStr = m.timeStart + ' – ' + m.timeEnd;
+      }
       html += '<div class="onevr-inline-crew-member' + (isSelf ? ' onevr-inline-crew-self' : '') + '">' +
-        '<span class="onevr-inline-crew-name">' + m.name + '</span>' +
-        '<span class="onevr-inline-crew-role">' + m.role + (m.location ? ' · ' + m.location : '') + '</span>' +
+        '<div class="onevr-inline-crew-info">' +
+          '<span class="onevr-inline-crew-name">' + m.name + '</span>' +
+          '<span class="onevr-inline-crew-role">' + m.role + (m.location ? ' · ' + m.location : '') + '</span>' +
+          (routeStr || timeStr
+            ? '<span class="onevr-inline-crew-route">' + (timeStr ? timeStr + ' ' : '') + routeStr + '</span>'
+            : '') +
+        '</div>' +
         (m.phone ? '<span class="onevr-inline-crew-phone">' + m.phone + '</span>' : '') +
       '</div>';
     });
