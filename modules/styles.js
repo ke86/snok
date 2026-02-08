@@ -848,6 +848,15 @@
       .onevr-stat-current { color: #30d158; }
       .onevr-stat-vacancy { color: #ff453a; }
       .onevr-vacancy-empty { color: #30d158; }
+
+      .onevr-pin-content { background: #1c1c1e; }
+      .onevr-pin-body { background: #1c1c1e; }
+      .onevr-pin-dot { background: #3a3a3c; border-color: #48484a; }
+      .onevr-pin-dot.filled { background: #5e5ce6; border-color: #5e5ce6; }
+      .onevr-pin-key { background: #2c2c2e; color: #fff; }
+      .onevr-pin-key:active { background: #3a3a3c; }
+      .onevr-pin-key-del { color: #ff453a; }
+      .onevr-version { color: rgba(235,235,245,.3); }
     }
 
     /* ============================================
@@ -1028,6 +1037,154 @@
       color: #34c759;
       font-size: 18px;
       font-weight: 600;
+    }
+
+    /* ============================================
+       EXPORT BUTTON
+       ============================================ */
+    .onevr-btn-export {
+      background: linear-gradient(135deg, #5856d6, #7d7aff);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(88,86,214,.3);
+    }
+
+    .onevr-btn-export:active {
+      transform: scale(.98);
+      background: linear-gradient(135deg, #4a48b0, #5856d6);
+    }
+
+    /* ============================================
+       PIN DIALOG
+       ============================================ */
+    .onevr-pin-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.5);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      z-index: 100002;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .onevr-pin-content {
+      background: #fff;
+      border-radius: 20px;
+      width: 100%;
+      max-width: 320px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,.25);
+    }
+
+    .onevr-pin-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      background: linear-gradient(135deg, #5856d6, #7d7aff);
+      color: #fff;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .onevr-pin-close {
+      background: rgba(255,255,255,.2);
+      border: none;
+      font-size: 18px;
+      color: #fff;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 8px;
+    }
+
+    .onevr-pin-close:active { background: rgba(255,255,255,.3); }
+
+    .onevr-pin-body {
+      padding: 24px 20px 20px;
+    }
+
+    .onevr-pin-dots {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .onevr-pin-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #e5e5ea;
+      border: 2px solid #c7c7cc;
+      transition: all .15s ease;
+    }
+
+    .onevr-pin-dot.filled {
+      background: #5856d6;
+      border-color: #5856d6;
+      box-shadow: 0 0 8px rgba(88,86,214,.4);
+    }
+
+    .onevr-pin-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .onevr-pin-key {
+      background: #f2f2f7;
+      border: none;
+      border-radius: 12px;
+      font-size: 22px;
+      font-weight: 600;
+      color: #1c1c1e;
+      padding: 16px;
+      cursor: pointer;
+      transition: all .1s ease;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .onevr-pin-key:active {
+      background: #d1d1d6;
+      transform: scale(.95);
+    }
+
+    .onevr-pin-key-del {
+      font-size: 16px;
+      color: #ff3b30;
+    }
+
+    .onevr-pin-key-empty {
+      background: transparent;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .onevr-pin-key-empty:active {
+      transform: none;
+      background: transparent;
+    }
+
+    .onevr-pin-error {
+      text-align: center;
+      color: #ff3b30;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 14px;
+      min-height: 20px;
+    }
+
+    @keyframes onevr-shake {
+      0%, 100% { transform: translateX(0); }
+      10%, 50%, 90% { transform: translateX(-6px); }
+      30%, 70% { transform: translateX(6px); }
+    }
+
+    .onevr-pin-shake {
+      animation: onevr-shake .4s ease;
     }
   `;
 

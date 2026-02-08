@@ -677,8 +677,117 @@
       };
     }
 
+    // Export button
+    var exportBtn = document.getElementById('onevr-export-btn');
+    if (exportBtn) {
+      exportBtn.onclick = function() {
+        showPinDialog();
+      };
+    }
+
     // Initial status bar update
     updateStatusBar();
+  }
+
+  /**
+   * Show PIN dialog for export
+   */
+  function showPinDialog() {
+    var modal = document.createElement('div');
+    modal.className = 'onevr-pin-modal';
+    modal.innerHTML =
+      '<div class="onevr-pin-content">' +
+        '<div class="onevr-pin-header">' +
+          '<span>🔒 Ange PIN</span>' +
+          '<button class="onevr-pin-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-pin-body">' +
+          '<div class="onevr-pin-dots">' +
+            '<span class="onevr-pin-dot"></span>' +
+            '<span class="onevr-pin-dot"></span>' +
+            '<span class="onevr-pin-dot"></span>' +
+            '<span class="onevr-pin-dot"></span>' +
+          '</div>' +
+          '<div class="onevr-pin-error" id="onevr-pin-error"></div>' +
+          '<div class="onevr-pin-pad">' +
+            '<button class="onevr-pin-key" data-key="1">1</button>' +
+            '<button class="onevr-pin-key" data-key="2">2</button>' +
+            '<button class="onevr-pin-key" data-key="3">3</button>' +
+            '<button class="onevr-pin-key" data-key="4">4</button>' +
+            '<button class="onevr-pin-key" data-key="5">5</button>' +
+            '<button class="onevr-pin-key" data-key="6">6</button>' +
+            '<button class="onevr-pin-key" data-key="7">7</button>' +
+            '<button class="onevr-pin-key" data-key="8">8</button>' +
+            '<button class="onevr-pin-key" data-key="9">9</button>' +
+            '<button class="onevr-pin-key onevr-pin-key-empty"></button>' +
+            '<button class="onevr-pin-key" data-key="0">0</button>' +
+            '<button class="onevr-pin-key onevr-pin-key-del" data-key="del">⌫</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+
+    var pin = '';
+    var dots = modal.querySelectorAll('.onevr-pin-dot');
+    var errorEl = modal.querySelector('#onevr-pin-error');
+    var correctPin = '8612';
+
+    function updateDots() {
+      dots.forEach(function(dot, i) {
+        dot.classList.toggle('filled', i < pin.length);
+      });
+    }
+
+    function checkPin() {
+      if (pin === correctPin) {
+        modal.remove();
+        showExportMenu();
+      } else {
+        errorEl.textContent = 'Fel PIN';
+        pin = '';
+        updateDots();
+        dots.forEach(function(d) { d.classList.add('onevr-pin-shake'); });
+        setTimeout(function() {
+          dots.forEach(function(d) { d.classList.remove('onevr-pin-shake'); });
+          errorEl.textContent = '';
+        }, 800);
+      }
+    }
+
+    // Key pad clicks
+    modal.querySelector('.onevr-pin-pad').onclick = function(e) {
+      var key = e.target.closest('.onevr-pin-key');
+      if (!key) return;
+      var val = key.getAttribute('data-key');
+
+      if (val === 'del') {
+        pin = pin.slice(0, -1);
+        updateDots();
+      } else if (val && pin.length < 4) {
+        pin += val;
+        updateDots();
+        if (pin.length === 4) {
+          setTimeout(checkPin, 200);
+        }
+      }
+    };
+
+    // Close handlers
+    modal.querySelector('.onevr-pin-close').onclick = function() {
+      modal.remove();
+    };
+    modal.onclick = function(e) {
+      if (e.target === modal) modal.remove();
+    };
+  }
+
+  /**
+   * Show export menu (after PIN verified)
+   */
+  function showExportMenu() {
+    // TODO: Exportfunktionalitet
+    console.log('[OneVR] Export unlocked');
   }
 
   /**
