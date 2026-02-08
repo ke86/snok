@@ -913,6 +913,13 @@
       .onevr-day-arrow { color: #48484a; }
       .onevr-day-content { background: rgba(255,255,255,.03); }
       .onevr-day-notfound .onevr-day-weekday { color: #636366; }
+
+      .onevr-inline-crew { border-top-color: rgba(48,209,88,.15); }
+      .onevr-inline-crew-member { border-bottom-color: rgba(255,255,255,.04); }
+      .onevr-inline-crew-self { background: rgba(10,132,255,.1); border-left-color: #0a84ff; }
+      .onevr-inline-crew-name { color: #fff; }
+      .onevr-inline-crew-role { color: rgba(235,235,245,.5); }
+      .onevr-inline-crew-phone { color: #0a84ff; }
     }
 
     /* ============================================
@@ -1808,6 +1815,76 @@
 
     .onevr-day-notfound .onevr-day-header {
       opacity: .7;
+    }
+
+    /* ============================================
+       INLINE CREW (inside dagvy train segments)
+       ============================================ */
+    .onevr-dagvy-crew-toggle {
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .onevr-dagvy-crew-toggle:active { opacity: .6; }
+
+    .onevr-dagvy-has-crew {
+      cursor: pointer;
+      flex-wrap: wrap;
+    }
+
+    .onevr-inline-crew {
+      display: none;
+      width: 100%;
+      padding: 8px 0 4px;
+      margin-top: 8px;
+      border-top: 1px solid rgba(0,144,65,.15);
+    }
+
+    .onevr-crew-expanded .onevr-inline-crew {
+      display: block;
+    }
+
+    .onevr-inline-crew-vehicles {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    .onevr-inline-crew-member {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(0,0,0,.04);
+      flex-wrap: wrap;
+    }
+
+    .onevr-inline-crew-member:last-child { border-bottom: none; }
+
+    .onevr-inline-crew-self {
+      background: rgba(0,122,255,.06);
+      border-radius: 6px;
+      padding: 5px 6px;
+      margin: 0 -6px;
+      border-left: 2px solid #007aff;
+    }
+
+    .onevr-inline-crew-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1c1c1e;
+    }
+
+    .onevr-inline-crew-role {
+      font-size: 11px;
+      color: rgba(60,60,67,.6);
+    }
+
+    .onevr-inline-crew-phone {
+      font-size: 11px;
+      color: #007aff;
+      margin-left: auto;
     }
   `;
 
