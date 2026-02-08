@@ -890,6 +890,16 @@
       .onevr-export-person-action { color: #7d7aff; border-top-color: rgba(10,132,255,.15); }
       .onevr-export-empty { color: rgba(235,235,245,.4); }
       .onevr-export-names { color: rgba(235,235,245,.3); border-top-color: rgba(255,255,255,.06); }
+
+      .onevr-crew-info { background: rgba(0,144,65,.1); border-bottom-color: rgba(255,255,255,.06); }
+      .onevr-crew-date { color: rgba(235,235,245,.5); }
+      .onevr-crew-segment { border-bottom-color: rgba(255,255,255,.06); }
+      .onevr-crew-seg-time { color: #30d158; }
+      .onevr-crew-seg-route { color: rgba(235,235,245,.4); }
+      .onevr-crew-member-self { background: rgba(10,132,255,.1); border-left-color: #0a84ff; }
+      .onevr-crew-member-name { color: #fff; }
+      .onevr-crew-member-role { color: rgba(235,235,245,.5); }
+      .onevr-crew-member-phone { color: #0a84ff; }
     }
 
     /* ============================================
@@ -1557,6 +1567,118 @@
 
     .onevr-export-names-label {
       font-weight: 600;
+    }
+
+    /* ============================================
+       TRAIN LINK (clickable in dagvy)
+       ============================================ */
+    .onevr-dagvy-train-link {
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .onevr-dagvy-train-link:active {
+      opacity: .6;
+    }
+
+    /* ============================================
+       CREW MODAL
+       ============================================ */
+    .onevr-crew-info {
+      padding: 12px 16px;
+      background: rgba(0,144,65,.06);
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .onevr-crew-vehicles {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .onevr-crew-vehicle-badge {
+      background: #009041;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 8px;
+    }
+
+    .onevr-crew-date {
+      font-size: 13px;
+      color: rgba(60,60,67,.6);
+      margin-left: auto;
+    }
+
+    .onevr-crew-segment {
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      padding-bottom: 4px;
+      margin-bottom: 4px;
+    }
+
+    .onevr-crew-segment:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+
+    .onevr-crew-seg-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px 4px;
+    }
+
+    .onevr-crew-seg-time {
+      font-size: 12px;
+      font-weight: 700;
+      color: #009041;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-crew-seg-route {
+      font-size: 11px;
+      color: rgba(60,60,67,.5);
+    }
+
+    .onevr-crew-member {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      gap: 10px;
+    }
+
+    .onevr-crew-member-self {
+      background: rgba(0,122,255,.06);
+      border-left: 3px solid #007aff;
+    }
+
+    .onevr-crew-member-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .onevr-crew-member-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1c1c1e;
+    }
+
+    .onevr-crew-member-role {
+      font-size: 12px;
+      color: rgba(60,60,67,.6);
+    }
+
+    .onevr-crew-member-phone {
+      font-size: 12px;
+      color: #007aff;
+      white-space: nowrap;
     }
   `;
 

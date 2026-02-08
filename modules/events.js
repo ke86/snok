@@ -786,7 +786,7 @@
         }
 
         if (isTrain) {
-          // Train segment
+          // Train segment — train nr is clickable to show crew
           var vehicleStr = seg.vehicles.length ? seg.vehicles.join(', ') : '';
           segHTML += '<div class="onevr-dagvy-seg onevr-dagvy-train">' +
             '<div class="onevr-dagvy-seg-left">' +
@@ -794,7 +794,7 @@
               '<span class="onevr-dagvy-seg-route">' + routeStr + '</span>' +
             '</div>' +
             '<div class="onevr-dagvy-seg-right">' +
-              '<span class="onevr-dagvy-train-nr">🚆 ' + seg.trainNr + '</span>' +
+              '<span class="onevr-dagvy-train-nr onevr-dagvy-train-link" data-train="' + seg.trainNr + '">🚆 ' + seg.trainNr + ' ›</span>' +
               '<span class="onevr-dagvy-train-type">' + seg.trainType + '</span>' +
               (vehicleStr ? '<span class="onevr-dagvy-vehicle">' + vehicleStr + '</span>' : '') +
             '</div>' +
@@ -850,6 +850,224 @@
           (person.trains && person.trains.length ? '<div class="onevr-dagvy-info-row"><span class="onevr-dagvy-trains">🚆 Tåg: ' + person.trains.join(', ') + '</span></div>' : '') +
         '</div>' +
         '<div class="onevr-dagvy-list">' + segHTML + '</div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('.onevr-dagvy-close').onclick = function() { modal.remove(); };
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+
+    // Click on train number to show crew
+    modal.querySelectorAll('.onevr-dagvy-train-link').forEach(function(link) {
+      link.onclick = function() {
+        var trainNr = link.getAttribute('data-train');
+        if (trainNr) {
+          modal.remove();
+          openTrainCrew(person, trainNr);
+        }
+      };
+    });
+  }
+
+  /**
+   * Open train crew: click person → open dagvy popup → find train nr → click → scrape crew
+   */
+  function openTrainCrew(person, trainNr) {
+    var el = currentData.elements[person.elIdx];
+    if (!el) return;
+
+    var overlay = document.querySelector('.onevr-overlay');
+    var cdkC = document.querySelector('.cdk-overlay-container');
+    if (cdkC) { cdkC.style.opacity = '0'; cdkC.style.pointerEvents = 'none'; }
+
+    // Show loading
+    var loadingModal = document.createElement('div');
+    loadingModal.className = 'onevr-dagvy-modal';
+    loadingModal.innerHTML =
+      '<div class="onevr-dagvy-content">' +
+        '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#009041,#30d158);">' +
+          '<span>🚆 Hämtar besättning...</span>' +
+          '<button class="onevr-dagvy-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-dagvy-loading">' +
+          '<div class="onevr-spinner"></div>' +
+          '<div style="margin-top:12px;color:rgba(60,60,67,.6);">Tåg ' + trainNr + '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(loadingModal);
+
+    var cleanUp = function() {
+      if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+      if (overlay) overlay.style.display = '';
+    };
+
+    loadingModal.querySelector('.onevr-dagvy-close').onclick = function() { loadingModal.remove(); cleanUp(); };
+    loadingModal.onclick = function(e) { if (e.target === loadingModal) { loadingModal.remove(); cleanUp(); } };
+
+    if (overlay) overlay.style.display = 'none';
+    var tE = findTurnLabel(el) || el;
+    el.scrollIntoView({ behavior: 'instant', block: 'center' });
+
+    // Step 1: Open person's dagvy popup
+    waitClose(function() {
+      setTimeout(function() {
+        tE.click();
+        var firstName = person.name.split(' ')[0];
+        waitModal(firstName, function(pane) {
+          if (!pane) {
+            loadingModal.remove(); cleanUp();
+            return;
+          }
+
+          // Step 2: Find the train number in H-section and click it
+          var trainLabels = pane.querySelectorAll('.storybook-label');
+          var trainEl = null;
+          trainLabels.forEach(function(lbl) {
+            var lt = (lbl.innerText || '').trim();
+            if (lt === trainNr) trainEl = lbl;
+          });
+
+          if (!trainEl) {
+            // Try trip-number elements inside piece-containers
+            pane.querySelectorAll('.trip-number .storybook-label').forEach(function(lbl) {
+              var lt = (lbl.innerText || '').trim();
+              if (lt === trainNr) trainEl = lbl;
+            });
+          }
+
+          if (!trainEl) {
+            // Close dagvy popup and bail
+            var bd = document.querySelector('.cdk-overlay-backdrop');
+            if (bd) bd.click();
+            loadingModal.remove(); cleanUp();
+            return;
+          }
+
+          // Step 3: Click train number to open crew popup
+          trainEl.click();
+
+          // Step 4: Wait for new dialog (staff-onboard-dialog)
+          var waitCrew = 0;
+          (function checkCrew() {
+            var crewPane = document.querySelector('.cdk-overlay-pane app-staff-onboard-dialog');
+            if (!crewPane) crewPane = document.querySelector('.cdk-overlay-pane .staff__list');
+            // Also check by text content - the crew dialog should NOT contain the person's first name as primary content
+            if (!crewPane) {
+              var allPanes = document.querySelectorAll('.cdk-overlay-pane');
+              allPanes.forEach(function(p) {
+                var pt = (p.innerText || '');
+                if (pt.includes('staff__card') || pt.includes(trainNr)) {
+                  // Check for staff cards
+                  if (p.querySelector('.staff__card')) crewPane = p;
+                }
+              });
+            }
+
+            if (crewPane) {
+              // Find the actual overlay pane containing the crew
+              var actualPane = crewPane.closest('.cdk-overlay-pane') || crewPane;
+              var crewData = scraper.scrapeTrainCrew(actualPane);
+
+              // Close all popups
+              var bds = document.querySelectorAll('.cdk-overlay-backdrop');
+              bds.forEach(function(b) { b.click(); });
+              var closeIcons = document.querySelectorAll('.close-icon, .icon-close');
+              closeIcons.forEach(function(c) { c.click(); });
+
+              loadingModal.remove(); cleanUp();
+              if (crewData) {
+                showCrewModal(crewData, person);
+              }
+            } else {
+              waitCrew += 300;
+              if (waitCrew < 8000) {
+                setTimeout(checkCrew, 300);
+              } else {
+                // Timeout - close everything
+                var bd2 = document.querySelector('.cdk-overlay-backdrop');
+                if (bd2) bd2.click();
+                loadingModal.remove(); cleanUp();
+              }
+            }
+          })();
+        }, 6000);
+      }, 200);
+    });
+  }
+
+  /**
+   * Show crew modal
+   */
+  function showCrewModal(crewData, originPerson) {
+    var uniqueVehicles = [];
+    var seenV = {};
+    crewData.vehicles.forEach(function(v) {
+      if (!seenV[v]) { seenV[v] = true; uniqueVehicles.push(v); }
+    });
+
+    // Group crew by segment (unique time ranges)
+    var crewHTML = '';
+    if (!crewData.crew.length) {
+      crewHTML = '<div class="onevr-dagvy-empty">Ingen besättning hittades</div>';
+    } else {
+      // Deduplicate crew by name+time (same person appears for each segment)
+      var segments = {};
+      crewData.crew.forEach(function(m) {
+        var key = m.timeStart + '-' + m.timeEnd + '_' + m.fromStation + '-' + m.toStation;
+        if (!segments[key]) {
+          segments[key] = {
+            timeStart: m.timeStart,
+            timeEnd: m.timeEnd,
+            fromStation: m.fromStation,
+            toStation: m.toStation,
+            members: []
+          };
+        }
+        // Avoid duplicate names in same segment
+        var exists = false;
+        segments[key].members.forEach(function(em) { if (em.name === m.name) exists = true; });
+        if (!exists) segments[key].members.push(m);
+      });
+
+      Object.keys(segments).forEach(function(key) {
+        var seg = segments[key];
+        var routeStr = seg.fromStation + ' → ' + seg.toStation;
+        var timeStr = seg.timeStart + ' – ' + seg.timeEnd;
+
+        crewHTML += '<div class="onevr-crew-segment">' +
+          '<div class="onevr-crew-seg-header">' +
+            '<span class="onevr-crew-seg-time">' + timeStr + '</span>' +
+            '<span class="onevr-crew-seg-route">' + routeStr + '</span>' +
+          '</div>';
+
+        seg.members.forEach(function(m) {
+          var isOrigin = originPerson && m.name === originPerson.name;
+          crewHTML += '<div class="onevr-crew-member' + (isOrigin ? ' onevr-crew-member-self' : '') + '">' +
+            '<div class="onevr-crew-member-info">' +
+              '<span class="onevr-crew-member-name">' + m.name + '</span>' +
+              '<span class="onevr-crew-member-role">' + m.role + (m.location ? ' · ' + m.location : '') + '</span>' +
+            '</div>' +
+            (m.phone ? '<span class="onevr-crew-member-phone">' + m.phone + '</span>' : '') +
+          '</div>';
+        });
+
+        crewHTML += '</div>';
+      });
+    }
+
+    var modal = document.createElement('div');
+    modal.className = 'onevr-dagvy-modal';
+    modal.innerHTML =
+      '<div class="onevr-dagvy-content">' +
+        '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#009041,#30d158);">' +
+          '<span>🚆 Tåg ' + crewData.trainNr + '</span>' +
+          '<button class="onevr-dagvy-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-crew-info">' +
+          (uniqueVehicles.length ? '<div class="onevr-crew-vehicles">' + uniqueVehicles.map(function(v) { return '<span class="onevr-crew-vehicle-badge">' + v + '</span>'; }).join('') + '</div>' : '') +
+          (crewData.date ? '<div class="onevr-crew-date">📅 ' + crewData.date + '</div>' : '') +
+        '</div>' +
+        '<div class="onevr-dagvy-list">' + crewHTML + '</div>' +
       '</div>';
 
     document.body.appendChild(modal);

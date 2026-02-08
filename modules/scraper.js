@@ -394,6 +394,95 @@
     return segments;
   }
 
+  /**
+   * Scrape train crew from an open staff-onboard dialog
+   * Returns { trainNr, vehicles, date, crew[] }
+   */
+  function scrapeTrainCrew(overlayPane) {
+    if (!overlayPane) return null;
+
+    var text = (overlayPane.innerText || '').trim();
+    var result = {
+      trainNr: '',
+      vehicles: [],
+      date: '',
+      crew: []
+    };
+
+    // Train number from header
+    var headerEl = overlayPane.querySelector('.dialog__header h2.label, .dialog__header .label');
+    if (headerEl) {
+      var ht = (headerEl.innerText || '').trim();
+      var tnMatch = ht.match(/\d{3,5}/);
+      if (tnMatch) result.trainNr = tnMatch[0];
+    }
+
+    // Vehicles from chips
+    overlayPane.querySelectorAll('.chip').forEach(function(chip) {
+      var v = (chip.innerText || '').trim();
+      if (v) result.vehicles.push(v);
+    });
+
+    // Date
+    var labels = overlayPane.querySelectorAll('.label');
+    labels.forEach(function(lbl) {
+      var lt = (lbl.innerText || '').trim();
+      var dm = lt.match(/\d{4}-\d{2}-\d{2}/);
+      if (dm) result.date = dm[0];
+    });
+
+    // Crew from staff cards
+    overlayPane.querySelectorAll('.staff__card').forEach(function(card) {
+      var nameEl = card.querySelector('.staff__name');
+      var roleEl = card.querySelector('.staff__role');
+      var schedEl = card.querySelector('.staff__scedule');
+
+      var member = {
+        name: nameEl ? (nameEl.innerText || '').trim() : '',
+        role: '',
+        location: '',
+        fromStation: '',
+        toStation: '',
+        timeStart: '',
+        timeEnd: '',
+        phone: ''
+      };
+
+      // Parse role + location (e.g. "Lokförare Malmö")
+      if (roleEl) {
+        var roleText = (roleEl.innerText || '').trim();
+        var rp = roleText.match(/^(\S+)\s+(.+)$/);
+        if (rp) {
+          member.role = rp[1];
+          member.location = rp[2];
+        } else {
+          member.role = roleText;
+        }
+      }
+
+      // Parse schedule text for times and stations
+      if (schedEl) {
+        var st = (schedEl.innerText || '').trim();
+        var stMatch = st.match(/\(([^)]+)\)\s*(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})\s*\(([^)]+)\)/);
+        if (stMatch) {
+          member.fromStation = stMatch[1];
+          member.timeStart = stMatch[2].length === 4 ? '0' + stMatch[2] : stMatch[2];
+          member.timeEnd = stMatch[3].length === 4 ? '0' + stMatch[3] : stMatch[3];
+          member.toStation = stMatch[4];
+        }
+      }
+
+      // Phone - find in card text
+      var cardText = (card.innerText || '');
+      var phoneMatch = cardText.match(/(\+\d{10,15})/);
+      if (phoneMatch) member.phone = phoneMatch[1];
+
+      if (member.name) result.crew.push(member);
+    });
+
+    return result;
+  }
+
   // Export to global namespace
   window.OneVR.scraper = {
     scrapeLocations: scrapeLocations,
@@ -401,6 +490,7 @@
     scrapePersonnel: scrapePersonnel,
     calculateStats: calculateStats,
     scrapeDagvy: scrapeDagvy,
+    scrapeTrainCrew: scrapeTrainCrew,
     isDagvyTracked: isDagvyTracked,
     DAGVY_NAMES: DAGVY_NAMES
   };
