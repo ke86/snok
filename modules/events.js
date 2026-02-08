@@ -1831,6 +1831,315 @@
   /**
    * Show export menu (after PIN verified)
    */
+  /**
+   * Batch scrape all tracked people across 3 days
+   * Smart: navigates 3 days ONCE and scrapes everyone per day
+   */
+  function scrapeAllTracked(overlay) {
+    var startDate = currentData.isoDate || window.OneVR.state.navDate;
+    var totalDays = 3;
+    var trackedNames = scraper.DAGVY_NAMES.slice();
+
+    // Per-person store: { name: { days: [] } }
+    var allStore = {};
+    trackedNames.forEach(function(n) { allStore[n] = { days: [] }; });
+
+    var cdkC = document.querySelector('.cdk-overlay-container');
+    if (cdkC) { cdkC.style.opacity = '0'; cdkC.style.pointerEvents = 'none'; }
+
+    var loadingModal = document.createElement('div');
+    loadingModal.className = 'onevr-dagvy-modal';
+    loadingModal.innerHTML =
+      '<div class="onevr-dagvy-content">' +
+        '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#5856d6,#7d7aff);">' +
+          '<span>🔄 Skrapar alla...</span>' +
+          '<button class="onevr-dagvy-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-dagvy-loading">' +
+          '<div class="onevr-spinner"></div>' +
+          '<div class="onevr-multi-progress" id="onevr-batch-progress">Förbereder...</div>' +
+          '<div class="onevr-batch-detail" id="onevr-batch-detail"></div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(loadingModal);
+
+    var cancelled = false;
+    var cleanUp = function() {
+      cancelled = true;
+      loadingModal.remove();
+      if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+      if (overlay) overlay.style.display = '';
+    };
+    loadingModal.querySelector('.onevr-dagvy-close').onclick = cleanUp;
+    loadingModal.onclick = function(e) { if (e.target === loadingModal) cleanUp(); };
+
+    overlay.style.display = 'none';
+
+    var progressEl = document.getElementById('onevr-batch-progress');
+    var detailEl = document.getElementById('onevr-batch-detail');
+
+    function setProgress(main, detail) {
+      if (progressEl) progressEl.textContent = main;
+      if (detailEl) detailEl.textContent = detail || '';
+    }
+
+    function closeAllPopups(cb) {
+      var bds = document.querySelectorAll('.cdk-overlay-backdrop');
+      bds.forEach(function(b) { b.click(); });
+      var icons = document.querySelectorAll('.close-icon, .icon-close');
+      icons.forEach(function(c) { c.click(); });
+      setTimeout(cb, 300);
+    }
+
+    // ─── Scrape crew for one train ───
+    function batchScrapeCrewForTrain(personEl, firstName, trainNr, cb) {
+      if (cancelled) { cb(null); return; }
+
+      var tE = findTurnLabel(personEl) || personEl;
+      personEl.scrollIntoView({ behavior: 'instant', block: 'center' });
+
+      waitClose(function() {
+        if (cancelled) { cb(null); return; }
+        setTimeout(function() {
+          tE.click();
+          waitModal(firstName, function(pane) {
+            if (!pane || cancelled) { closeAllPopups(function() { cb(null); }); return; }
+
+            var trainEl = null;
+            pane.querySelectorAll('.storybook-label').forEach(function(lbl) {
+              if ((lbl.innerText || '').trim() === trainNr) trainEl = lbl;
+            });
+            if (!trainEl) {
+              pane.querySelectorAll('.trip-number .storybook-label').forEach(function(lbl) {
+                if ((lbl.innerText || '').trim() === trainNr) trainEl = lbl;
+              });
+            }
+            if (!trainEl) { closeAllPopups(function() { cb(null); }); return; }
+
+            trainEl.click();
+            var wt = 0;
+            (function chk() {
+              if (cancelled) { closeAllPopups(function() { cb(null); }); return; }
+              var cp = null;
+              document.querySelectorAll('.cdk-overlay-pane').forEach(function(p) {
+                if (p.querySelector('.staff__card')) cp = p;
+              });
+              if (cp) {
+                var crewData = scraper.scrapeTrainCrew(cp);
+                closeAllPopups(function() { cb(crewData); });
+              } else {
+                wt += 300;
+                if (wt < 8000) setTimeout(chk, 300);
+                else closeAllPopups(function() { cb(null); });
+              }
+            })();
+          }, 6000);
+        }, 200);
+      });
+    }
+
+    // ─── Scrape one person on current page ───
+    function scrapeOnePerson(personName, dayPeople, dayElements, targetDate, cb) {
+      if (cancelled) { cb(); return; }
+      var firstName = personName.split(' ')[0];
+
+      // Find person
+      var foundP = null;
+      var foundEl = null;
+      for (var i = 0; i < dayPeople.length; i++) {
+        if (dayPeople[i].name === personName) {
+          foundP = dayPeople[i];
+          foundEl = dayElements[dayPeople[i].elIdx];
+          break;
+        }
+      }
+
+      if (!foundP || !foundEl) {
+        allStore[personName].days.push({ date: targetDate, segments: [], turnr: '', start: '-', end: '-', notFound: true, crews: {} });
+        cb();
+        return;
+      }
+
+      setProgress(progressEl.textContent, firstName + ' – dagvy...');
+
+      var tE = findTurnLabel(foundEl) || foundEl;
+      foundEl.scrollIntoView({ behavior: 'instant', block: 'center' });
+
+      waitClose(function() {
+        if (cancelled) { cb(); return; }
+        setTimeout(function() {
+          tE.click();
+          waitModal(firstName, function(pane) {
+            var segments = pane ? scraper.scrapeDagvy(pane) : [];
+            closeAllPopups(function() {
+              var dayData = { date: targetDate, segments: segments, turnr: foundP.turnr, start: foundP.start, end: foundP.end, notFound: false, crews: {} };
+              allStore[personName].days.push(dayData);
+
+              // Scrape crew for each train
+              var trainSegs = segments.filter(function(s) { return !!s.trainNr; });
+              var ti = 0;
+
+              function nextTrain() {
+                if (cancelled || ti >= trainSegs.length) { cb(); return; }
+                var tn = trainSegs[ti].trainNr;
+                if (dayData.crews[tn]) { ti++; nextTrain(); return; }
+
+                setProgress(progressEl.textContent, firstName + ' – 🚆 ' + tn + ' (' + (ti + 1) + '/' + trainSegs.length + ')');
+
+                batchScrapeCrewForTrain(foundEl, firstName, tn, function(crewData) {
+                  if (crewData) dayData.crews[tn] = crewData;
+                  ti++;
+                  nextTrain();
+                });
+              }
+
+              nextTrain();
+            });
+          }, 6000);
+        }, 200);
+      });
+    }
+
+    // ─── Process one day: scrape all tracked people ───
+    function processDay(dayOffset) {
+      if (cancelled) return;
+      if (dayOffset >= totalDays) { navigateBack(); return; }
+
+      var targetDate = utils.addDays(startDate, dayOffset);
+      setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' (' + targetDate + ')', 'Läser in personal...');
+
+      function startScraping() {
+        if (cancelled) return;
+        var dayScraped = scraper.scrapePersonnel();
+        var dayPeople = dayScraped.people;
+        var dayElements = dayScraped.elements;
+
+        // Find which tracked names exist today
+        var foundNames = [];
+        trackedNames.forEach(function(name) {
+          var exists = dayPeople.some(function(p) { return p.name === name; });
+          if (exists) foundNames.push(name);
+          else allStore[name].days.push({ date: targetDate, segments: [], turnr: '', start: '-', end: '-', notFound: true, crews: {} });
+        });
+
+        setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' – ' + foundNames.length + '/' + trackedNames.length + ' hittade', '');
+
+        // Scrape each found person sequentially
+        var pi = 0;
+        function nextPerson() {
+          if (cancelled || pi >= foundNames.length) {
+            // Done with this day → navigate forward
+            if (dayOffset + 1 < totalDays) {
+              var nextBtn = document.querySelector('.icon-next');
+              if (nextBtn) {
+                nextBtn.click();
+                setTimeout(function() { processDay(dayOffset + 1); }, CFG.ui.dateNavDelay);
+              } else {
+                // Can't navigate, fill remaining days
+                for (var d = dayOffset + 1; d < totalDays; d++) {
+                  var dt = utils.addDays(startDate, d);
+                  trackedNames.forEach(function(n) {
+                    allStore[n].days.push({ date: dt, segments: [], turnr: '', start: '-', end: '-', notFound: true, crews: {} });
+                  });
+                }
+                navigateBack();
+              }
+            } else {
+              navigateBack();
+            }
+            return;
+          }
+
+          var name = foundNames[pi];
+          setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' – ' + name.split(' ')[0] + ' (' + (pi + 1) + '/' + foundNames.length + ')', '');
+
+          scrapeOnePerson(name, dayPeople, dayElements, targetDate, function() {
+            pi++;
+            nextPerson();
+          });
+        }
+
+        nextPerson();
+      }
+
+      if (dayOffset === 0) {
+        // Day 0: use current page
+        startScraping();
+      } else {
+        // Already navigated — just scrape
+        startScraping();
+      }
+    }
+
+    // ─── Navigate back ───
+    function navigateBack() {
+      if (cancelled) return;
+      setProgress('Navigerar tillbaka...', '');
+
+      var stepsBack = totalDays - 1;
+      var step = 0;
+      function doStep() {
+        if (cancelled) return;
+        if (step < stepsBack) {
+          var prevBtn = document.querySelector('.icon-prev');
+          if (prevBtn) prevBtn.click();
+          step++;
+          setTimeout(doStep, CFG.ui.loadTimeDelay);
+        } else {
+          window.OneVR.state.navDate = startDate;
+          setTimeout(function() {
+            if (cancelled) return;
+            if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+            overlay.style.display = '';
+            loadingModal.remove();
+
+            // Store all in dagvyStore
+            var storedCount = 0;
+            trackedNames.forEach(function(name) {
+              var data = allStore[name];
+              var hasData = data.days.some(function(d) { return !d.notFound; });
+              if (hasData) {
+                window.OneVR.dagvyStore[name] = { scrapedAt: new Date().toISOString(), days: data.days };
+                storedCount++;
+              }
+            });
+
+            console.log('[OneVR] Batch scrape done: ' + storedCount + '/' + trackedNames.length + ' stored');
+            showExportMenu();
+          }, 1000);
+        }
+      }
+      doStep();
+    }
+
+    processDay(0);
+  }
+
+  /**
+   * Upload ALL stored dagvy data to Firebase
+   */
+  function uploadAllToFirebase(cb) {
+    var names = Object.keys(window.OneVR.dagvyStore);
+    if (names.length === 0) { cb(0, 0); return; }
+
+    var ok = 0;
+    var fail = 0;
+    var idx = 0;
+
+    function next() {
+      if (idx >= names.length) { cb(ok, fail); return; }
+      var name = names[idx];
+      uploadToFirebase(name, window.OneVR.dagvyStore[name], function(success) {
+        if (success) ok++;
+        else fail++;
+        idx++;
+        next();
+      });
+    }
+
+    next();
+  }
+
   function showExportMenu() {
     console.log('[OneVR] Export unlocked');
 
@@ -1844,6 +2153,10 @@
       });
     }
 
+    // Count stored data
+    var storedNames = Object.keys(window.OneVR.dagvyStore || {});
+    var storedCount = storedNames.length;
+
     // Build colleague list
     var listHTML = '';
     if (tracked.length === 0) {
@@ -1853,8 +2166,13 @@
         var p = t.person;
         var timeStr = p.start !== '-' ? p.start + ' – ' + p.end : '—';
         var trainsStr = p.trains && p.trains.length ? p.trains.join(', ') : '';
+        var hasStore = window.OneVR.dagvyStore && window.OneVR.dagvyStore[p.name];
+        var statusBadge = hasStore
+          ? '<span class="onevr-export-status onevr-export-status-ok">✅</span>'
+          : '<span class="onevr-export-status onevr-export-status-pending">⏳</span>';
         listHTML += '<div class="onevr-export-person" data-pidx="' + t.idx + '">' +
           '<div class="onevr-export-person-top">' +
+            statusBadge +
             '<span class="onevr-badge onevr-badge-' + p.badgeColor + '">' + p.badge + '</span>' +
             '<span class="onevr-export-name">' + p.name + '</span>' +
             '<span class="onevr-export-turnr">' + p.turnr + '</span>' +
@@ -1872,6 +2190,32 @@
     // All tracked names for reference
     var allNames = scraper.DAGVY_NAMES.join(', ');
 
+    // Build batch actions section
+    var batchHTML =
+      '<div class="onevr-batch-section">' +
+        '<button class="onevr-batch-btn onevr-batch-scrape" id="onevr-batch-scrape">' +
+          '<span class="onevr-batch-btn-icon">🔄</span>' +
+          '<span class="onevr-batch-btn-text">' +
+            '<span class="onevr-batch-btn-title">Skrapa alla (3 dagar)</span>' +
+            '<span class="onevr-batch-btn-sub">Hämtar dagvy + besättning för ' + scraper.DAGVY_NAMES.length + ' personer</span>' +
+          '</span>' +
+        '</button>' +
+        '<button class="onevr-batch-btn onevr-batch-upload' + (storedCount === 0 ? ' onevr-batch-disabled' : '') + '" id="onevr-batch-upload"' + (storedCount === 0 ? ' disabled' : '') + '>' +
+          '<span class="onevr-batch-btn-icon">☁️</span>' +
+          '<span class="onevr-batch-btn-text">' +
+            '<span class="onevr-batch-btn-title">Exportera alla till Firebase</span>' +
+            '<span class="onevr-batch-btn-sub">' + (storedCount > 0 ? storedCount + ' personer redo att skickas' : 'Skrapa först') + '</span>' +
+          '</span>' +
+        '</button>' +
+        '<button class="onevr-batch-btn onevr-batch-json' + (storedCount === 0 ? ' onevr-batch-disabled' : '') + '" id="onevr-batch-json"' + (storedCount === 0 ? ' disabled' : '') + '>' +
+          '<span class="onevr-batch-btn-icon">📥</span>' +
+          '<span class="onevr-batch-btn-text">' +
+            '<span class="onevr-batch-btn-title">Ladda ner alla (JSON)</span>' +
+            '<span class="onevr-batch-btn-sub">' + (storedCount > 0 ? storedCount + ' personer' : 'Skrapa först') + '</span>' +
+          '</span>' +
+        '</button>' +
+      '</div>';
+
     var modal = document.createElement('div');
     modal.className = 'onevr-dagvy-modal';
     modal.innerHTML =
@@ -1880,9 +2224,10 @@
           '<span>🔓 Exportera</span>' +
           '<button class="onevr-dagvy-close">✕</button>' +
         '</div>' +
+        batchHTML +
         '<div class="onevr-export-section">' +
-          '<div class="onevr-export-section-title">📋 Bevakade kollegor</div>' +
-          '<div class="onevr-export-section-sub">Tryck för att hämta dagvy</div>' +
+          '<div class="onevr-export-section-title">📋 Bevakade kollegor (' + tracked.length + '/' + scraper.DAGVY_NAMES.length + ' online)</div>' +
+          '<div class="onevr-export-section-sub">Tryck för att hämta dagvy per person</div>' +
           listHTML +
         '</div>' +
         '<div class="onevr-export-names">' +
@@ -1895,6 +2240,77 @@
     // Close handlers
     modal.querySelector('.onevr-dagvy-close').onclick = function() { modal.remove(); };
     modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+
+    // Batch scrape button
+    var scrapeBtn = modal.querySelector('#onevr-batch-scrape');
+    scrapeBtn.onclick = function() {
+      modal.remove();
+      var overlay = document.querySelector('.onevr-overlay');
+      scrapeAllTracked(overlay);
+    };
+
+    // Batch upload button
+    var uploadBtn = modal.querySelector('#onevr-batch-upload');
+    uploadBtn.onclick = function() {
+      if (storedCount === 0) return;
+      uploadBtn.disabled = true;
+      uploadBtn.querySelector('.onevr-batch-btn-title').textContent = 'Skickar...';
+      uploadBtn.querySelector('.onevr-batch-btn-sub').textContent = '0/' + storedCount + ' klara';
+      uploadBtn.classList.add('onevr-batch-sending');
+
+      var names = Object.keys(window.OneVR.dagvyStore);
+      var ok = 0;
+      var fail = 0;
+      var idx = 0;
+
+      function nextUpload() {
+        if (idx >= names.length) {
+          uploadBtn.classList.remove('onevr-batch-sending');
+          if (fail === 0) {
+            uploadBtn.classList.add('onevr-batch-done');
+            uploadBtn.querySelector('.onevr-batch-btn-title').textContent = '✅ Alla uppladdade!';
+            uploadBtn.querySelector('.onevr-batch-btn-sub').textContent = ok + ' personer skickade till Firebase';
+          } else {
+            uploadBtn.classList.add('onevr-batch-error');
+            uploadBtn.querySelector('.onevr-batch-btn-title').textContent = '⚠️ Delvis klar';
+            uploadBtn.querySelector('.onevr-batch-btn-sub').textContent = ok + ' ok, ' + fail + ' misslyckades';
+          }
+          return;
+        }
+        var name = names[idx];
+        uploadToFirebase(name, window.OneVR.dagvyStore[name], function(success) {
+          if (success) ok++;
+          else fail++;
+          idx++;
+          uploadBtn.querySelector('.onevr-batch-btn-sub').textContent = idx + '/' + names.length + ' klara';
+          nextUpload();
+        });
+      }
+
+      nextUpload();
+    };
+
+    // Batch JSON download button
+    var jsonBtn = modal.querySelector('#onevr-batch-json');
+    jsonBtn.onclick = function() {
+      if (storedCount === 0) return;
+      var allData = {};
+      Object.keys(window.OneVR.dagvyStore).forEach(function(name) {
+        allData[name] = window.OneVR.dagvyStore[name];
+      });
+      var json = JSON.stringify(allData, null, 2);
+      var blob = new Blob([json], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'dagvy-alla-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      jsonBtn.classList.add('onevr-batch-done');
+      jsonBtn.querySelector('.onevr-batch-btn-title').textContent = '✅ Nedladdad!';
+    };
 
     // Click on person to open multi-day dagvy
     var personEls = modal.querySelectorAll('.onevr-export-person');

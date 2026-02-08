@@ -292,7 +292,16 @@
    * List of colleagues whose dagvy can be scraped
    */
   var DAGVY_NAMES = [
-    'Kenny Eriksson'
+    'Kenny Eriksson',
+    'Anders Bertilsson',
+    'Alexander Canlycke',
+    'Sara Feldt',
+    'Zara Nilsson',
+    'Cristian Cardemil',
+    'Bendik Sørensen',
+    'Saga Fagerström',
+    'Dennis Ross',
+    'Patrick Odervik Larsson'
   ];
 
   /**

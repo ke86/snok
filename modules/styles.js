@@ -925,6 +925,11 @@
       .onevr-dagvy-footer { border-top-color: rgba(255,255,255,.06); }
       .onevr-firebase-btn { background: linear-gradient(135deg, #ff9f0a, #ff6b00); }
       .onevr-download-btn { background: linear-gradient(135deg, #0a84ff, #007aff); }
+
+      .onevr-batch-section { border-bottom-color: rgba(255,255,255,.06); }
+      .onevr-batch-scrape { background: linear-gradient(135deg, #5e5ce6, #8884ff); }
+      .onevr-batch-upload { background: linear-gradient(135deg, #ff9f0a, #ff7a00); }
+      .onevr-batch-json { background: linear-gradient(135deg, #0a84ff, #007aff); }
     }
 
     /* ============================================
@@ -1977,6 +1982,113 @@
 
     .onevr-download-done {
       background: linear-gradient(135deg, #34c759, #30d158);
+    }
+
+    /* ============================================
+       BATCH ACTIONS (Export menu)
+       ============================================ */
+    .onevr-batch-section {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+
+    .onevr-batch-btn {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all .15s ease;
+      -webkit-tap-highlight-color: transparent;
+      text-align: left;
+      width: 100%;
+    }
+
+    .onevr-batch-btn:active {
+      transform: scale(.98);
+      opacity: .9;
+    }
+
+    .onevr-batch-btn-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+      width: 36px;
+      text-align: center;
+    }
+
+    .onevr-batch-btn-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .onevr-batch-btn-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .onevr-batch-btn-sub {
+      font-size: 12px;
+      color: rgba(255,255,255,.7);
+    }
+
+    .onevr-batch-scrape {
+      background: linear-gradient(135deg, #5856d6, #7d7aff);
+      box-shadow: 0 3px 12px rgba(88,86,214,.3);
+    }
+
+    .onevr-batch-upload {
+      background: linear-gradient(135deg, #ff9500, #ff6b00);
+      box-shadow: 0 3px 12px rgba(255,149,0,.3);
+    }
+
+    .onevr-batch-json {
+      background: linear-gradient(135deg, #007aff, #0a84ff);
+      box-shadow: 0 3px 12px rgba(0,122,255,.3);
+    }
+
+    .onevr-batch-disabled {
+      opacity: .4;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .onevr-batch-disabled:active {
+      transform: none;
+      opacity: .4;
+    }
+
+    .onevr-batch-sending {
+      animation: onevr-pulse 1.5s ease-in-out infinite;
+      background: linear-gradient(135deg, #8e8e93, #a0a0a5);
+      box-shadow: none;
+    }
+
+    @keyframes onevr-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .6; }
+    }
+
+    .onevr-batch-done {
+      background: linear-gradient(135deg, #34c759, #30d158) !important;
+      box-shadow: 0 3px 12px rgba(52,199,89,.3) !important;
+    }
+
+    .onevr-batch-error {
+      background: linear-gradient(135deg, #ff3b30, #ff6b6b) !important;
+      box-shadow: 0 3px 12px rgba(255,59,48,.3) !important;
+    }
+
+    /* Export status badges */
+    .onevr-export-status {
+      font-size: 14px;
+      flex-shrink: 0;
     }
   `;
 
