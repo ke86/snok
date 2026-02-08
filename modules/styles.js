@@ -877,6 +877,19 @@
       .onevr-dagvy-trains { color: rgba(235,235,245,.5); }
       .onevr-dagvy-empty { color: rgba(235,235,245,.4); }
       .onevr-dagvy-loading div { color: rgba(235,235,245,.5) !important; }
+
+      .onevr-export-section-title { color: #fff; }
+      .onevr-export-section-sub { color: rgba(235,235,245,.4); }
+      .onevr-export-person { background: rgba(10,132,255,.08); border-color: rgba(10,132,255,.15); }
+      .onevr-export-person:active { background: rgba(10,132,255,.15); }
+      .onevr-export-name { color: #fff; }
+      .onevr-export-turnr { color: #0a84ff; }
+      .onevr-export-time { color: rgba(235,235,245,.6); }
+      .onevr-export-trains { color: rgba(235,235,245,.4); }
+      .onevr-export-phone { color: #0a84ff; }
+      .onevr-export-person-action { color: #7d7aff; border-top-color: rgba(10,132,255,.15); }
+      .onevr-export-empty { color: rgba(235,235,245,.4); }
+      .onevr-export-names { color: rgba(235,235,245,.3); border-top-color: rgba(255,255,255,.06); }
     }
 
     /* ============================================
@@ -1435,6 +1448,115 @@
       padding: 40px 20px;
       color: rgba(60,60,67,.5);
       font-size: 16px;
+    }
+
+    /* ============================================
+       EXPORT MENU
+       ============================================ */
+    .onevr-export-section {
+      padding: 16px;
+    }
+
+    .onevr-export-section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1c1c1e;
+      margin-bottom: 2px;
+    }
+
+    .onevr-export-section-sub {
+      font-size: 12px;
+      color: rgba(60,60,67,.5);
+      margin-bottom: 12px;
+    }
+
+    .onevr-export-person {
+      background: rgba(0,122,255,.04);
+      border: 1px solid rgba(0,122,255,.1);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all .15s ease;
+    }
+
+    .onevr-export-person:active {
+      transform: scale(.98);
+      background: rgba(0,122,255,.1);
+    }
+
+    .onevr-export-person:last-child { margin-bottom: 0; }
+
+    .onevr-export-person-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .onevr-export-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1c1c1e;
+    }
+
+    .onevr-export-turnr {
+      font-size: 13px;
+      font-weight: 700;
+      color: #007aff;
+      margin-left: auto;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-export-person-bottom {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .onevr-export-time {
+      font-size: 12px;
+      color: rgba(60,60,67,.7);
+    }
+
+    .onevr-export-trains {
+      font-size: 11px;
+      color: rgba(60,60,67,.5);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-export-phone {
+      font-size: 12px;
+      color: #007aff;
+    }
+
+    .onevr-export-person-action {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(0,122,255,.1);
+      font-size: 13px;
+      font-weight: 600;
+      color: #5856d6;
+      text-align: center;
+    }
+
+    .onevr-export-empty {
+      text-align: center;
+      padding: 30px 16px;
+      color: rgba(60,60,67,.5);
+      font-size: 14px;
+    }
+
+    .onevr-export-names {
+      padding: 12px 16px;
+      border-top: 1px solid rgba(0,0,0,.06);
+      font-size: 11px;
+      color: rgba(60,60,67,.4);
+    }
+
+    .onevr-export-names-label {
+      font-weight: 600;
     }
   `;
 

@@ -32,16 +32,11 @@
     var tilL = utils.getTil(person.turnr, CFG.tilLabels);
     var tilH = tilL ? '<span class="onevr-til-label">(' + tilL + ')</span>' : '';
 
-    // Check if this person is dagvy-tracked
-    var scraper = window.OneVR.scraper;
-    var isDagvy = scraper && scraper.isDagvyTracked && scraper.isDagvyTracked(person.name);
-    var dagvyBtn = isDagvy ? '<button class="onevr-dagvy-btn" data-dagvy-idx="' + idx + '" title="Visa dagvy">📋</button>' : '';
-
-    return '<div class="onevr-person' + (isDagvy ? ' onevr-person-tracked' : '') + '" data-role="' + person.role + '" data-loc="' + person.loc + '" data-idx="' + idx + '">' +
+    return '<div class="onevr-person" data-role="' + person.role + '" data-loc="' + person.loc + '" data-idx="' + idx + '">' +
       '<span class="onevr-badge onevr-badge-' + person.badgeColor + '">' + person.badge + '</span>' +
       '<div class="onevr-main">' +
         '<div class="onevr-name-row">' +
-          '<span class="onevr-name">' + person.name + '</span>' + locB + dagvyBtn +
+          '<span class="onevr-name">' + person.name + '</span>' + locB +
         '</div>' +
         '<div class="onevr-sub">' +
           '<span class="onevr-time' + (person.start === '-' ? ' onevr-time-none' : '') + '">' + timeStr + '</span>' +

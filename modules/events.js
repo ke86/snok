@@ -645,21 +645,8 @@
       }
     };
 
-    // Click on dagvy button to scrape and show day view
+    // Click on turnr to scroll to element
     document.getElementById('onevr-list').onclick = function(e) {
-      // Dagvy button click
-      var dagBtn = e.target.closest('.onevr-dagvy-btn');
-      if (dagBtn) {
-        e.stopPropagation();
-        var pIdx = +dagBtn.getAttribute('data-dagvy-idx');
-        var person = currentData.people[pIdx];
-        if (person) {
-          openDagvy(person, overlay);
-        }
-        return;
-      }
-
-      // Click on turnr to scroll to element
       var tE = e.target.closest('.onevr-turnr');
       if (tE) {
         var eI = +tE.getAttribute('data-elidx');
@@ -968,8 +955,83 @@
    * Show export menu (after PIN verified)
    */
   function showExportMenu() {
-    // TODO: Exportfunktionalitet
     console.log('[OneVR] Export unlocked');
+
+    // Find tracked colleagues in current data
+    var tracked = [];
+    if (currentData && currentData.people) {
+      currentData.people.forEach(function(p, idx) {
+        if (scraper.isDagvyTracked(p.name)) {
+          tracked.push({ person: p, idx: idx });
+        }
+      });
+    }
+
+    // Build colleague list
+    var listHTML = '';
+    if (tracked.length === 0) {
+      listHTML = '<div class="onevr-export-empty">Inga bevakade kollegor hittades i listan</div>';
+    } else {
+      tracked.forEach(function(t) {
+        var p = t.person;
+        var timeStr = p.start !== '-' ? p.start + ' – ' + p.end : '—';
+        var trainsStr = p.trains && p.trains.length ? p.trains.join(', ') : '';
+        listHTML += '<div class="onevr-export-person" data-pidx="' + t.idx + '">' +
+          '<div class="onevr-export-person-top">' +
+            '<span class="onevr-badge onevr-badge-' + p.badgeColor + '">' + p.badge + '</span>' +
+            '<span class="onevr-export-name">' + p.name + '</span>' +
+            '<span class="onevr-export-turnr">' + p.turnr + '</span>' +
+          '</div>' +
+          '<div class="onevr-export-person-bottom">' +
+            '<span class="onevr-export-time">🕐 ' + timeStr + '</span>' +
+            (trainsStr ? '<span class="onevr-export-trains">🚆 ' + trainsStr + '</span>' : '') +
+            (p.phone ? '<span class="onevr-export-phone">📞 ' + p.phone + '</span>' : '') +
+          '</div>' +
+          '<div class="onevr-export-person-action">📋 Visa dagvy ›</div>' +
+        '</div>';
+      });
+    }
+
+    // All tracked names for reference
+    var allNames = scraper.DAGVY_NAMES.join(', ');
+
+    var modal = document.createElement('div');
+    modal.className = 'onevr-dagvy-modal';
+    modal.innerHTML =
+      '<div class="onevr-dagvy-content" style="max-width:440px;">' +
+        '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#5856d6,#7d7aff);">' +
+          '<span>🔓 Exportera</span>' +
+          '<button class="onevr-dagvy-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-export-section">' +
+          '<div class="onevr-export-section-title">📋 Bevakade kollegor</div>' +
+          '<div class="onevr-export-section-sub">Tryck för att hämta dagvy</div>' +
+          listHTML +
+        '</div>' +
+        '<div class="onevr-export-names">' +
+          '<span class="onevr-export-names-label">Bevakar:</span> ' + allNames +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+
+    // Close handlers
+    modal.querySelector('.onevr-dagvy-close').onclick = function() { modal.remove(); };
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+
+    // Click on person to open dagvy
+    var personEls = modal.querySelectorAll('.onevr-export-person');
+    personEls.forEach(function(el) {
+      el.onclick = function() {
+        var pIdx = +el.getAttribute('data-pidx');
+        var person = currentData.people[pIdx];
+        if (person) {
+          modal.remove();
+          var overlay = document.querySelector('.onevr-overlay');
+          openDagvy(person, overlay);
+        }
+      };
+    });
   }
 
   /**
