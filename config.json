@@ -110,7 +110,8 @@
   },
 
   "firebase": {
-    "projectId": "vemjobbaridag"
+    "projectId": "vemjobbaridag",
+    "apiKey": "AIzaSyDgiSvdMHAtsewgZTtBZ3MhFVEbJYeyxr4"
   },
 
   "theme": {

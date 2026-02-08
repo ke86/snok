@@ -61,95 +61,156 @@
   }
 
   /**
+   * Firebase Auth via REST API
+   * Signs in with email/password, caches token in window.OneVR.firebaseToken
+   * Token lasts ~1 hour; re-authenticates if expired
+   * cb(token) on success, cb(null, errorMsg) on failure
+   */
+  function firebaseAuth(cb) {
+    // Check cached token (valid for ~55 min to be safe)
+    var cached = window.OneVR.firebaseToken;
+    if (cached && cached.idToken && (Date.now() - cached.obtainedAt) < 55 * 60 * 1000) {
+      console.log('[OneVR] Using cached Firebase token');
+      cb(cached.idToken);
+      return;
+    }
+
+    var apiKey = CFG.firebase && CFG.firebase.apiKey;
+    if (!apiKey) { cb(null, 'Firebase API-nyckel saknas'); return; }
+
+    var authUrl = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + apiKey;
+
+    fetch(authUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'app@vemjobbaridag.se',
+        password: 'Gnällsoffan2026!',
+        returnSecureToken: true
+      })
+    })
+    .then(function(r) {
+      if (!r.ok) return r.json().then(function(e) {
+        var msg = (e.error && e.error.message) ? e.error.message : 'Auth HTTP ' + r.status;
+        throw new Error(msg);
+      });
+      return r.json();
+    })
+    .then(function(data) {
+      window.OneVR.firebaseToken = {
+        idToken: data.idToken,
+        refreshToken: data.refreshToken,
+        obtainedAt: Date.now()
+      };
+      console.log('[OneVR] Firebase auth OK');
+      cb(data.idToken);
+    })
+    .catch(function(err) {
+      console.error('[OneVR] Firebase auth failed:', err);
+      window.OneVR.firebaseToken = null;
+      cb(null, err.message || 'Auth misslyckades');
+    });
+  }
+
+  /**
    * Upload dagvy data to Firestore
    * Collection: dagvy, Document: personName
+   * Authenticates first, then PATCHes with Bearer token
    */
   function uploadToFirebase(personName, storeData, cb) {
     var projectId = CFG.firebase && CFG.firebase.projectId;
     if (!projectId) { cb(false, 'Firebase ej konfigurerat'); return; }
 
-    var docId = encodeURIComponent(personName);
-    var url = 'https://firestore.googleapis.com/v1/projects/' + projectId +
-              '/databases/(default)/documents/dagvy/' + docId;
+    // Authenticate first, then upload
+    firebaseAuth(function(token, authErr) {
+      if (!token) { cb(false, authErr || 'Inloggning misslyckades'); return; }
 
-    // Build clean data for Firestore
-    var cleanDays = storeData.days.map(function(day) {
-      var cleanSegs = day.segments.map(function(seg) {
+      var docId = encodeURIComponent(personName);
+      var url = 'https://firestore.googleapis.com/v1/projects/' + projectId +
+                '/databases/(default)/documents/dagvy/' + docId;
+
+      // Build clean data for Firestore
+      var cleanDays = storeData.days.map(function(day) {
+        var cleanSegs = day.segments.map(function(seg) {
+          return {
+            timeStart: seg.timeStart || '',
+            timeEnd: seg.timeEnd || '',
+            fromStation: seg.fromStation || '',
+            toStation: seg.toStation || '',
+            trainNr: seg.trainNr || '',
+            trainType: seg.trainType || '',
+            vehicles: seg.vehicles || [],
+            activity: seg.activity || ''
+          };
+        });
+
+        // Convert crews object to array for Firestore
+        var crewsList = [];
+        if (day.crews) {
+          Object.keys(day.crews).forEach(function(trainNr) {
+            var c = day.crews[trainNr];
+            if (c) {
+              crewsList.push({
+                trainNr: c.trainNr || trainNr,
+                vehicles: c.vehicles || [],
+                date: c.date || day.date,
+                crew: (c.crew || []).map(function(m) {
+                  return {
+                    name: m.name || '',
+                    role: m.role || '',
+                    location: m.location || '',
+                    fromStation: m.fromStation || '',
+                    toStation: m.toStation || '',
+                    timeStart: m.timeStart || '',
+                    timeEnd: m.timeEnd || '',
+                    phone: m.phone || ''
+                  };
+                })
+              });
+            }
+          });
+        }
+
         return {
-          timeStart: seg.timeStart || '',
-          timeEnd: seg.timeEnd || '',
-          fromStation: seg.fromStation || '',
-          toStation: seg.toStation || '',
-          trainNr: seg.trainNr || '',
-          trainType: seg.trainType || '',
-          vehicles: seg.vehicles || [],
-          activity: seg.activity || ''
+          date: day.date || '',
+          turnr: day.turnr || '',
+          start: day.start || '',
+          end: day.end || '',
+          notFound: !!day.notFound,
+          segments: cleanSegs,
+          crews: crewsList
         };
       });
 
-      // Convert crews object to array for Firestore
-      var crewsList = [];
-      if (day.crews) {
-        Object.keys(day.crews).forEach(function(trainNr) {
-          var c = day.crews[trainNr];
-          if (c) {
-            crewsList.push({
-              trainNr: c.trainNr || trainNr,
-              vehicles: c.vehicles || [],
-              date: c.date || day.date,
-              crew: (c.crew || []).map(function(m) {
-                return {
-                  name: m.name || '',
-                  role: m.role || '',
-                  location: m.location || '',
-                  fromStation: m.fromStation || '',
-                  toStation: m.toStation || '',
-                  timeStart: m.timeStart || '',
-                  timeEnd: m.timeEnd || '',
-                  phone: m.phone || ''
-                };
-              })
-            });
-          }
-        });
-      }
-
-      return {
-        date: day.date || '',
-        turnr: day.turnr || '',
-        start: day.start || '',
-        end: day.end || '',
-        notFound: !!day.notFound,
-        segments: cleanSegs,
-        crews: crewsList
+      var docData = {
+        fields: {
+          personName: { stringValue: personName },
+          scrapedAt: { stringValue: new Date().toISOString() },
+          daysCount: { integerValue: String(cleanDays.length) },
+          days: toFirestoreValue(cleanDays)
+        }
       };
-    });
 
-    var docData = {
-      fields: {
-        personName: { stringValue: personName },
-        scrapedAt: { stringValue: new Date().toISOString() },
-        daysCount: { integerValue: String(cleanDays.length) },
-        days: toFirestoreValue(cleanDays)
-      }
-    };
-
-    fetch(url, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(docData)
-    })
-    .then(function(r) {
-      if (!r.ok) return r.json().then(function(e) { throw new Error(e.error ? e.error.message : 'HTTP ' + r.status); });
-      return r.json();
-    })
-    .then(function() {
-      console.log('[OneVR] Firebase upload OK for ' + personName);
-      cb(true);
-    })
-    .catch(function(err) {
-      console.error('[OneVR] Firebase upload failed:', err);
-      cb(false, err.message || 'Okänt fel');
+      fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(docData)
+      })
+      .then(function(r) {
+        if (!r.ok) return r.json().then(function(e) { throw new Error(e.error ? e.error.message : 'HTTP ' + r.status); });
+        return r.json();
+      })
+      .then(function() {
+        console.log('[OneVR] Firebase upload OK for ' + personName);
+        cb(true);
+      })
+      .catch(function(err) {
+        console.error('[OneVR] Firebase upload failed:', err);
+        cb(false, err.message || 'Okänt fel');
+      });
     });
   }
 
