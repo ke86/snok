@@ -924,6 +924,7 @@
 
       .onevr-dagvy-footer { border-top-color: rgba(255,255,255,.06); }
       .onevr-firebase-btn { background: linear-gradient(135deg, #ff9f0a, #ff6b00); }
+      .onevr-download-btn { background: linear-gradient(135deg, #0a84ff, #007aff); }
     }
 
     /* ============================================
@@ -1913,8 +1914,13 @@
       border-top: 1px solid rgba(0,0,0,.06);
     }
 
+    .onevr-dagvy-footer-row {
+      display: flex;
+      gap: 10px;
+    }
+
     .onevr-firebase-btn {
-      width: 100%;
+      flex: 1;
       padding: 14px 16px;
       background: linear-gradient(135deg, #ff9500, #ff6b00);
       border: none;
@@ -1948,6 +1954,29 @@
 
     .onevr-firebase-error {
       background: linear-gradient(135deg, #ff3b30, #ff6b6b);
+    }
+
+    .onevr-download-btn {
+      flex: 1;
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #007aff, #0a84ff);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .onevr-download-btn:active {
+      transform: scale(.97);
+      opacity: .9;
+    }
+
+    .onevr-download-done {
+      background: linear-gradient(135deg, #34c759, #30d158);
     }
   `;
 

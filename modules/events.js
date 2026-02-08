@@ -1386,11 +1386,14 @@
       ? days.length + ' dagar · 🚆 ' + totalTrains + ' tåg' + (totalCrews > 0 ? ' · 👥 ' + totalCrews + ' besättningar' : '')
       : '';
 
-    // Check if data is in store (for Firebase upload)
+    // Check if data is in store (for export buttons)
     var hasStoreData = window.OneVR.dagvyStore && window.OneVR.dagvyStore[person.name];
-    var firebaseBtn = hasStoreData
+    var footerHTML = hasStoreData
       ? '<div class="onevr-dagvy-footer">' +
-          '<button class="onevr-firebase-btn" id="onevr-firebase-upload">☁️ Skicka till Firebase</button>' +
+          '<div class="onevr-dagvy-footer-row">' +
+            '<button class="onevr-firebase-btn" id="onevr-firebase-upload">☁️ Firebase</button>' +
+            '<button class="onevr-download-btn" id="onevr-json-download">📥 JSON</button>' +
+          '</div>' +
         '</div>'
       : '';
 
@@ -1409,7 +1412,7 @@
           ? '<div class="onevr-multi-days">' + allDaysHTML + '</div>'
           : allDaysHTML
         ) +
-        firebaseBtn +
+        footerHTML +
       '</div>';
 
     document.body.appendChild(modal);
@@ -1441,6 +1444,58 @@
             }, 3000);
           }
         });
+      };
+    }
+
+    // JSON download handler
+    var dlBtn = modal.querySelector('#onevr-json-download');
+    if (dlBtn) {
+      dlBtn.onclick = function() {
+        var store = window.OneVR.dagvyStore[person.name];
+        if (!store) return;
+
+        // Build clean JSON (same structure as Firebase)
+        var exportData = {
+          personName: person.name,
+          scrapedAt: store.scrapedAt || new Date().toISOString(),
+          daysCount: store.days.length,
+          days: store.days.map(function(day) {
+            var crewsList = [];
+            if (day.crews) {
+              Object.keys(day.crews).forEach(function(trainNr) {
+                var c = day.crews[trainNr];
+                if (c) crewsList.push(c);
+              });
+            }
+            return {
+              date: day.date,
+              turnr: day.turnr || '',
+              start: day.start || '',
+              end: day.end || '',
+              notFound: !!day.notFound,
+              segments: day.segments,
+              crews: crewsList
+            };
+          })
+        };
+
+        var json = JSON.stringify(exportData, null, 2);
+        var blob = new Blob([json], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'dagvy-' + person.name.replace(/\s+/g, '-') + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        dlBtn.textContent = '✅ Nedladdad!';
+        dlBtn.classList.add('onevr-download-done');
+        setTimeout(function() {
+          dlBtn.textContent = '📥 JSON';
+          dlBtn.classList.remove('onevr-download-done');
+        }, 2000);
       };
     }
 
