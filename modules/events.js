@@ -153,7 +153,7 @@
               crewsList.push({
                 trainNr: c.trainNr || trainNr,
                 vehicles: c.vehicles || [],
-                date: c.date || day.date,
+                date: day.date,  // Always use day.date (crew popup date can be off-by-one)
                 crew: (c.crew || []).map(function(m) {
                   return {
                     name: m.name || '',
@@ -1092,7 +1092,10 @@
         updateProgress('Dag ' + (daysCollected.length) + ' av ' + totalDays + ' – 🚆 Tåg ' + trainNr + ' (' + (idx + 1) + '/' + trainSegs.length + ')');
 
         scrapeCrewForTrain(personEl, trainNr, function(crewData) {
-          if (crewData) dayData.crews[trainNr] = crewData;
+          if (crewData) {
+            crewData.date = dayData.date; // Override popup date with calculated date
+            dayData.crews[trainNr] = crewData;
+          }
           idx++;
           nextTrain();
         });
@@ -2048,7 +2051,10 @@
                 setProgress(progressEl.textContent, firstName + ' – 🚆 ' + tn + ' (' + (ti + 1) + '/' + trainSegs.length + ')');
 
                 batchScrapeCrewForTrain(foundEl, firstName, tn, function(crewData) {
-                  if (crewData) dayData.crews[tn] = crewData;
+                  if (crewData) {
+                    crewData.date = dayData.date; // Override popup date with calculated date
+                    dayData.crews[tn] = crewData;
+                  }
                   ti++;
                   nextTrain();
                 });
