@@ -2039,7 +2039,6 @@
             if (cancelled) return;
             if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
             overlay.style.display = '';
-            loadingModal.remove();
 
             // Calculate ISO week number
             var sp = startDate.split('-');
@@ -2063,23 +2062,73 @@
               turer: allTurns
             };
 
-            // Download JSON
-            var json = JSON.stringify(result, null, 2);
-            var blob = new Blob([json], { type: 'application/json' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'turer-malmo-' + weekStr + '.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            // Store in window for potential reuse
+            // Store in window for reuse
             window.OneVR.weeklyTurns = result;
 
             console.log('[OneVR] Weekly turns done: ' + allTurns.length + ' unique turns across ' + totalDays + ' days');
-            showExportMenu();
+
+            // Build result summary per day
+            var dayCounts = {};
+            allTurns.forEach(function(t) {
+              var key = t.dag + ' ' + t.datum;
+              dayCounts[key] = (dayCounts[key] || 0) + 1;
+            });
+            var summaryRows = '';
+            Object.keys(dayCounts).forEach(function(key) {
+              summaryRows += '<div class="onevr-turns-summary-row">' +
+                '<span class="onevr-turns-summary-day">' + key + '</span>' +
+                '<span class="onevr-turns-summary-count">' + dayCounts[key] + ' turer</span>' +
+              '</div>';
+            });
+
+            var fileName = 'turer-malmo-' + weekStr + '.json';
+            var json = JSON.stringify(result, null, 2);
+            var blob = new Blob([json], { type: 'application/json' });
+            var blobUrl = URL.createObjectURL(blob);
+
+            // Replace loading modal content with result
+            loadingModal.innerHTML =
+              '<div class="onevr-dagvy-content onevr-export-modal">' +
+                '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#009041,#00b359);">' +
+                  '<span>✅ Veckans turer klar!</span>' +
+                  '<button class="onevr-dagvy-close">✕</button>' +
+                '</div>' +
+                '<div style="padding:20px;">' +
+                  '<div class="onevr-turns-result-stats">' +
+                    '<div class="onevr-turns-result-big">' + allTurns.length + '</div>' +
+                    '<div class="onevr-turns-result-label">unika Malmö-turer</div>' +
+                    '<div class="onevr-turns-result-period">' + startDate + ' → ' + utils.addDays(startDate, totalDays - 1) + '</div>' +
+                  '</div>' +
+                  '<div class="onevr-turns-summary">' + summaryRows + '</div>' +
+                  '<a href="' + blobUrl + '" download="' + fileName + '" class="onevr-turns-download-btn" id="onevr-turns-dl">' +
+                    '📥 Ladda ner JSON (' + fileName + ')' +
+                  '</a>' +
+                  '<button class="onevr-turns-back-btn" id="onevr-turns-back">← Tillbaka till Exportera</button>' +
+                '</div>' +
+              '</div>';
+
+            loadingModal.querySelector('.onevr-dagvy-close').onclick = function() {
+              URL.revokeObjectURL(blobUrl);
+              loadingModal.remove();
+            };
+            loadingModal.onclick = function(e) {
+              if (e.target === loadingModal) {
+                URL.revokeObjectURL(blobUrl);
+                loadingModal.remove();
+              }
+            };
+            var dlBtn = loadingModal.querySelector('#onevr-turns-dl');
+            dlBtn.onclick = function() {
+              setTimeout(function() {
+                dlBtn.textContent = '✅ Nedladdad!';
+                dlBtn.style.background = 'linear-gradient(135deg, #34c759, #30d158)';
+              }, 500);
+            };
+            loadingModal.querySelector('#onevr-turns-back').onclick = function() {
+              URL.revokeObjectURL(blobUrl);
+              loadingModal.remove();
+              showExportMenu();
+            };
           }, 1000);
         }
       }

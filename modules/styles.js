@@ -933,6 +933,16 @@
       .onevr-batch-json { background: linear-gradient(135deg, #0a84ff, #007aff); }
       .onevr-batch-turns { background: linear-gradient(135deg, #00a550, #30d158); }
 
+      .onevr-turns-result-big { color: #30d158; }
+      .onevr-turns-result-label { color: rgba(235,235,245,.8); }
+      .onevr-turns-result-period { color: rgba(235,235,245,.5); }
+      .onevr-turns-summary { background: rgba(48,209,88,.08); }
+      .onevr-turns-summary-row { border-bottom-color: rgba(255,255,255,.06); }
+      .onevr-turns-summary-day { color: #fff; }
+      .onevr-turns-summary-count { color: #30d158; }
+      .onevr-turns-download-btn { background: linear-gradient(135deg, #00a550, #30d158); }
+      .onevr-turns-back-btn { background: rgba(118,118,128,.2); color: rgba(235,235,245,.8); }
+
       .onevr-day-selector-label { color: #fff; }
       .onevr-day-sel-btn { color: #8884ff; border-color: rgba(125,122,255,.3); }
       .onevr-day-sel-active { background: linear-gradient(135deg, #5e5ce6, #8884ff); color: #fff; border-color: #5e5ce6; }
@@ -2166,6 +2176,111 @@
       color: #fff;
       border-color: #5856d6;
       box-shadow: 0 2px 8px rgba(88,86,214,.3);
+    }
+
+    /* ============================================
+       WEEKLY TURNS RESULT
+       ============================================ */
+    .onevr-turns-result-stats {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .onevr-turns-result-big {
+      font-size: 48px;
+      font-weight: 800;
+      color: #009041;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .onevr-turns-result-label {
+      font-size: 15px;
+      font-weight: 600;
+      color: rgba(60,60,67,.8);
+    }
+
+    .onevr-turns-result-period {
+      font-size: 13px;
+      color: rgba(60,60,67,.5);
+      margin-top: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-turns-summary {
+      background: rgba(0,144,65,.06);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .onevr-turns-summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 4px;
+      border-bottom: 1px solid rgba(0,0,0,.05);
+    }
+
+    .onevr-turns-summary-row:last-child { border-bottom: none; }
+
+    .onevr-turns-summary-day {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1c1c1e;
+    }
+
+    .onevr-turns-summary-count {
+      font-size: 13px;
+      font-weight: 700;
+      color: #009041;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-turns-download-btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #009041, #34c759);
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,144,65,.3);
+      transition: all .15s ease;
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+
+    .onevr-turns-download-btn:active {
+      transform: scale(.97);
+      opacity: .9;
+    }
+
+    .onevr-turns-back-btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: rgba(118,118,128,.08);
+      border: none;
+      border-radius: 12px;
+      color: rgba(60,60,67,.8);
+      font-size: 15px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      transition: all .15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .onevr-turns-back-btn:active {
+      transform: scale(.97);
+      background: rgba(118,118,128,.15);
     }
 
     /* ============================================
