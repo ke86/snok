@@ -876,7 +876,9 @@
       .onevr-dagvy-contact { color: #0a84ff; }
       .onevr-dagvy-trains { color: rgba(235,235,245,.5); }
       .onevr-dagvy-empty { color: rgba(235,235,245,.4); }
-      .onevr-dagvy-loading div { color: rgba(235,235,245,.5) !important; }
+      .onevr-dagvy-loading .onevr-loading-text { color: rgba(235,235,245,.6); }
+      .onevr-dagvy-loading .onevr-multi-progress { color: #fff !important; font-weight: 700 !important; }
+      .onevr-dagvy-loading .onevr-batch-detail { color: rgba(235,235,245,.7) !important; }
 
       .onevr-export-section-title { color: #fff; }
       .onevr-export-section-sub { color: rgba(235,235,245,.4); }
@@ -901,7 +903,6 @@
       .onevr-crew-member-role { color: rgba(235,235,245,.5); }
       .onevr-crew-member-phone { color: #0a84ff; }
 
-      .onevr-multi-progress { color: rgba(235,235,245,.5); }
       .onevr-day-section { border-bottom-color: rgba(255,255,255,.06); }
       .onevr-day-header:active { background: rgba(255,255,255,.05); }
       .onevr-day-weekday { color: #0a84ff; }
@@ -935,8 +936,6 @@
       .onevr-day-sel-btn { color: #8884ff; border-color: rgba(125,122,255,.3); }
       .onevr-day-sel-active { background: linear-gradient(135deg, #5e5ce6, #8884ff); color: #fff; border-color: #5e5ce6; }
 
-      .onevr-batch-detail { color: rgba(235,235,245,.5); }
-      .onevr-multi-progress { color: rgba(235,235,245,.8); }
       .onevr-loading-text { color: #fff; }
     }
 
@@ -1737,9 +1736,9 @@
 
     .onevr-multi-progress {
       margin-top: 12px;
-      color: #1c1c1e;
+      color: #1c1c1e !important;
       font-size: 15px;
-      font-weight: 600;
+      font-weight: 700;
       text-align: center;
     }
 
@@ -2168,8 +2167,9 @@
        ============================================ */
     .onevr-batch-detail {
       margin-top: 8px;
-      color: rgba(60,60,67,.7);
+      color: #3a3a3c !important;
       font-size: 13px;
+      font-weight: 500;
       text-align: center;
       min-height: 18px;
     }
