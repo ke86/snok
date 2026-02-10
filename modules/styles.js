@@ -930,6 +930,14 @@
       .onevr-batch-scrape { background: linear-gradient(135deg, #5e5ce6, #8884ff); }
       .onevr-batch-upload { background: linear-gradient(135deg, #ff9f0a, #ff7a00); }
       .onevr-batch-json { background: linear-gradient(135deg, #0a84ff, #007aff); }
+
+      .onevr-day-selector-label { color: #fff; }
+      .onevr-day-sel-btn { color: #8884ff; border-color: rgba(125,122,255,.3); }
+      .onevr-day-sel-active { background: linear-gradient(135deg, #5e5ce6, #8884ff); color: #fff; border-color: #5e5ce6; }
+
+      .onevr-batch-detail { color: rgba(235,235,245,.5); }
+      .onevr-multi-progress { color: rgba(235,235,245,.8); }
+      .onevr-loading-text { color: #fff; }
     }
 
     /* ============================================
@@ -1729,8 +1737,9 @@
 
     .onevr-multi-progress {
       margin-top: 12px;
-      color: rgba(60,60,67,.6);
-      font-size: 14px;
+      color: #1c1c1e;
+      font-size: 15px;
+      font-weight: 600;
       text-align: center;
     }
 
@@ -2089,6 +2098,80 @@
     .onevr-export-status {
       font-size: 14px;
       flex-shrink: 0;
+    }
+
+    /* ============================================
+       EXPORT MODAL (scrollable)
+       ============================================ */
+    .onevr-export-modal {
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      max-height: 90vh;
+    }
+
+    .onevr-export-list-wrap {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      min-height: 0;
+    }
+
+    /* ============================================
+       DAY SELECTOR
+       ============================================ */
+    .onevr-day-selector {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .onevr-day-selector-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1c1c1e;
+    }
+
+    .onevr-day-selector-btns {
+      display: flex;
+      gap: 6px;
+    }
+
+    .onevr-day-sel-btn {
+      width: 42px;
+      height: 36px;
+      border: 2px solid rgba(88,86,214,.3);
+      border-radius: 10px;
+      background: transparent;
+      color: #5856d6;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .onevr-day-sel-btn:active {
+      transform: scale(.92);
+    }
+
+    .onevr-day-sel-active {
+      background: linear-gradient(135deg, #5856d6, #7d7aff);
+      color: #fff;
+      border-color: #5856d6;
+      box-shadow: 0 2px 8px rgba(88,86,214,.3);
+    }
+
+    /* ============================================
+       BATCH DETAIL TEXT
+       ============================================ */
+    .onevr-batch-detail {
+      margin-top: 8px;
+      color: rgba(60,60,67,.7);
+      font-size: 13px;
+      text-align: center;
+      min-height: 18px;
     }
   `;
 

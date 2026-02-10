@@ -861,11 +861,15 @@
       };
     }
 
-    // Export button
+    // Export button (skip PIN if already unlocked)
     var exportBtn = document.getElementById('onevr-export-btn');
     if (exportBtn) {
       exportBtn.onclick = function() {
-        showPinDialog();
+        if (window.OneVR.pinUnlocked) {
+          showExportMenu();
+        } else {
+          showPinDialog();
+        }
       };
     }
 
@@ -953,7 +957,7 @@
     var startDate = currentData.isoDate || window.OneVR.state.navDate;
     var personName = person.name;
     var firstName = personName.split(' ')[0];
-    var totalDays = 3;
+    var totalDays = window.OneVR.exportDays || 3;
     var daysCollected = [];
 
     var cdkC = document.querySelector('.cdk-overlay-container');
@@ -1851,6 +1855,10 @@
 
     function checkPin() {
       if (pin === correctPin) {
+        window.OneVR.pinUnlocked = true;
+        // Update button text to show unlocked
+        var btn = document.getElementById('onevr-export-btn');
+        if (btn) btn.textContent = '🔓 Exportera';
         modal.remove();
         showExportMenu();
       } else {
@@ -1899,9 +1907,9 @@
    * Batch scrape all tracked people across 3 days
    * Smart: navigates 3 days ONCE and scrapes everyone per day
    */
-  function scrapeAllTracked(overlay) {
+  function scrapeAllTracked(overlay, numDays) {
     var startDate = currentData.isoDate || window.OneVR.state.navDate;
-    var totalDays = 3;
+    var totalDays = numDays || window.OneVR.exportDays || 3;
     var trackedNames = scraper.DAGVY_NAMES.slice();
 
     // Per-person store: { name: { days: [] } }
@@ -2249,7 +2257,7 @@
             (trainsStr ? '<span class="onevr-export-trains">🚆 ' + trainsStr + '</span>' : '') +
             (p.phone ? '<span class="onevr-export-phone">📞 ' + p.phone + '</span>' : '') +
           '</div>' +
-          '<div class="onevr-export-person-action">📋 Visa dagvy (3 dagar) ›</div>' +
+          '<div class="onevr-export-person-action">📋 Visa dagvy (' + selectedDays + ' dag' + (selectedDays > 1 ? 'ar' : '') + ') ›</div>' +
         '</div>';
       });
     }
@@ -2257,13 +2265,28 @@
     // All tracked names for reference
     var allNames = scraper.DAGVY_NAMES.join(', ');
 
+    // Day count (default 3, stored in state)
+    var selectedDays = window.OneVR.exportDays || 3;
+
+    // Build day selector
+    var daySelHTML =
+      '<div class="onevr-day-selector">' +
+        '<span class="onevr-day-selector-label">Antal dagar:</span>' +
+        '<div class="onevr-day-selector-btns">' +
+          '<button class="onevr-day-sel-btn' + (selectedDays === 1 ? ' onevr-day-sel-active' : '') + '" data-days="1">1</button>' +
+          '<button class="onevr-day-sel-btn' + (selectedDays === 2 ? ' onevr-day-sel-active' : '') + '" data-days="2">2</button>' +
+          '<button class="onevr-day-sel-btn' + (selectedDays === 3 ? ' onevr-day-sel-active' : '') + '" data-days="3">3</button>' +
+        '</div>' +
+      '</div>';
+
     // Build batch actions section
     var batchHTML =
       '<div class="onevr-batch-section">' +
+        daySelHTML +
         '<button class="onevr-batch-btn onevr-batch-scrape" id="onevr-batch-scrape">' +
           '<span class="onevr-batch-btn-icon">🔄</span>' +
           '<span class="onevr-batch-btn-text">' +
-            '<span class="onevr-batch-btn-title">Skrapa alla (3 dagar)</span>' +
+            '<span class="onevr-batch-btn-title">Skrapa alla (' + selectedDays + ' dag' + (selectedDays > 1 ? 'ar' : '') + ')</span>' +
             '<span class="onevr-batch-btn-sub">Hämtar dagvy + besättning för ' + scraper.DAGVY_NAMES.length + ' personer</span>' +
           '</span>' +
         '</button>' +
@@ -2286,16 +2309,18 @@
     var modal = document.createElement('div');
     modal.className = 'onevr-dagvy-modal';
     modal.innerHTML =
-      '<div class="onevr-dagvy-content" style="max-width:440px;">' +
+      '<div class="onevr-dagvy-content onevr-export-modal">' +
         '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#5856d6,#7d7aff);">' +
           '<span>🔓 Exportera</span>' +
           '<button class="onevr-dagvy-close">✕</button>' +
         '</div>' +
         batchHTML +
-        '<div class="onevr-export-section">' +
-          '<div class="onevr-export-section-title">📋 Bevakade kollegor (' + tracked.length + '/' + scraper.DAGVY_NAMES.length + ' online)</div>' +
-          '<div class="onevr-export-section-sub">Tryck för att hämta dagvy per person</div>' +
-          listHTML +
+        '<div class="onevr-export-list-wrap">' +
+          '<div class="onevr-export-section">' +
+            '<div class="onevr-export-section-title">📋 Bevakade kollegor (' + tracked.length + '/' + scraper.DAGVY_NAMES.length + ' online)</div>' +
+            '<div class="onevr-export-section-sub">Tryck för att hämta dagvy per person</div>' +
+            listHTML +
+          '</div>' +
         '</div>' +
         '<div class="onevr-export-names">' +
           '<span class="onevr-export-names-label">Bevakar:</span> ' + allNames +
@@ -2308,12 +2333,25 @@
     modal.querySelector('.onevr-dagvy-close').onclick = function() { modal.remove(); };
     modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
 
+    // Day selector buttons
+    modal.querySelectorAll('.onevr-day-sel-btn').forEach(function(btn) {
+      btn.onclick = function() {
+        selectedDays = +btn.getAttribute('data-days');
+        window.OneVR.exportDays = selectedDays;
+        modal.querySelectorAll('.onevr-day-sel-btn').forEach(function(b) { b.classList.remove('onevr-day-sel-active'); });
+        btn.classList.add('onevr-day-sel-active');
+        // Update scrape button text
+        var scrapeTitle = modal.querySelector('#onevr-batch-scrape .onevr-batch-btn-title');
+        if (scrapeTitle) scrapeTitle.textContent = 'Skrapa alla (' + selectedDays + ' dag' + (selectedDays > 1 ? 'ar' : '') + ')';
+      };
+    });
+
     // Batch scrape button
     var scrapeBtn = modal.querySelector('#onevr-batch-scrape');
     scrapeBtn.onclick = function() {
       modal.remove();
       var overlay = document.querySelector('.onevr-overlay');
-      scrapeAllTracked(overlay);
+      scrapeAllTracked(overlay, selectedDays);
     };
 
     // Batch upload button
