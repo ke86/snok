@@ -1903,6 +1903,192 @@
   /**
    * Show export menu (after PIN verified)
    */
+
+  /**
+   * Scrape weekly turns (Malmö) — navigates 7 days from current,
+   * reads all personnel each day, deduplicates by turnr,
+   * and downloads a JSON file with weekday/turnr/start/end.
+   */
+  function scrapeWeeklyTurns(overlay) {
+    var startDate = currentData.isoDate || window.OneVR.state.navDate;
+    var totalDays = 7;
+    var WEEKDAYS_SV = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+    var allTurns = [];
+
+    var cdkC = document.querySelector('.cdk-overlay-container');
+    if (cdkC) { cdkC.style.opacity = '0'; cdkC.style.pointerEvents = 'none'; }
+
+    var loadingModal = document.createElement('div');
+    loadingModal.className = 'onevr-dagvy-modal';
+    loadingModal.innerHTML =
+      '<div class="onevr-dagvy-content">' +
+        '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#009041,#00b359);">' +
+          '<span>📋 Veckans turer</span>' +
+          '<button class="onevr-dagvy-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-dagvy-loading">' +
+          '<div class="onevr-spinner"></div>' +
+          '<div class="onevr-multi-progress" id="onevr-turns-progress">Förbereder...</div>' +
+          '<div class="onevr-batch-detail" id="onevr-turns-detail"></div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(loadingModal);
+
+    var cancelled = false;
+    var cleanUp = function() {
+      cancelled = true;
+      loadingModal.remove();
+      if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+      if (overlay) overlay.style.display = '';
+    };
+    loadingModal.querySelector('.onevr-dagvy-close').onclick = cleanUp;
+    loadingModal.onclick = function(e) { if (e.target === loadingModal) cleanUp(); };
+
+    overlay.style.display = 'none';
+
+    var progressEl = document.getElementById('onevr-turns-progress');
+    var detailEl = document.getElementById('onevr-turns-detail');
+
+    function setProgress(main, detail) {
+      if (progressEl) progressEl.textContent = main;
+      if (detailEl) detailEl.textContent = detail || '';
+    }
+
+    // --- Process one day ---
+    function processDay(dayOffset) {
+      if (cancelled) return;
+      if (dayOffset >= totalDays) { navigateBack(); return; }
+
+      var targetDate = utils.addDays(startDate, dayOffset);
+      var dp = targetDate.split('-');
+      var dateObj = new Date(+dp[0], +dp[1] - 1, +dp[2]);
+      var weekday = WEEKDAYS_SV[dateObj.getDay()];
+
+      setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' — ' + weekday + ' ' + targetDate, 'Läser turer...');
+
+      function startScraping() {
+        if (cancelled) return;
+        var dayScraped = scraper.scrapePersonnel();
+        var dayPeople = dayScraped.people;
+
+        // Collect unique turns for Malmö (turnr starts with "1")
+        var seenTurns = {};
+        var dayTurnCount = 0;
+        dayPeople.forEach(function(p) {
+          if (!p.turnr || p.start === '-') return;
+          // Check if Malmö turn (first digit = 1)
+          var firstDigit = p.turnr.match(/^(\d)/);
+          if (!firstDigit || firstDigit[1] !== '1') return;
+          // Strip TP suffix for dedup key
+          var cleanTurnr = p.turnr.replace(/TP$/i, '');
+          if (seenTurns[cleanTurnr]) return;
+          seenTurns[cleanTurnr] = true;
+          dayTurnCount++;
+          allTurns.push({
+            dag: weekday,
+            datum: targetDate,
+            turnr: p.turnr,
+            start: p.start,
+            slut: p.end
+          });
+        });
+
+        setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' — ' + weekday, dayTurnCount + ' turer hittade');
+
+        // Navigate to next day
+        setTimeout(function() {
+          if (cancelled) return;
+          if (dayOffset + 1 < totalDays) {
+            var nextBtn = document.querySelector('.icon-next');
+            if (nextBtn) {
+              nextBtn.click();
+              setTimeout(function() { processDay(dayOffset + 1); }, CFG.ui.dateNavDelay);
+            } else {
+              navigateBack();
+            }
+          } else {
+            navigateBack();
+          }
+        }, 500);
+      }
+
+      if (dayOffset === 0) {
+        startScraping();
+      } else {
+        startScraping();
+      }
+    }
+
+    // --- Navigate back to start date ---
+    function navigateBack() {
+      if (cancelled) return;
+      setProgress('Navigerar tillbaka...', '');
+
+      var stepsBack = totalDays - 1;
+      var step = 0;
+      function doStep() {
+        if (cancelled) return;
+        if (step < stepsBack) {
+          var prevBtn = document.querySelector('.icon-prev');
+          if (prevBtn) prevBtn.click();
+          step++;
+          setTimeout(doStep, CFG.ui.loadTimeDelay);
+        } else {
+          window.OneVR.state.navDate = startDate;
+          setTimeout(function() {
+            if (cancelled) return;
+            if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+            overlay.style.display = '';
+            loadingModal.remove();
+
+            // Calculate ISO week number
+            var sp = startDate.split('-');
+            var d = new Date(+sp[0], +sp[1] - 1, +sp[2]);
+            d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+            var week1 = new Date(d.getFullYear(), 0, 4);
+            var weekNr = 1 + Math.round(((d - week1) / 864e5 - 3 + (week1.getDay() + 6) % 7) / 7);
+            var weekStr = sp[0] + '-W' + String(weekNr).padStart(2, '0');
+
+            // Sort by date then start time
+            allTurns.sort(function(a, b) {
+              if (a.datum !== b.datum) return a.datum.localeCompare(b.datum);
+              return a.start.localeCompare(b.start);
+            });
+
+            var result = {
+              vecka: weekStr,
+              skrapadFrån: startDate,
+              skrapadTill: utils.addDays(startDate, totalDays - 1),
+              antalTurer: allTurns.length,
+              turer: allTurns
+            };
+
+            // Download JSON
+            var json = JSON.stringify(result, null, 2);
+            var blob = new Blob([json], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'turer-malmo-' + weekStr + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            // Store in window for potential reuse
+            window.OneVR.weeklyTurns = result;
+
+            console.log('[OneVR] Weekly turns done: ' + allTurns.length + ' unique turns across ' + totalDays + ' days');
+            showExportMenu();
+          }, 1000);
+        }
+      }
+      doStep();
+    }
+
+    processDay(0);
+  }
+
   /**
    * Batch scrape all tracked people across 3 days
    * Smart: navigates 3 days ONCE and scrapes everyone per day
@@ -2304,6 +2490,15 @@
             '<span class="onevr-batch-btn-sub">' + (storedCount > 0 ? storedCount + ' personer' : 'Skrapa först') + '</span>' +
           '</span>' +
         '</button>' +
+      '</div>' +
+      '<div class="onevr-batch-section">' +
+        '<button class="onevr-batch-btn onevr-batch-turns" id="onevr-batch-turns">' +
+          '<span class="onevr-batch-btn-icon">📋</span>' +
+          '<span class="onevr-batch-btn-text">' +
+            '<span class="onevr-batch-btn-title">Veckans turer (Malmö)</span>' +
+            '<span class="onevr-batch-btn-sub">Skrapar 7 dagar från vald dag — turnr, start, slut</span>' +
+          '</span>' +
+        '</button>' +
       '</div>';
 
     var modal = document.createElement('div');
@@ -2415,6 +2610,14 @@
       URL.revokeObjectURL(url);
       jsonBtn.classList.add('onevr-batch-done');
       jsonBtn.querySelector('.onevr-batch-btn-title').textContent = '✅ Nedladdad!';
+    };
+
+    // Weekly turns button
+    var turnsBtn = modal.querySelector('#onevr-batch-turns');
+    turnsBtn.onclick = function() {
+      modal.remove();
+      var overlay = document.querySelector('.onevr-overlay');
+      scrapeWeeklyTurns(overlay);
     };
 
     // Click on person to open multi-day dagvy
