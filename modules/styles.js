@@ -933,6 +933,12 @@
       .onevr-batch-json { background: linear-gradient(135deg, #0a84ff, #007aff); }
       .onevr-batch-turns { background: linear-gradient(135deg, #00a550, #30d158); }
 
+      .onevr-progress-bar-wrap { background: rgba(118,118,128,.3); }
+      .onevr-progress-bar { background: linear-gradient(90deg, #00a550, #30d158); }
+      .onevr-progress-pct { color: #30d158; }
+      .onevr-turns-day-btn { color: #30d158; border-color: rgba(48,209,88,.3); }
+      .onevr-turns-day-btn.onevr-day-sel-active { background: linear-gradient(135deg, #00a550, #30d158); color: #fff; border-color: #00a550; }
+
       .onevr-turns-result-big { color: #30d158; }
       .onevr-turns-result-label { color: rgba(235,235,245,.8); }
       .onevr-turns-result-period { color: rgba(235,235,245,.5); }
@@ -2176,6 +2182,59 @@
       color: #fff;
       border-color: #5856d6;
       box-shadow: 0 2px 8px rgba(88,86,214,.3);
+    }
+
+    /* ============================================
+       PROGRESS BAR
+       ============================================ */
+    .onevr-progress-bar-wrap {
+      width: 80%;
+      max-width: 260px;
+      height: 8px;
+      background: rgba(118,118,128,.15);
+      border-radius: 4px;
+      margin-top: 16px;
+      overflow: hidden;
+    }
+
+    .onevr-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #009041, #34c759);
+      border-radius: 4px;
+      transition: width .4s ease;
+    }
+
+    .onevr-progress-pct {
+      margin-top: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #009041;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .onevr-turns-day-btn {
+      width: 36px;
+      height: 36px;
+      border: 2px solid rgba(0,144,65,.3);
+      border-radius: 10px;
+      background: transparent;
+      color: #009041;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .onevr-turns-day-btn:active {
+      transform: scale(.92);
+    }
+
+    .onevr-turns-day-btn.onevr-day-sel-active {
+      background: linear-gradient(135deg, #009041, #34c759);
+      color: #fff;
+      border-color: #009041;
+      box-shadow: 0 2px 8px rgba(0,144,65,.3);
     }
 
     /* ============================================
