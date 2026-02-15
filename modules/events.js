@@ -2150,7 +2150,7 @@
    */
   function scrapeAllTracked(overlay, numDays) {
     var startDate = currentData.isoDate || window.OneVR.state.navDate;
-    var totalDays = numDays || window.OneVR.exportDays || 3;
+    var totalDays = numDays || window.OneVR.exportDays || 5;
     var trackedNames = scraper.DAGVY_NAMES.slice();
 
     // Per-person store: { name: { days: [] } }
@@ -2172,6 +2172,8 @@
           '<div class="onevr-spinner"></div>' +
           '<div class="onevr-multi-progress" id="onevr-batch-progress">Förbereder...</div>' +
           '<div class="onevr-batch-detail" id="onevr-batch-detail"></div>' +
+          '<div class="onevr-progress-bar-wrap"><div class="onevr-progress-bar" id="onevr-batch-bar" style="width:0%"></div></div>' +
+          '<div class="onevr-progress-pct" id="onevr-batch-pct">0%</div>' +
         '</div>' +
       '</div>';
     document.body.appendChild(loadingModal);
@@ -2190,10 +2192,17 @@
 
     var progressEl = document.getElementById('onevr-batch-progress');
     var detailEl = document.getElementById('onevr-batch-detail');
+    var barEl = document.getElementById('onevr-batch-bar');
+    var pctEl = document.getElementById('onevr-batch-pct');
 
-    function setProgress(main, detail) {
+    function setProgress(main, detail, pct) {
       if (progressEl) progressEl.textContent = main;
       if (detailEl) detailEl.textContent = detail || '';
+      if (typeof pct === 'number') {
+        var p = Math.round(pct);
+        if (barEl) barEl.style.width = p + '%';
+        if (pctEl) pctEl.textContent = p + '%';
+      }
     }
 
     function closeAllPopups(cb) {
@@ -2322,7 +2331,8 @@
       if (dayOffset >= totalDays) { navigateBack(); return; }
 
       var targetDate = utils.addDays(startDate, dayOffset);
-      setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' (' + targetDate + ')', 'Läser in personal...');
+      var dayPct = (dayOffset / totalDays) * 100;
+      setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' (' + targetDate + ')', 'Läser in personal...', dayPct);
 
       function startScraping() {
         if (cancelled) return;
@@ -2338,7 +2348,7 @@
           else allStore[name].days.push({ date: targetDate, segments: [], turnr: '', start: '-', end: '-', notFound: true, crews: {} });
         });
 
-        setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' – ' + foundNames.length + '/' + trackedNames.length + ' hittade', '');
+        setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' – ' + foundNames.length + '/' + trackedNames.length + ' hittade', '', dayPct);
 
         // Scrape each found person sequentially
         var pi = 0;
@@ -2367,7 +2377,8 @@
           }
 
           var name = foundNames[pi];
-          setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' – ' + name.split(' ')[0] + ' (' + (pi + 1) + '/' + foundNames.length + ')', '');
+          var personPct = dayPct + ((pi / Math.max(foundNames.length, 1)) * (100 / totalDays));
+          setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' – ' + name.split(' ')[0] + ' (' + (pi + 1) + '/' + foundNames.length + ')', '', personPct);
 
           scrapeOnePerson(name, dayPeople, dayElements, targetDate, function() {
             pi++;
@@ -2390,7 +2401,7 @@
     // ─── Navigate back ───
     function navigateBack() {
       if (cancelled) return;
-      setProgress('Navigerar tillbaka...', '');
+      setProgress('Navigerar tillbaka...', '', 100);
 
       var stepsBack = totalDays - 1;
       var step = 0;
@@ -2507,8 +2518,7 @@
     var allNames = scraper.DAGVY_NAMES.join(', ');
 
     // Day count (default 3, stored in state)
-    var selectedDays = window.OneVR.exportDays || 3;
-    var selectedTurnsDays = window.OneVR.turnsDays || 5;
+    var selectedDays = window.OneVR.exportDays || 5;
 
     // Build day selector
     var daySelHTML =
@@ -2518,6 +2528,8 @@
           '<button class="onevr-day-sel-btn' + (selectedDays === 1 ? ' onevr-day-sel-active' : '') + '" data-days="1">1</button>' +
           '<button class="onevr-day-sel-btn' + (selectedDays === 2 ? ' onevr-day-sel-active' : '') + '" data-days="2">2</button>' +
           '<button class="onevr-day-sel-btn' + (selectedDays === 3 ? ' onevr-day-sel-active' : '') + '" data-days="3">3</button>' +
+          '<button class="onevr-day-sel-btn' + (selectedDays === 4 ? ' onevr-day-sel-active' : '') + '" data-days="4">4</button>' +
+          '<button class="onevr-day-sel-btn' + (selectedDays === 5 ? ' onevr-day-sel-active' : '') + '" data-days="5">5</button>' +
         '</div>' +
       '</div>';
 
@@ -2548,20 +2560,10 @@
         '</button>' +
       '</div>' +
       '<div class="onevr-batch-section">' +
-        '<div class="onevr-day-selector" id="onevr-turns-day-selector">' +
-          '<span class="onevr-day-selector-label">Antal dagar:</span>' +
-          '<div class="onevr-day-selector-btns">' +
-            '<button class="onevr-turns-day-btn' + (selectedTurnsDays === 1 ? ' onevr-day-sel-active' : '') + '" data-tdays="1">1</button>' +
-            '<button class="onevr-turns-day-btn' + (selectedTurnsDays === 2 ? ' onevr-day-sel-active' : '') + '" data-tdays="2">2</button>' +
-            '<button class="onevr-turns-day-btn' + (selectedTurnsDays === 3 ? ' onevr-day-sel-active' : '') + '" data-tdays="3">3</button>' +
-            '<button class="onevr-turns-day-btn' + (selectedTurnsDays === 4 ? ' onevr-day-sel-active' : '') + '" data-tdays="4">4</button>' +
-            '<button class="onevr-turns-day-btn' + (selectedTurnsDays === 5 ? ' onevr-day-sel-active' : '') + '" data-tdays="5">5</button>' +
-          '</div>' +
-        '</div>' +
         '<button class="onevr-batch-btn onevr-batch-turns" id="onevr-batch-turns">' +
           '<span class="onevr-batch-btn-icon">📋</span>' +
           '<span class="onevr-batch-btn-text">' +
-            '<span class="onevr-batch-btn-title">Malmö-turer (' + selectedTurnsDays + ' dag' + (selectedTurnsDays > 1 ? 'ar' : '') + ')</span>' +
+            '<span class="onevr-batch-btn-title">Malmö-turer (7 dagar)</span>' +
             '<span class="onevr-batch-btn-sub">Skrapar turnr, start och sluttid från vald dag</span>' +
           '</span>' +
         '</button>' +
@@ -2678,24 +2680,12 @@
       jsonBtn.querySelector('.onevr-batch-btn-title').textContent = '✅ Nedladdad!';
     };
 
-    // Turns day selector buttons
-    modal.querySelectorAll('.onevr-turns-day-btn').forEach(function(btn) {
-      btn.onclick = function() {
-        selectedTurnsDays = +btn.getAttribute('data-tdays');
-        window.OneVR.turnsDays = selectedTurnsDays;
-        modal.querySelectorAll('.onevr-turns-day-btn').forEach(function(b) { b.classList.remove('onevr-day-sel-active'); });
-        btn.classList.add('onevr-day-sel-active');
-        var turnsTitle = modal.querySelector('#onevr-batch-turns .onevr-batch-btn-title');
-        if (turnsTitle) turnsTitle.textContent = 'Malmö-turer (' + selectedTurnsDays + ' dag' + (selectedTurnsDays > 1 ? 'ar' : '') + ')';
-      };
-    });
-
-    // Weekly turns button
+    // Weekly turns button (fixed 7 days)
     var turnsBtn = modal.querySelector('#onevr-batch-turns');
     turnsBtn.onclick = function() {
       modal.remove();
       var overlay = document.querySelector('.onevr-overlay');
-      scrapeWeeklyTurns(overlay, selectedTurnsDays);
+      scrapeWeeklyTurns(overlay, 7);
     };
 
     // Click on person to open multi-day dagvy
