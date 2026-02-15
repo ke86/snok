@@ -61,9 +61,9 @@
   }
 
   /**
-   * Firebase Auth via REST API
-   * Signs in with email/password, caches token in window.OneVR.firebaseToken
-   * Token lasts ~1 hour; re-authenticates if expired
+   * Firebase Auth via Cloudflare Worker proxy
+   * Worker holds credentials as secrets — nothing sensitive in this code
+   * Caches token in window.OneVR.firebaseToken (~55 min)
    * cb(token) on success, cb(null, errorMsg) on failure
    */
   function firebaseAuth(cb) {
@@ -75,34 +75,27 @@
       return;
     }
 
-    var apiKey = CFG.firebase && CFG.firebase.apiKey;
-    if (!apiKey) { cb(null, 'Firebase API-nyckel saknas'); return; }
+    var workerUrl = CFG.firebase && CFG.firebase.workerUrl;
+    if (!workerUrl) { cb(null, 'Firebase Worker-URL saknas i config'); return; }
 
-    var authUrl = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + apiKey;
-
-    fetch(authUrl, {
+    fetch(workerUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: 'app@vemjobbaridag.se',
-        password: 'Gnällsoffan2026!',
-        returnSecureToken: true
-      })
+      headers: { 'Content-Type': 'application/json' }
     })
     .then(function(r) {
       if (!r.ok) return r.json().then(function(e) {
-        var msg = (e.error && e.error.message) ? e.error.message : 'Auth HTTP ' + r.status;
+        var msg = e.error || ('Worker HTTP ' + r.status);
         throw new Error(msg);
       });
       return r.json();
     })
     .then(function(data) {
+      if (!data.idToken) throw new Error('Inget token mottaget');
       window.OneVR.firebaseToken = {
         idToken: data.idToken,
-        refreshToken: data.refreshToken,
         obtainedAt: Date.now()
       };
-      console.log('[OneVR] Firebase auth OK');
+      console.log('[OneVR] Firebase auth OK (via Worker)');
       cb(data.idToken);
     })
     .catch(function(err) {

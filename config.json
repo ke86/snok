@@ -111,7 +111,7 @@
 
   "firebase": {
     "projectId": "vemjobbaridag",
-    "apiKey": "AIzaSyDgiSvdMHAtsewgZTtBZ3MhFVEbJYeyxr4"
+    "workerUrl": "https://onevr-auth.kenny-eriksson1986.workers.dev"
   },
 
   "theme": {
