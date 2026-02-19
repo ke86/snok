@@ -932,6 +932,10 @@
       .onevr-batch-upload { background: linear-gradient(135deg, #ff9f0a, #ff7a00); }
       .onevr-batch-json { background: linear-gradient(135deg, #0a84ff, #007aff); }
       .onevr-batch-turns { background: linear-gradient(135deg, #00a550, #30d158); }
+      .onevr-batch-doc-ta { background: linear-gradient(135deg, #ff453a, #ff6b6b); }
+      .onevr-batch-doc-drift { background: linear-gradient(135deg, #ff9f0a, #ff7a00); }
+      .onevr-progress-bar-doc { background: linear-gradient(90deg, #ff453a, #ff6b6b); }
+      .onevr-progress-pct-doc { color: #ff453a; }
 
       .onevr-progress-bar-wrap { background: rgba(118,118,128,.3); }
       .onevr-progress-bar { background: linear-gradient(90deg, #00a550, #30d158); }
@@ -2082,6 +2086,19 @@
       background: linear-gradient(135deg, #009041, #34c759);
       box-shadow: 0 3px 12px rgba(0,144,65,.3);
     }
+
+    .onevr-batch-doc-ta {
+      background: linear-gradient(135deg, #d63027, #ff6b6b);
+      box-shadow: 0 3px 12px rgba(214,48,39,.3);
+    }
+
+    .onevr-batch-doc-drift {
+      background: linear-gradient(135deg, #c44900, #ff9500);
+      box-shadow: 0 3px 12px rgba(196,73,0,.3);
+    }
+
+    .onevr-progress-bar-doc { background: linear-gradient(90deg, #d63027, #ff6b6b); }
+    .onevr-progress-pct-doc { color: #d63027; }
 
     .onevr-batch-disabled {
       opacity: .4;

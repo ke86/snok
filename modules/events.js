@@ -1898,6 +1898,251 @@
    */
 
   /**
+   * Fetch and download all PDFs from a document category in OneVR.
+   * Navigates: Positionlista → Hem → Dokument → category → download PDFs → Positionlista
+   * @param {Element} overlay - the main overlay element
+   * @param {string} categoryName - e.g. "TA - Danmark" or "Driftmeddelande"
+   */
+  function fetchDocumentCategory(overlay, categoryName) {
+    var NAV_DELAY = 2500;
+    var PDF_WAIT_DELAY = 3000;
+    var PDF_WAIT_MAX = 20000;
+    var downloaded = [];
+    var failed = [];
+
+    // Hide overlay, show loading modal
+    if (overlay) overlay.style.display = 'none';
+
+    var cdkC = document.querySelector('.cdk-overlay-container');
+    if (cdkC) { cdkC.style.opacity = '0'; cdkC.style.pointerEvents = 'none'; }
+
+    var loadingModal = document.createElement('div');
+    loadingModal.className = 'onevr-dagvy-modal';
+    loadingModal.innerHTML =
+      '<div class="onevr-dagvy-content">' +
+        '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#d63027,#ff6b6b);">' +
+          '<span>📄 Hämtar ' + categoryName + '</span>' +
+          '<button class="onevr-dagvy-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-dagvy-loading">' +
+          '<div class="onevr-spinner"></div>' +
+          '<div class="onevr-multi-progress" id="onevr-doc-progress">Navigerar...</div>' +
+          '<div class="onevr-batch-detail" id="onevr-doc-detail"></div>' +
+          '<div class="onevr-progress-bar-wrap"><div class="onevr-progress-bar onevr-progress-bar-doc" id="onevr-doc-bar" style="width:0%"></div></div>' +
+          '<div class="onevr-progress-pct onevr-progress-pct-doc" id="onevr-doc-pct">0%</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(loadingModal);
+
+    var cancelled = false;
+    function cleanUp() {
+      cancelled = true;
+      loadingModal.remove();
+      if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+      if (overlay) overlay.style.display = '';
+    }
+    loadingModal.querySelector('.onevr-dagvy-close').onclick = cleanUp;
+    loadingModal.onclick = function(e) { if (e.target === loadingModal) cleanUp(); };
+
+    var progressEl = document.getElementById('onevr-doc-progress');
+    var detailEl = document.getElementById('onevr-doc-detail');
+    var barEl = document.getElementById('onevr-doc-bar');
+    var pctEl = document.getElementById('onevr-doc-pct');
+
+    function setProgress(main, detail, pct) {
+      if (progressEl) progressEl.textContent = main;
+      if (detailEl) detailEl.textContent = detail || '';
+      if (typeof pct === 'number') {
+        var p = Math.round(pct);
+        if (barEl) barEl.style.width = p + '%';
+        if (pctEl) pctEl.textContent = p + '%';
+      }
+    }
+
+    // Helper: click a storybook-label by its text
+    function clickLabel(text, cb) {
+      var found = false;
+      document.querySelectorAll('.storybook-label').forEach(function(el) {
+        if (!found && el.innerText.trim() === text) {
+          found = true;
+          el.click();
+          el.parentElement.click();
+          if (el.parentElement.parentElement) el.parentElement.parentElement.click();
+        }
+      });
+      if (!found) {
+        // Also try bottom nav with different label style
+        document.querySelectorAll('[class*="BottomMenu"], [class*="bottom"]').forEach(function(el) {
+          if (!found && el.innerText.trim() === text) {
+            found = true;
+            el.click();
+            el.parentElement.click();
+          }
+        });
+      }
+      setTimeout(cb, NAV_DELAY);
+      return found;
+    }
+
+    // Helper: wait for PDF viewer to be ready, then download
+    function waitForPdfAndDownload(filename, cb) {
+      var elapsed = 0;
+      function poll() {
+        if (cancelled) { cb(false); return; }
+        if (window.PDFViewerApplication && window.PDFViewerApplication.pdfDocument) {
+          window.PDFViewerApplication.pdfDocument.getData().then(function(data) {
+            var blob = new Blob([data], { type: 'application/pdf' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+            console.log('[OneVR] Downloaded: ' + filename + ' (' + data.byteLength + ' bytes)');
+            cb(true);
+          }).catch(function() {
+            console.error('[OneVR] getData failed for ' + filename);
+            cb(false);
+          });
+        } else {
+          elapsed += 500;
+          if (elapsed < PDF_WAIT_MAX) {
+            setTimeout(poll, 500);
+          } else {
+            console.error('[OneVR] PDF viewer timeout for ' + filename);
+            cb(false);
+          }
+        }
+      }
+      setTimeout(poll, PDF_WAIT_DELAY);
+    }
+
+    // Step 1: Navigate to Hem
+    setProgress('Navigerar till Hem...', '', 5);
+    clickLabel('Hem', function() {
+      if (cancelled) return;
+
+      // Step 2: Click Dokument
+      setProgress('Öppnar Dokument...', '', 15);
+      clickLabel('Dokument', function() {
+        if (cancelled) return;
+
+        // Step 3: Click category (TA - Danmark / Driftmeddelande)
+        setProgress('Öppnar ' + categoryName + '...', '', 25);
+        clickLabel(categoryName, function() {
+          if (cancelled) return;
+
+          // Step 4: Find all PDF elements
+          var pdfNames = [];
+          document.querySelectorAll('.storybook-label').forEach(function(el) {
+            var txt = el.innerText.trim();
+            if (txt.toLowerCase().indexOf('.pdf') !== -1) {
+              pdfNames.push(txt);
+            }
+          });
+
+          if (pdfNames.length === 0) {
+            setProgress('Inga PDF-filer hittades', categoryName, 100);
+            setTimeout(function() { goBack(); }, 2000);
+            return;
+          }
+
+          setProgress('Hittade ' + pdfNames.length + ' dokument', '', 30);
+
+          // Step 5: Download each PDF sequentially
+          var idx = 0;
+          function nextPdf() {
+            if (cancelled) return;
+            if (idx >= pdfNames.length) {
+              goBack();
+              return;
+            }
+
+            var filename = pdfNames[idx];
+            var pct = 30 + ((idx / pdfNames.length) * 60);
+            setProgress('Laddar ner ' + (idx + 1) + '/' + pdfNames.length, filename, pct);
+
+            // Click the PDF label
+            var clicked = false;
+            document.querySelectorAll('.storybook-label').forEach(function(el) {
+              if (!clicked && el.innerText.trim() === filename) {
+                clicked = true;
+                el.click();
+                el.parentElement.click();
+                if (el.parentElement.parentElement) el.parentElement.parentElement.click();
+              }
+            });
+
+            if (!clicked) {
+              failed.push(filename);
+              idx++;
+              nextPdf();
+              return;
+            }
+
+            waitForPdfAndDownload(filename, function(success) {
+              if (success) downloaded.push(filename);
+              else failed.push(filename);
+
+              // Go back to list
+              history.back();
+              setTimeout(function() {
+                idx++;
+                nextPdf();
+              }, NAV_DELAY);
+            });
+          }
+
+          nextPdf();
+        });
+      });
+    });
+
+    // Step 6: Navigate back to Positionlista and show result
+    function goBack() {
+      if (cancelled) return;
+      setProgress('Navigerar tillbaka...', '', 95);
+
+      clickLabel('Positionlista', function() {
+        if (cancelled) return;
+        setProgress('Klar!', '', 100);
+
+        if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+
+        // Show result modal
+        setTimeout(function() {
+          loadingModal.querySelector('.onevr-dagvy-loading').innerHTML =
+            '<div style="text-align:center;padding:20px 16px;">' +
+              '<div class="onevr-turns-result-big">' + downloaded.length + '</div>' +
+              '<div class="onevr-turns-result-label">dokument nedladdade</div>' +
+              (failed.length > 0 ? '<div style="color:#ff453a;margin-top:8px;font-size:13px;">' + failed.length + ' misslyckades</div>' : '') +
+              '<div style="margin-top:16px;">' +
+                downloaded.map(function(f) {
+                  return '<div style="font-size:12px;color:rgba(60,60,67,.6);padding:2px 0;">✅ ' + f + '</div>';
+                }).join('') +
+                failed.map(function(f) {
+                  return '<div style="font-size:12px;color:#ff453a;padding:2px 0;">❌ ' + f + '</div>';
+                }).join('') +
+              '</div>' +
+              '<button class="onevr-turns-back-btn" style="margin-top:20px;width:100%;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;" id="onevr-doc-done">Tillbaka</button>' +
+            '</div>';
+
+          var doneBtn = document.getElementById('onevr-doc-done');
+          if (doneBtn) {
+            doneBtn.onclick = function() {
+              loadingModal.remove();
+              if (overlay) overlay.style.display = '';
+              showExportMenu();
+            };
+          }
+        }, 500);
+      });
+    }
+  }
+
+  /**
    * Scrape weekly turns (Malmö) — navigates 7 days from current,
    * reads all personnel each day, deduplicates by turnr,
    * and downloads a JSON file with weekday/turnr/start/end.
@@ -2567,6 +2812,22 @@
             '<span class="onevr-batch-btn-sub">Skrapar turnr, start och sluttid från vald dag</span>' +
           '</span>' +
         '</button>' +
+      '</div>' +
+      '<div class="onevr-batch-section">' +
+        '<button class="onevr-batch-btn onevr-batch-doc-ta" id="onevr-doc-ta">' +
+          '<span class="onevr-batch-btn-icon">📄</span>' +
+          '<span class="onevr-batch-btn-text">' +
+            '<span class="onevr-batch-btn-title">Hämta TA</span>' +
+            '<span class="onevr-batch-btn-sub">Laddar ner alla TA-dokument (Danmark)</span>' +
+          '</span>' +
+        '</button>' +
+        '<button class="onevr-batch-btn onevr-batch-doc-drift" id="onevr-doc-drift">' +
+          '<span class="onevr-batch-btn-icon">📄</span>' +
+          '<span class="onevr-batch-btn-text">' +
+            '<span class="onevr-batch-btn-title">Hämta Driftmeddelande</span>' +
+            '<span class="onevr-batch-btn-sub">Laddar ner alla driftmeddelanden</span>' +
+          '</span>' +
+        '</button>' +
       '</div>';
 
     var modal = document.createElement('div');
@@ -2686,6 +2947,21 @@
       modal.remove();
       var overlay = document.querySelector('.onevr-overlay');
       scrapeWeeklyTurns(overlay, 7);
+    };
+
+    // Document download buttons
+    var taBtn = modal.querySelector('#onevr-doc-ta');
+    taBtn.onclick = function() {
+      modal.remove();
+      var overlay = document.querySelector('.onevr-overlay');
+      fetchDocumentCategory(overlay, 'TA - Danmark');
+    };
+
+    var driftBtn = modal.querySelector('#onevr-doc-drift');
+    driftBtn.onclick = function() {
+      modal.remove();
+      var overlay = document.querySelector('.onevr-overlay');
+      fetchDocumentCategory(overlay, 'Driftmeddelande');
     };
 
     // Click on person to open multi-day dagvy
