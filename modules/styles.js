@@ -957,6 +957,8 @@
       .onevr-day-sel-btn { color: #8884ff; border-color: rgba(125,122,255,.3); }
       .onevr-day-sel-active { background: linear-gradient(135deg, #5e5ce6, #8884ff); color: #fff; border-color: #5e5ce6; }
 
+      .onevr-export-list-wrap::after { background: linear-gradient(transparent, #1c1c1e); }
+
       .onevr-loading-text { color: #fff; }
     }
 
@@ -2132,6 +2134,67 @@
       box-shadow: 0 3px 12px rgba(255,59,48,.3) !important;
     }
 
+    /* Compact button row layout */
+    .onevr-batch-compact {
+      padding: 10px 12px;
+      gap: 8px;
+    }
+
+    .onevr-btn-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .onevr-mini-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 8px 4px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all .15s ease;
+      -webkit-tap-highlight-color: transparent;
+      text-align: center;
+      min-height: 0;
+    }
+
+    .onevr-mini-btn:active {
+      transform: scale(.96);
+      opacity: .9;
+    }
+
+    .onevr-mini-icon {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .onevr-mini-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .onevr-mini-wide {
+      flex: none;
+      width: 100%;
+      flex-direction: row;
+      gap: 8px;
+      padding: 8px 12px;
+    }
+
+    .onevr-mini-wide .onevr-mini-label {
+      font-size: 13px;
+    }
+
     /* Export status badges */
     .onevr-export-status {
       font-size: 14px;
@@ -2153,6 +2216,20 @@
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       min-height: 0;
+      max-height: 40vh;
+      position: relative;
+    }
+
+    .onevr-export-list-wrap::after {
+      content: '';
+      position: sticky;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 30px;
+      display: block;
+      background: linear-gradient(transparent, var(--onevr-card-bg, #fff));
+      pointer-events: none;
     }
 
     /* ============================================
@@ -2177,13 +2254,13 @@
     }
 
     .onevr-day-sel-btn {
-      width: 42px;
-      height: 36px;
+      width: 34px;
+      height: 30px;
       border: 2px solid rgba(88,86,214,.3);
-      border-radius: 10px;
+      border-radius: 8px;
       background: transparent;
       color: #5856d6;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 700;
       cursor: pointer;
       transition: all .15s ease;

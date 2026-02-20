@@ -2765,69 +2765,57 @@
     // Day count (default 3, stored in state)
     var selectedDays = window.OneVR.exportDays || 5;
 
-    // Build day selector
+    // Build day selector (1-7)
+    var dayBtns = '';
+    for (var d = 1; d <= 7; d++) {
+      dayBtns += '<button class="onevr-day-sel-btn' + (selectedDays === d ? ' onevr-day-sel-active' : '') + '" data-days="' + d + '">' + d + '</button>';
+    }
     var daySelHTML =
       '<div class="onevr-day-selector">' +
-        '<span class="onevr-day-selector-label">Antal dagar:</span>' +
-        '<div class="onevr-day-selector-btns">' +
-          '<button class="onevr-day-sel-btn' + (selectedDays === 1 ? ' onevr-day-sel-active' : '') + '" data-days="1">1</button>' +
-          '<button class="onevr-day-sel-btn' + (selectedDays === 2 ? ' onevr-day-sel-active' : '') + '" data-days="2">2</button>' +
-          '<button class="onevr-day-sel-btn' + (selectedDays === 3 ? ' onevr-day-sel-active' : '') + '" data-days="3">3</button>' +
-          '<button class="onevr-day-sel-btn' + (selectedDays === 4 ? ' onevr-day-sel-active' : '') + '" data-days="4">4</button>' +
-          '<button class="onevr-day-sel-btn' + (selectedDays === 5 ? ' onevr-day-sel-active' : '') + '" data-days="5">5</button>' +
-        '</div>' +
+        '<span class="onevr-day-selector-label">Dagar:</span>' +
+        '<div class="onevr-day-selector-btns">' + dayBtns + '</div>' +
       '</div>';
 
-    // Build batch actions section
+    // Build compact batch actions
+    var storedLabel = storedCount > 0 ? ' (' + storedCount + ')' : '';
+    var disabledCls = storedCount === 0 ? ' onevr-batch-disabled' : '';
+    var disabledAttr = storedCount === 0 ? ' disabled' : '';
+
     var batchHTML =
-      '<div class="onevr-batch-section">' +
+      '<div class="onevr-batch-section onevr-batch-compact">' +
         daySelHTML +
-        '<button class="onevr-batch-btn onevr-batch-scrape" id="onevr-batch-scrape">' +
-          '<span class="onevr-batch-btn-icon">🔄</span>' +
-          '<span class="onevr-batch-btn-text">' +
-            '<span class="onevr-batch-btn-title">Skrapa alla (' + selectedDays + ' dag' + (selectedDays > 1 ? 'ar' : '') + ')</span>' +
-            '<span class="onevr-batch-btn-sub">Hämtar dagvy + besättning för ' + scraper.DAGVY_NAMES.length + ' personer</span>' +
-          '</span>' +
-        '</button>' +
-        '<button class="onevr-batch-btn onevr-batch-upload' + (storedCount === 0 ? ' onevr-batch-disabled' : '') + '" id="onevr-batch-upload"' + (storedCount === 0 ? ' disabled' : '') + '>' +
-          '<span class="onevr-batch-btn-icon">☁️</span>' +
-          '<span class="onevr-batch-btn-text">' +
-            '<span class="onevr-batch-btn-title">Exportera alla till Firebase</span>' +
-            '<span class="onevr-batch-btn-sub">' + (storedCount > 0 ? storedCount + ' personer redo att skickas' : 'Skrapa först') + '</span>' +
-          '</span>' +
-        '</button>' +
-        '<button class="onevr-batch-btn onevr-batch-json' + (storedCount === 0 ? ' onevr-batch-disabled' : '') + '" id="onevr-batch-json"' + (storedCount === 0 ? ' disabled' : '') + '>' +
-          '<span class="onevr-batch-btn-icon">📥</span>' +
-          '<span class="onevr-batch-btn-text">' +
-            '<span class="onevr-batch-btn-title">Ladda ner alla (JSON)</span>' +
-            '<span class="onevr-batch-btn-sub">' + (storedCount > 0 ? storedCount + ' personer' : 'Skrapa först') + '</span>' +
-          '</span>' +
-        '</button>' +
+        '<div class="onevr-btn-row">' +
+          '<button class="onevr-mini-btn onevr-batch-scrape" id="onevr-batch-scrape">' +
+            '<span class="onevr-mini-icon">🔄</span>' +
+            '<span class="onevr-mini-label">Skrapa (' + selectedDays + 'd)</span>' +
+          '</button>' +
+          '<button class="onevr-mini-btn onevr-batch-upload' + disabledCls + '" id="onevr-batch-upload"' + disabledAttr + '>' +
+            '<span class="onevr-mini-icon">☁️</span>' +
+            '<span class="onevr-mini-label">Firebase' + storedLabel + '</span>' +
+          '</button>' +
+          '<button class="onevr-mini-btn onevr-batch-json' + disabledCls + '" id="onevr-batch-json"' + disabledAttr + '>' +
+            '<span class="onevr-mini-icon">📥</span>' +
+            '<span class="onevr-mini-label">JSON' + storedLabel + '</span>' +
+          '</button>' +
+        '</div>' +
       '</div>' +
-      '<div class="onevr-batch-section">' +
-        '<button class="onevr-batch-btn onevr-batch-turns" id="onevr-batch-turns">' +
-          '<span class="onevr-batch-btn-icon">📋</span>' +
-          '<span class="onevr-batch-btn-text">' +
-            '<span class="onevr-batch-btn-title">Malmö-turer (7 dagar)</span>' +
-            '<span class="onevr-batch-btn-sub">Skrapar turnr, start och sluttid från vald dag</span>' +
-          '</span>' +
-        '</button>' +
-      '</div>' +
-      '<div class="onevr-batch-section">' +
-        '<button class="onevr-batch-btn onevr-batch-doc-ta" id="onevr-doc-ta">' +
-          '<span class="onevr-batch-btn-icon">📄</span>' +
-          '<span class="onevr-batch-btn-text">' +
-            '<span class="onevr-batch-btn-title">Hämta TA</span>' +
-            '<span class="onevr-batch-btn-sub">Laddar ner alla TA-dokument (Danmark)</span>' +
-          '</span>' +
-        '</button>' +
-        '<button class="onevr-batch-btn onevr-batch-doc-drift" id="onevr-doc-drift">' +
-          '<span class="onevr-batch-btn-icon">📄</span>' +
-          '<span class="onevr-batch-btn-text">' +
-            '<span class="onevr-batch-btn-title">Hämta Driftmeddelande</span>' +
-            '<span class="onevr-batch-btn-sub">Laddar ner alla driftmeddelanden</span>' +
-          '</span>' +
-        '</button>' +
+      '<div class="onevr-batch-section onevr-batch-compact">' +
+        '<div class="onevr-btn-row">' +
+          '<button class="onevr-mini-btn onevr-mini-wide onevr-batch-turns" id="onevr-batch-turns">' +
+            '<span class="onevr-mini-icon">📋</span>' +
+            '<span class="onevr-mini-label">Malmö-turer (7 dagar)</span>' +
+          '</button>' +
+        '</div>' +
+        '<div class="onevr-btn-row">' +
+          '<button class="onevr-mini-btn onevr-batch-doc-ta" id="onevr-doc-ta">' +
+            '<span class="onevr-mini-icon">📄</span>' +
+            '<span class="onevr-mini-label">Hämta TA</span>' +
+          '</button>' +
+          '<button class="onevr-mini-btn onevr-batch-doc-drift" id="onevr-doc-drift">' +
+            '<span class="onevr-mini-icon">📄</span>' +
+            '<span class="onevr-mini-label">Driftmeddelande</span>' +
+          '</button>' +
+        '</div>' +
       '</div>';
 
     var modal = document.createElement('div');
@@ -2865,8 +2853,8 @@
         modal.querySelectorAll('.onevr-day-sel-btn').forEach(function(b) { b.classList.remove('onevr-day-sel-active'); });
         btn.classList.add('onevr-day-sel-active');
         // Update scrape button text
-        var scrapeTitle = modal.querySelector('#onevr-batch-scrape .onevr-batch-btn-title');
-        if (scrapeTitle) scrapeTitle.textContent = 'Skrapa alla (' + selectedDays + ' dag' + (selectedDays > 1 ? 'ar' : '') + ')';
+        var scrapeLabel = modal.querySelector('#onevr-batch-scrape .onevr-mini-label');
+        if (scrapeLabel) scrapeLabel.textContent = 'Skrapa (' + selectedDays + 'd)';
       };
     });
 
@@ -2883,8 +2871,8 @@
     uploadBtn.onclick = function() {
       if (storedCount === 0) return;
       uploadBtn.disabled = true;
-      uploadBtn.querySelector('.onevr-batch-btn-title').textContent = 'Skickar...';
-      uploadBtn.querySelector('.onevr-batch-btn-sub').textContent = '0/' + storedCount + ' klara';
+      var uploadLabel = uploadBtn.querySelector('.onevr-mini-label');
+      uploadLabel.textContent = '0/' + storedCount;
       uploadBtn.classList.add('onevr-batch-sending');
 
       var names = Object.keys(window.OneVR.dagvyStore);
@@ -2897,12 +2885,10 @@
           uploadBtn.classList.remove('onevr-batch-sending');
           if (fail === 0) {
             uploadBtn.classList.add('onevr-batch-done');
-            uploadBtn.querySelector('.onevr-batch-btn-title').textContent = '✅ Alla uppladdade!';
-            uploadBtn.querySelector('.onevr-batch-btn-sub').textContent = ok + ' personer skickade till Firebase';
+            uploadLabel.textContent = '✅ ' + ok;
           } else {
             uploadBtn.classList.add('onevr-batch-error');
-            uploadBtn.querySelector('.onevr-batch-btn-title').textContent = '⚠️ Delvis klar';
-            uploadBtn.querySelector('.onevr-batch-btn-sub').textContent = ok + ' ok, ' + fail + ' misslyckades';
+            uploadLabel.textContent = '⚠️ ' + ok + '/' + fail;
           }
           return;
         }
@@ -2911,7 +2897,7 @@
           if (success) ok++;
           else fail++;
           idx++;
-          uploadBtn.querySelector('.onevr-batch-btn-sub').textContent = idx + '/' + names.length + ' klara';
+          uploadLabel.textContent = idx + '/' + names.length;
           nextUpload();
         });
       }
@@ -2938,7 +2924,7 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       jsonBtn.classList.add('onevr-batch-done');
-      jsonBtn.querySelector('.onevr-batch-btn-title').textContent = '✅ Nedladdad!';
+      jsonBtn.querySelector('.onevr-mini-label').textContent = '✅ Klar';
     };
 
     // Weekly turns button (fixed 7 days)
