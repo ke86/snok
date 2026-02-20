@@ -876,9 +876,10 @@
       .onevr-dagvy-contact { color: #0a84ff; }
       .onevr-dagvy-trains { color: rgba(235,235,245,.5); }
       .onevr-dagvy-empty { color: rgba(235,235,245,.4); }
-      .onevr-dagvy-loading .onevr-loading-text { color: rgba(235,235,245,.6); }
-      .onevr-dagvy-loading .onevr-multi-progress { color: #fff !important; font-weight: 700 !important; }
-      .onevr-dagvy-loading .onevr-batch-detail { color: rgba(235,235,245,.7) !important; }
+      .onevr-dagvy-loading .onevr-loading-text { color: rgba(235,235,245,.6) !important; opacity: 1 !important; }
+      .onevr-dagvy-loading .onevr-multi-progress { color: #fff !important; font-weight: 700 !important; opacity: 1 !important; }
+      .onevr-dagvy-loading .onevr-batch-detail { color: rgba(235,235,245,.8) !important; opacity: 1 !important; }
+      .onevr-dagvy-loading .onevr-elapsed { color: rgba(235,235,245,.5) !important; opacity: 1 !important; }
 
       .onevr-export-section-title { color: #fff; }
       .onevr-export-section-sub { color: rgba(235,235,245,.4); }
@@ -1763,6 +1764,7 @@
       font-size: 15px;
       font-weight: 700;
       text-align: center;
+      opacity: 1 !important;
     }
 
     .onevr-day-section {
@@ -2446,6 +2448,17 @@
       font-weight: 500;
       text-align: center;
       min-height: 18px;
+      opacity: 1 !important;
+    }
+
+    .onevr-elapsed {
+      margin-top: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      color: #8e8e93;
+      font-variant-numeric: tabular-nums;
+      opacity: 1 !important;
     }
   `;
 

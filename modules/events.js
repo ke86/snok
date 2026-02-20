@@ -1926,17 +1926,28 @@
         '</div>' +
         '<div class="onevr-dagvy-loading">' +
           '<div class="onevr-spinner"></div>' +
-          '<div class="onevr-multi-progress" id="onevr-doc-progress">Navigerar...</div>' +
-          '<div class="onevr-batch-detail" id="onevr-doc-detail"></div>' +
+          '<div class="onevr-multi-progress" id="onevr-doc-progress" style="color:inherit;opacity:1;">Navigerar...</div>' +
+          '<div class="onevr-batch-detail" id="onevr-doc-detail" style="color:inherit;opacity:1;"></div>' +
           '<div class="onevr-progress-bar-wrap"><div class="onevr-progress-bar onevr-progress-bar-doc" id="onevr-doc-bar" style="width:0%"></div></div>' +
           '<div class="onevr-progress-pct onevr-progress-pct-doc" id="onevr-doc-pct">0%</div>' +
+          '<div class="onevr-elapsed" id="onevr-doc-elapsed" style="opacity:1;">⏱ 0:00</div>' +
         '</div>' +
       '</div>';
     document.body.appendChild(loadingModal);
 
     var cancelled = false;
+    var elapsedSec = 0;
+    var elapsedEl = document.getElementById('onevr-doc-elapsed');
+    var elapsedTimer = setInterval(function() {
+      elapsedSec++;
+      var m = Math.floor(elapsedSec / 60);
+      var s = elapsedSec % 60;
+      if (elapsedEl) elapsedEl.textContent = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
+    }, 1000);
+
     function cleanUp() {
       cancelled = true;
+      clearInterval(elapsedTimer);
       loadingModal.remove();
       if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
       if (overlay) overlay.style.display = '';
@@ -2103,6 +2114,7 @@
     // Step 6: Navigate back to Positionlista and show result
     function goBack() {
       if (cancelled) return;
+      clearInterval(elapsedTimer);
       setProgress('Navigerar tillbaka...', '', 95);
 
       clickLabel('Positionlista', function() {
@@ -2166,19 +2178,30 @@
         '</div>' +
         '<div class="onevr-dagvy-loading">' +
           '<div class="onevr-spinner"></div>' +
-          '<div class="onevr-multi-progress" id="onevr-turns-progress">Förbereder...</div>' +
-          '<div class="onevr-batch-detail" id="onevr-turns-detail"></div>' +
+          '<div class="onevr-multi-progress" id="onevr-turns-progress" style="color:inherit;opacity:1;">Förbereder...</div>' +
+          '<div class="onevr-batch-detail" id="onevr-turns-detail" style="color:inherit;opacity:1;"></div>' +
           '<div class="onevr-progress-bar-wrap">' +
             '<div class="onevr-progress-bar" id="onevr-turns-bar" style="width:0%"></div>' +
           '</div>' +
           '<div class="onevr-progress-pct" id="onevr-turns-pct">0%</div>' +
+          '<div class="onevr-elapsed" id="onevr-turns-elapsed" style="opacity:1;">⏱ 0:00</div>' +
         '</div>' +
       '</div>';
     document.body.appendChild(loadingModal);
 
     var cancelled = false;
+    var elapsedSec = 0;
+    var elapsedEl = document.getElementById('onevr-turns-elapsed');
+    var elapsedTimer = setInterval(function() {
+      elapsedSec++;
+      var m = Math.floor(elapsedSec / 60);
+      var s = elapsedSec % 60;
+      if (elapsedEl) elapsedEl.textContent = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
+    }, 1000);
+
     var cleanUp = function() {
       cancelled = true;
+      clearInterval(elapsedTimer);
       loadingModal.remove();
       if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
       if (overlay) overlay.style.display = '';
@@ -2273,6 +2296,7 @@
     // --- Navigate back to start date ---
     function navigateBack() {
       if (cancelled) return;
+      clearInterval(elapsedTimer);
       setProgress('Navigerar tillbaka...', '', 100);
 
       var stepsBack = totalDays - 1;
@@ -2415,17 +2439,29 @@
         '</div>' +
         '<div class="onevr-dagvy-loading">' +
           '<div class="onevr-spinner"></div>' +
-          '<div class="onevr-multi-progress" id="onevr-batch-progress">Förbereder...</div>' +
-          '<div class="onevr-batch-detail" id="onevr-batch-detail"></div>' +
+          '<div class="onevr-multi-progress" id="onevr-batch-progress" style="color:inherit;opacity:1;">Förbereder...</div>' +
+          '<div class="onevr-batch-detail" id="onevr-batch-detail" style="color:inherit;opacity:1;"></div>' +
           '<div class="onevr-progress-bar-wrap"><div class="onevr-progress-bar" id="onevr-batch-bar" style="width:0%"></div></div>' +
           '<div class="onevr-progress-pct" id="onevr-batch-pct">0%</div>' +
+          '<div class="onevr-elapsed" id="onevr-batch-elapsed" style="opacity:1;">⏱ 0:00</div>' +
         '</div>' +
       '</div>';
     document.body.appendChild(loadingModal);
 
     var cancelled = false;
+    // Elapsed timer
+    var elapsedSec = 0;
+    var elapsedEl = document.getElementById('onevr-batch-elapsed');
+    var elapsedTimer = setInterval(function() {
+      elapsedSec++;
+      var m = Math.floor(elapsedSec / 60);
+      var s = elapsedSec % 60;
+      if (elapsedEl) elapsedEl.textContent = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
+    }, 1000);
+
     var cleanUp = function() {
       cancelled = true;
+      clearInterval(elapsedTimer);
       loadingModal.remove();
       if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
       if (overlay) overlay.style.display = '';
@@ -2646,6 +2682,7 @@
     // ─── Navigate back ───
     function navigateBack() {
       if (cancelled) return;
+      clearInterval(elapsedTimer);
       setProgress('Navigerar tillbaka...', '', 100);
 
       var stepsBack = totalDays - 1;
