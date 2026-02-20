@@ -1909,6 +1909,7 @@
     var PDF_WAIT_MAX = 20000;
     var collected = [];   // {filename, data} — PDF ArrayBuffers
     var failed = [];
+    var parsedDocs = []; // Strukturerad data extraherad från PDFs
 
     // ─── Load JSZip library dynamically ───
     function loadJSZip(cb) {
@@ -1987,8 +1988,7 @@
         if (!found && el.innerText.trim() === text) {
           found = true;
           el.click();
-          el.parentElement.click();
-          if (el.parentElement.parentElement) el.parentElement.parentElement.click();
+          if (el.parentElement) el.parentElement.click();
         }
       });
       if (!found) {
@@ -1996,7 +1996,7 @@
           if (!found && el.innerText.trim() === text) {
             found = true;
             el.click();
-            el.parentElement.click();
+            if (el.parentElement) el.parentElement.click();
           }
         });
       }
@@ -2004,18 +2004,112 @@
       return found;
     }
 
-    // Helper: wait for PDF viewer, collect data in memory (no download)
+    // Helper: extract text from all pages of a PDF document
+    function extractPdfText(pdfDoc, cb) {
+      var numPages = pdfDoc.numPages;
+      var allText = '';
+      var pageIdx = 0;
+      function doPage() {
+        pageIdx++;
+        if (pageIdx > numPages) { cb(allText); return; }
+        pdfDoc.getPage(pageIdx).then(function(page) {
+          page.getTextContent().then(function(tc) {
+            var lines = {};
+            tc.items.forEach(function(item) {
+              var y = Math.round(item.transform[5]);
+              if (!lines[y]) lines[y] = [];
+              lines[y].push({ x: item.transform[4], str: item.str });
+            });
+            var sortedYs = Object.keys(lines).sort(function(a, b) { return b - a; });
+            sortedYs.forEach(function(y) {
+              var lineItems = lines[y].sort(function(a, b) { return a.x - b.x; });
+              allText += lineItems.map(function(i) { return i.str; }).join(' ') + '\n';
+            });
+            doPage();
+          }).catch(function() { doPage(); });
+        }).catch(function() { doPage(); });
+      }
+      doPage();
+    }
+
+    // Helper: parse PDF text into structured data
+    function parsePdfDocument(text, filename) {
+      var doc = {
+        filename: filename,
+        taNumber: null,
+        week: null,
+        period: null,
+        trainNumbers: [],
+        dates: [],
+        times: []
+      };
+
+      // TA number from "Toganmeldelse nr. XXX"
+      var taM = text.match(/Toganmeldels\w*\s+nr\.?\s*(\d+)/i);
+      if (taM) {
+        doc.taNumber = parseInt(taM[1]);
+      } else {
+        // Try from filename: "V2608 TA 670.pdf" → 670
+        var fnM = filename.match(/TA\s*(\d+)/i);
+        if (fnM) doc.taNumber = parseInt(fnM[1]);
+      }
+
+      // Week from filename: "V2608" → vecka 8, 2026
+      var weekM = filename.match(/V(\d{2})(\d{2})/);
+      if (weekM) doc.week = 'v' + parseInt(weekM[2]) + ' 20' + weekM[1];
+
+      // Period (first date range)
+      var rangeM = text.match(/(\d{2}\.\d{2}\.\d{4})\s*-\s*(\d{2}\.\d{2}\.\d{4})/);
+      if (rangeM) doc.period = rangeM[1] + ' - ' + rangeM[2];
+
+      // All unique dates (DD.MM.YYYY)
+      var dateSet = {};
+      var dateRegex = /\b(\d{2}\.\d{2}\.\d{4})\b/g;
+      var m;
+      while ((m = dateRegex.exec(text)) !== null) {
+        dateSet[m[1]] = true;
+      }
+      doc.dates = Object.keys(dateSet).sort();
+
+      // All unique train numbers (ØP XXXX or IC XXXX etc.)
+      var trainSet = {};
+      var trainRegex = /\b([ØO]P\s*\d+|IC\s*\d+|RE\s*\d+|L\s*\d+)\b/g;
+      while ((m = trainRegex.exec(text)) !== null) {
+        var nr = m[1].replace(/\s+/g, ' ').trim();
+        trainSet[nr] = true;
+      }
+      doc.trainNumbers = Object.keys(trainSet);
+
+      // Times (H:MM or HH:MM)
+      var timeSet = {};
+      var timeRegex = /\b(\d{1,2}:\d{2})\b/g;
+      while ((m = timeRegex.exec(text)) !== null) {
+        timeSet[m[1]] = true;
+      }
+      doc.times = Object.keys(timeSet).sort();
+
+      return doc;
+    }
+
+    // Helper: wait for PDF viewer, collect data + extract text
     function waitForPdfAndCollect(filename, cb) {
       var elapsed = 0;
       function poll() {
-        if (cancelled) { cb(null); return; }
+        if (cancelled) { cb(null, null); return; }
         if (window.PDFViewerApplication && window.PDFViewerApplication.pdfDocument) {
-          window.PDFViewerApplication.pdfDocument.getData().then(function(data) {
+          var pdfDoc = window.PDFViewerApplication.pdfDocument;
+          // Get binary data first
+          pdfDoc.getData().then(function(data) {
             console.log('[OneVR] Collected: ' + filename + ' (' + data.byteLength + ' bytes)');
-            cb(data);
+            // Then extract text for parsing
+            extractPdfText(pdfDoc, function(text) {
+              var parsed = parsePdfDocument(text, filename);
+              console.log('[OneVR] Parsed: ' + filename + ' → TA ' + (parsed.taNumber || '?') + ', ' + parsed.trainNumbers.length + ' tåg, ' + parsed.dates.length + ' datum');
+              cb(data, parsed);
+            });
           }).catch(function(err) {
             console.error('[OneVR] getData failed for ' + filename, err);
-            cb(null);
+            cb(null, null);
           });
         } else {
           elapsed += 500;
@@ -2023,7 +2117,7 @@
             setTimeout(poll, 500);
           } else {
             console.error('[OneVR] PDF viewer timeout for ' + filename);
-            cb(null);
+            cb(null, null);
           }
         }
       }
@@ -2108,9 +2202,10 @@
                 return;
               }
 
-              waitForPdfAndCollect(filename, function(data) {
+              waitForPdfAndCollect(filename, function(data, parsed) {
                 if (data) {
                   collected.push({ filename: filename, data: data });
+                  if (parsed) parsedDocs.push(parsed);
                 } else {
                   failed.push(filename);
                 }
@@ -2144,15 +2239,23 @@
           zip.file(item.filename, item.data, { binary: true });
         });
 
+        // Inkludera parsed JSON i ZIP:en
+        if (parsedDocs.length > 0) {
+          zip.file('ta_data.json', JSON.stringify(parsedDocs, null, 2));
+        }
+
         zip.generateAsync({ type: 'blob' }).then(function(blob) {
           window.OneVR._lastDocZip = { blob: blob, categoryName: categoryName };
           var safeCat = categoryName.replace(/[^a-zA-Z0-9åäöÅÄÖ\-_ ]/g, '').replace(/\s+/g, '_');
           zipName = safeCat + '_' + new Date().toISOString().slice(0, 10) + '.zip';
           console.log('[OneVR] ZIP created: ' + (blob.size / 1024).toFixed(1) + ' KB, ' + collected.length + ' files');
 
-          // Upload to Firebase via Worker
+          // Upload ZIP + parsed data to Firebase via Worker
           uploadToDocs(blob, safeCat + '/' + zipName, function() {
-            goBack();
+            // Also upload parsed JSON data
+            uploadParsedData(safeCat, function() {
+              goBack();
+            });
           });
         }).catch(function(err) {
           console.error('[OneVR] ZIP generation failed:', err);
@@ -2205,6 +2308,41 @@
       .catch(function(err) {
         uploadStatus = 'fail';
         console.error('[OneVR] Firebase upload error:', err);
+        cb();
+      });
+    }
+
+    // Step 6c: Upload parsed JSON data to Firebase
+    function uploadParsedData(safeCat, cb) {
+      if (parsedDocs.length === 0) { cb(); return; }
+      var workerUrl = CFG.firebase && CFG.firebase.workerUrl;
+      var docsCfg = CFG.docs;
+      if (!workerUrl || !docsCfg || !docsCfg.apiKey || docsCfg.apiKey === 'BYTA-TILL-DIN-DOCS-API-NYCKEL') {
+        cb();
+        return;
+      }
+
+      setProgress('Sparar parsed data...', parsedDocs.length + ' dokument', 92);
+
+      fetch(workerUrl + '/docs/' + encodeURIComponent(safeCat) + '/parsed', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': docsCfg.apiKey
+        },
+        body: JSON.stringify(parsedDocs)
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.success) {
+          console.log('[OneVR] Parsed data uploaded: ' + safeCat + ' (' + parsedDocs.length + ' docs)');
+        } else {
+          console.error('[OneVR] Parsed upload failed:', data);
+        }
+        cb();
+      })
+      .catch(function(err) {
+        console.error('[OneVR] Parsed upload error:', err);
         cb();
       });
     }
