@@ -2131,9 +2131,12 @@
     });
 
     // Step 6: Build ZIP from collected PDFs
+    var uploadStatus = '';  // '', 'uploading', 'ok', 'fail', 'skip'
+    var zipName = '';
+
     function buildZip() {
       if (cancelled) return;
-      setProgress('Skapar ZIP-fil...', collected.length + ' dokument', 88);
+      setProgress('Skapar ZIP-fil...', collected.length + ' dokument', 85);
 
       try {
         var zip = new window.JSZip();
@@ -2142,10 +2145,15 @@
         });
 
         zip.generateAsync({ type: 'blob' }).then(function(blob) {
-          // Store blob for download button
           window.OneVR._lastDocZip = { blob: blob, categoryName: categoryName };
+          var safeCat = categoryName.replace(/[^a-zA-Z0-9åäöÅÄÖ\-_ ]/g, '').replace(/\s+/g, '_');
+          zipName = safeCat + '_' + new Date().toISOString().slice(0, 10) + '.zip';
           console.log('[OneVR] ZIP created: ' + (blob.size / 1024).toFixed(1) + ' KB, ' + collected.length + ' files');
-          goBack();
+
+          // Upload to Firebase via Worker
+          uploadToDocs(blob, safeCat + '/' + zipName, function() {
+            goBack();
+          });
         }).catch(function(err) {
           console.error('[OneVR] ZIP generation failed:', err);
           setProgress('ZIP-skapande misslyckades', '', 90);
@@ -2156,6 +2164,49 @@
         setProgress('ZIP-fel: ' + e.message, '', 90);
         setTimeout(function() { goBack(); }, 2000);
       }
+    }
+
+    // Step 6b: Upload ZIP to Firebase via Cloudflare Worker
+    function uploadToDocs(blob, docKey, cb) {
+      var workerUrl = CFG.firebase && CFG.firebase.workerUrl;
+      var docsCfg = CFG.docs;
+      if (!workerUrl || !docsCfg || !docsCfg.apiKey || docsCfg.apiKey === 'BYTA-TILL-DIN-DOCS-API-NYCKEL') {
+        console.log('[OneVR] Docs ej konfigurerad, hoppar uppladdning');
+        uploadStatus = 'skip';
+        cb();
+        return;
+      }
+
+      uploadStatus = 'uploading';
+      setProgress('Sparar till Firebase...', (blob.size / 1024).toFixed(0) + ' KB', 90);
+
+      fetch(workerUrl + '/docs/' + encodeURIComponent(docKey), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/zip',
+          'X-API-Key': docsCfg.apiKey
+        },
+        body: blob
+      })
+      .then(function(res) {
+        if (!res.ok) return res.json().then(function(e) { throw new Error(e.error || 'HTTP ' + res.status); });
+        return res.json();
+      })
+      .then(function(data) {
+        if (data.success) {
+          uploadStatus = 'ok';
+          console.log('[OneVR] Firebase upload OK: ' + docKey);
+        } else {
+          uploadStatus = 'fail';
+          console.error('[OneVR] Firebase upload failed:', data);
+        }
+        cb();
+      })
+      .catch(function(err) {
+        uploadStatus = 'fail';
+        console.error('[OneVR] Firebase upload error:', err);
+        cb();
+      });
     }
 
     // Step 7: Navigate back to Positionlista and show result with download
@@ -2175,12 +2226,16 @@
         var es = elapsedSec % 60;
         var elapsed = em + ':' + (es < 10 ? '0' : '') + es;
 
+        // Upload status badge
+        var statusBadge = '';
+        if (uploadStatus === 'ok') statusBadge = '<div style="margin-top:8px;font-size:13px;color:#34c759;font-weight:600;">☁️ Sparad i Firebase</div>';
+        else if (uploadStatus === 'fail') statusBadge = '<div style="margin-top:8px;font-size:13px;color:#ff453a;font-weight:600;">⚠️ Firebase-uppladdning misslyckades</div>';
+        else if (uploadStatus === 'skip') statusBadge = '<div style="margin-top:8px;font-size:12px;color:#8e8e93;">☁️ Firebase docs ej konfigurerad</div>';
+
         // Show result modal with ZIP download button
         setTimeout(function() {
           var hasZip = window.OneVR._lastDocZip && window.OneVR._lastDocZip.blob;
           var zipSize = hasZip ? (window.OneVR._lastDocZip.blob.size / 1024).toFixed(0) : 0;
-          var safeCat = categoryName.replace(/[^a-zA-Z0-9åäöÅÄÖ\-_ ]/g, '').replace(/\s+/g, '_');
-          var zipName = safeCat + '_' + new Date().toISOString().slice(0, 10) + '.zip';
 
           loadingModal.querySelector('.onevr-dagvy-loading').innerHTML =
             '<div style="text-align:center;padding:20px 16px;">' +
@@ -2188,8 +2243,9 @@
               '<div class="onevr-turns-result-label">dokument insamlade</div>' +
               (failed.length > 0 ? '<div style="color:#ff453a;margin-top:8px;font-size:13px;">' + failed.length + ' misslyckades</div>' : '') +
               '<div style="font-size:12px;color:#8e8e93;margin-top:4px;">⏱ ' + elapsed + ' • ' + zipSize + ' KB</div>' +
+              statusBadge +
               (hasZip ?
-                '<button id="onevr-doc-zip-dl" style="margin-top:16px;width:100%;padding:14px;border:none;border-radius:12px;' +
+                '<button id="onevr-doc-zip-dl" style="margin-top:14px;width:100%;padding:14px;border:none;border-radius:12px;' +
                 'font-size:15px;font-weight:700;cursor:pointer;color:#fff;' +
                 'background:linear-gradient(135deg,#d63027,#ff6b6b);">' +
                 '📦 Ladda ner ' + zipName + '</button>' : '') +

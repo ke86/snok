@@ -114,6 +114,10 @@
     "workerUrl": "https://onevr-auth.kenny-eriksson1986.workers.dev"
   },
 
+  "docs": {
+    "apiKey": "onevr-docs-2026"
+  },
+
   "theme": {
     "light": {
       "background": "linear-gradient(180deg,#f2f2f7,#e5e5ea)",
