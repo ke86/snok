@@ -1898,8 +1898,8 @@
    */
 
   /**
-   * Fetch and download all PDFs from a document category in OneVR.
-   * Navigates: Positionlista → Hem → Dokument → category → download PDFs → Positionlista
+   * Fetch all PDFs from a document category in OneVR, package as ZIP.
+   * Navigates: Positionlista → Hem → Dokument → category → collect PDFs → ZIP → Positionlista
    * @param {Element} overlay - the main overlay element
    * @param {string} categoryName - e.g. "TA - Danmark" or "Driftmeddelande"
    */
@@ -1907,8 +1907,18 @@
     var NAV_DELAY = 2500;
     var PDF_WAIT_DELAY = 3000;
     var PDF_WAIT_MAX = 20000;
-    var downloaded = [];
+    var collected = [];   // {filename, data} — PDF ArrayBuffers
     var failed = [];
+
+    // ─── Load JSZip library dynamically ───
+    function loadJSZip(cb) {
+      if (window.JSZip) { cb(); return; }
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      s.onload = function() { cb(); };
+      s.onerror = function() { cb('Kunde inte ladda JSZip-biblioteket'); };
+      document.head.appendChild(s);
+    }
 
     // Hide overlay, show loading modal
     if (overlay) overlay.style.display = 'none';
@@ -1926,7 +1936,7 @@
         '</div>' +
         '<div class="onevr-dagvy-loading">' +
           '<div class="onevr-spinner"></div>' +
-          '<div class="onevr-multi-progress" id="onevr-doc-progress" style="color:inherit;opacity:1;">Navigerar...</div>' +
+          '<div class="onevr-multi-progress" id="onevr-doc-progress" style="color:inherit;opacity:1;">Laddar JSZip...</div>' +
           '<div class="onevr-batch-detail" id="onevr-doc-detail" style="color:inherit;opacity:1;"></div>' +
           '<div class="onevr-progress-bar-wrap"><div class="onevr-progress-bar onevr-progress-bar-doc" id="onevr-doc-bar" style="width:0%"></div></div>' +
           '<div class="onevr-progress-pct onevr-progress-pct-doc" id="onevr-doc-pct">0%</div>' +
@@ -1982,7 +1992,6 @@
         }
       });
       if (!found) {
-        // Also try bottom nav with different label style
         document.querySelectorAll('[class*="BottomMenu"], [class*="bottom"]').forEach(function(el) {
           if (!found && el.innerText.trim() === text) {
             found = true;
@@ -1995,27 +2004,18 @@
       return found;
     }
 
-    // Helper: wait for PDF viewer to be ready, then download
-    function waitForPdfAndDownload(filename, cb) {
+    // Helper: wait for PDF viewer, collect data in memory (no download)
+    function waitForPdfAndCollect(filename, cb) {
       var elapsed = 0;
       function poll() {
-        if (cancelled) { cb(false); return; }
+        if (cancelled) { cb(null); return; }
         if (window.PDFViewerApplication && window.PDFViewerApplication.pdfDocument) {
           window.PDFViewerApplication.pdfDocument.getData().then(function(data) {
-            var blob = new Blob([data], { type: 'application/pdf' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
-            console.log('[OneVR] Downloaded: ' + filename + ' (' + data.byteLength + ' bytes)');
-            cb(true);
-          }).catch(function() {
-            console.error('[OneVR] getData failed for ' + filename);
-            cb(false);
+            console.log('[OneVR] Collected: ' + filename + ' (' + data.byteLength + ' bytes)');
+            cb(data);
+          }).catch(function(err) {
+            console.error('[OneVR] getData failed for ' + filename, err);
+            cb(null);
           });
         } else {
           elapsed += 500;
@@ -2023,95 +2023,142 @@
             setTimeout(poll, 500);
           } else {
             console.error('[OneVR] PDF viewer timeout for ' + filename);
-            cb(false);
+            cb(null);
           }
         }
       }
       setTimeout(poll, PDF_WAIT_DELAY);
     }
 
-    // Step 1: Navigate to Hem
-    setProgress('Navigerar till Hem...', '', 5);
-    clickLabel('Hem', function() {
+    // ─── Start: load JSZip first, then navigate ───
+    loadJSZip(function(err) {
+      if (err) {
+        setProgress('Fel: ' + err, '', 0);
+        setTimeout(cleanUp, 3000);
+        return;
+      }
       if (cancelled) return;
 
-      // Step 2: Click Dokument
-      setProgress('Öppnar Dokument...', '', 15);
-      clickLabel('Dokument', function() {
+      // Step 1: Navigate to Hem
+      setProgress('Navigerar till Hem...', '', 5);
+      clickLabel('Hem', function() {
         if (cancelled) return;
 
-        // Step 3: Click category (TA - Danmark / Driftmeddelande)
-        setProgress('Öppnar ' + categoryName + '...', '', 25);
-        clickLabel(categoryName, function() {
+        // Step 2: Click Dokument
+        setProgress('Öppnar Dokument...', '', 15);
+        clickLabel('Dokument', function() {
           if (cancelled) return;
 
-          // Step 4: Find all PDF elements
-          var pdfNames = [];
-          document.querySelectorAll('.storybook-label').forEach(function(el) {
-            var txt = el.innerText.trim();
-            if (txt.toLowerCase().indexOf('.pdf') !== -1) {
-              pdfNames.push(txt);
-            }
-          });
-
-          if (pdfNames.length === 0) {
-            setProgress('Inga PDF-filer hittades', categoryName, 100);
-            setTimeout(function() { goBack(); }, 2000);
-            return;
-          }
-
-          setProgress('Hittade ' + pdfNames.length + ' dokument', '', 30);
-
-          // Step 5: Download each PDF sequentially
-          var idx = 0;
-          function nextPdf() {
+          // Step 3: Click category (TA - Danmark / Driftmeddelande)
+          setProgress('Öppnar ' + categoryName + '...', '', 25);
+          clickLabel(categoryName, function() {
             if (cancelled) return;
-            if (idx >= pdfNames.length) {
-              goBack();
-              return;
-            }
 
-            var filename = pdfNames[idx];
-            var pct = 30 + ((idx / pdfNames.length) * 60);
-            setProgress('Laddar ner ' + (idx + 1) + '/' + pdfNames.length, filename, pct);
-
-            // Click the PDF label
-            var clicked = false;
+            // Step 4: Find all PDF elements
+            var pdfNames = [];
             document.querySelectorAll('.storybook-label').forEach(function(el) {
-              if (!clicked && el.innerText.trim() === filename) {
-                clicked = true;
-                el.click();
-                el.parentElement.click();
-                if (el.parentElement.parentElement) el.parentElement.parentElement.click();
+              var txt = el.innerText.trim();
+              if (txt.toLowerCase().indexOf('.pdf') !== -1) {
+                pdfNames.push(txt);
               }
             });
 
-            if (!clicked) {
-              failed.push(filename);
-              idx++;
-              nextPdf();
+            if (pdfNames.length === 0) {
+              setProgress('Inga PDF-filer hittades', categoryName, 100);
+              setTimeout(function() { goBack(); }, 2000);
               return;
             }
 
-            waitForPdfAndDownload(filename, function(success) {
-              if (success) downloaded.push(filename);
-              else failed.push(filename);
+            setProgress('Hittade ' + pdfNames.length + ' dokument', '', 30);
 
-              // Go back to list
-              history.back();
-              setTimeout(function() {
+            // Step 5: Collect each PDF sequentially into memory
+            var idx = 0;
+            function nextPdf() {
+              if (cancelled) return;
+              if (idx >= pdfNames.length) {
+                buildZip();
+                return;
+              }
+
+              var filename = pdfNames[idx];
+              var pct = 30 + ((idx / pdfNames.length) * 55);
+              setProgress('Hämtar ' + (idx + 1) + '/' + pdfNames.length, filename, pct);
+
+              // Reset PDF viewer state before opening next PDF
+              if (window.PDFViewerApplication && window.PDFViewerApplication.pdfDocument) {
+                try { window.PDFViewerApplication.pdfDocument.destroy(); } catch(e) { /* ignore */ }
+                window.PDFViewerApplication.pdfDocument = null;
+              }
+
+              // Click the PDF label
+              var clicked = false;
+              document.querySelectorAll('.storybook-label').forEach(function(el) {
+                if (!clicked && el.innerText.trim() === filename) {
+                  clicked = true;
+                  el.click();
+                  el.parentElement.click();
+                  if (el.parentElement.parentElement) el.parentElement.parentElement.click();
+                }
+              });
+
+              if (!clicked) {
+                failed.push(filename);
                 idx++;
                 nextPdf();
-              }, NAV_DELAY);
-            });
-          }
+                return;
+              }
 
-          nextPdf();
+              waitForPdfAndCollect(filename, function(data) {
+                if (data) {
+                  collected.push({ filename: filename, data: data });
+                } else {
+                  failed.push(filename);
+                }
+
+                // Go back to document list
+                history.back();
+                setTimeout(function() {
+                  idx++;
+                  nextPdf();
+                }, NAV_DELAY);
+              });
+            }
+
+            nextPdf();
+          });
         });
       });
     });
 
-    // Step 6: Navigate back to Positionlista and show result
+    // Step 6: Build ZIP from collected PDFs
+    function buildZip() {
+      if (cancelled) return;
+      setProgress('Skapar ZIP-fil...', collected.length + ' dokument', 88);
+
+      try {
+        var zip = new window.JSZip();
+        collected.forEach(function(item) {
+          zip.file(item.filename, item.data, { binary: true });
+        });
+
+        zip.generateAsync({ type: 'blob' }).then(function(blob) {
+          // Store blob for download button
+          window.OneVR._lastDocZip = { blob: blob, categoryName: categoryName };
+          console.log('[OneVR] ZIP created: ' + (blob.size / 1024).toFixed(1) + ' KB, ' + collected.length + ' files');
+          goBack();
+        }).catch(function(err) {
+          console.error('[OneVR] ZIP generation failed:', err);
+          setProgress('ZIP-skapande misslyckades', '', 90);
+          setTimeout(function() { goBack(); }, 2000);
+        });
+      } catch(e) {
+        console.error('[OneVR] ZIP error:', e);
+        setProgress('ZIP-fel: ' + e.message, '', 90);
+        setTimeout(function() { goBack(); }, 2000);
+      }
+    }
+
+    // Step 7: Navigate back to Positionlista and show result with download
     function goBack() {
       if (cancelled) return;
       clearInterval(elapsedTimer);
@@ -2123,27 +2170,61 @@
 
         if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
 
-        // Show result modal
+        // Format elapsed time
+        var em = Math.floor(elapsedSec / 60);
+        var es = elapsedSec % 60;
+        var elapsed = em + ':' + (es < 10 ? '0' : '') + es;
+
+        // Show result modal with ZIP download button
         setTimeout(function() {
+          var hasZip = window.OneVR._lastDocZip && window.OneVR._lastDocZip.blob;
+          var zipSize = hasZip ? (window.OneVR._lastDocZip.blob.size / 1024).toFixed(0) : 0;
+          var safeCat = categoryName.replace(/[^a-zA-Z0-9åäöÅÄÖ\-_ ]/g, '').replace(/\s+/g, '_');
+          var zipName = safeCat + '_' + new Date().toISOString().slice(0, 10) + '.zip';
+
           loadingModal.querySelector('.onevr-dagvy-loading').innerHTML =
             '<div style="text-align:center;padding:20px 16px;">' +
-              '<div class="onevr-turns-result-big">' + downloaded.length + '</div>' +
-              '<div class="onevr-turns-result-label">dokument nedladdade</div>' +
+              '<div class="onevr-turns-result-big">' + collected.length + '</div>' +
+              '<div class="onevr-turns-result-label">dokument insamlade</div>' +
               (failed.length > 0 ? '<div style="color:#ff453a;margin-top:8px;font-size:13px;">' + failed.length + ' misslyckades</div>' : '') +
-              '<div style="margin-top:16px;">' +
-                downloaded.map(function(f) {
-                  return '<div style="font-size:12px;color:rgba(60,60,67,.6);padding:2px 0;">✅ ' + f + '</div>';
+              '<div style="font-size:12px;color:#8e8e93;margin-top:4px;">⏱ ' + elapsed + ' • ' + zipSize + ' KB</div>' +
+              (hasZip ?
+                '<button id="onevr-doc-zip-dl" style="margin-top:16px;width:100%;padding:14px;border:none;border-radius:12px;' +
+                'font-size:15px;font-weight:700;cursor:pointer;color:#fff;' +
+                'background:linear-gradient(135deg,#d63027,#ff6b6b);">' +
+                '📦 Ladda ner ' + zipName + '</button>' : '') +
+              '<div style="margin-top:14px;max-height:30vh;overflow-y:auto;">' +
+                collected.map(function(item) {
+                  return '<div style="font-size:12px;color:rgba(60,60,67,.6);padding:2px 0;">✅ ' + item.filename + '</div>';
                 }).join('') +
                 failed.map(function(f) {
                   return '<div style="font-size:12px;color:#ff453a;padding:2px 0;">❌ ' + f + '</div>';
                 }).join('') +
               '</div>' +
-              '<button class="onevr-turns-back-btn" style="margin-top:20px;width:100%;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;" id="onevr-doc-done">Tillbaka</button>' +
+              '<button class="onevr-turns-back-btn" style="margin-top:16px;width:100%;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;" id="onevr-doc-done">Tillbaka</button>' +
             '</div>';
+
+          // ZIP download handler
+          var zipBtn = document.getElementById('onevr-doc-zip-dl');
+          if (zipBtn && hasZip) {
+            zipBtn.onclick = function() {
+              var url = URL.createObjectURL(window.OneVR._lastDocZip.blob);
+              var a = document.createElement('a');
+              a.href = url;
+              a.download = zipName;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              setTimeout(function() { URL.revokeObjectURL(url); }, 5000);
+              zipBtn.textContent = '✅ Nedladdad!';
+              zipBtn.style.opacity = '0.7';
+            };
+          }
 
           var doneBtn = document.getElementById('onevr-doc-done');
           if (doneBtn) {
             doneBtn.onclick = function() {
+              window.OneVR._lastDocZip = null;
               loadingModal.remove();
               if (overlay) overlay.style.display = '';
               showExportMenu();
