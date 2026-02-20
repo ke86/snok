@@ -2004,6 +2004,42 @@
       return found;
     }
 
+    // Helper: ensure we're on the document category list, not inside a previous category
+    // SPA apps remember last navigation state, so clicking "Dokument" might land on TA page
+    function ensureCategoryList(targetLabel, cb) {
+      var found = false;
+      document.querySelectorAll('.storybook-label').forEach(function(el) {
+        if (el.innerText.trim() === targetLabel) found = true;
+      });
+
+      if (found) {
+        // Category label visible — we're on the list, proceed
+        cb();
+      } else {
+        // We're probably inside a different category, go back
+        setProgress('Navigerar till kategori-listan...', '', 18);
+        history.back();
+        setTimeout(function() {
+          // Check again after going back
+          var found2 = false;
+          document.querySelectorAll('.storybook-label').forEach(function(el) {
+            if (el.innerText.trim() === targetLabel) found2 = true;
+          });
+
+          if (found2) {
+            cb();
+          } else {
+            // Last resort: navigate Hem → Dokument again
+            clickLabel('Hem', function() {
+              clickLabel('Dokument', function() {
+                cb();
+              });
+            });
+          }
+        }, NAV_DELAY);
+      }
+    }
+
     // Helper: extract text from all pages of a PDF document
     function extractPdfText(pdfDoc, cb) {
       var numPages = pdfDoc.numPages;
@@ -2133,7 +2169,7 @@
       }
       if (cancelled) return;
 
-      // Step 1: Navigate to Hem
+      // Step 1: Navigate to Hem (resets SPA state)
       setProgress('Navigerar till Hem...', '', 5);
       clickLabel('Hem', function() {
         if (cancelled) return;
@@ -2143,10 +2179,15 @@
         clickLabel('Dokument', function() {
           if (cancelled) return;
 
-          // Step 3: Click category (TA - Danmark / Driftmeddelande)
-          setProgress('Öppnar ' + categoryName + '...', '', 25);
-          clickLabel(categoryName, function() {
+          // Step 2b: Ensure we're on the category list, not inside a previous category
+          // SPA may remember last document position (e.g., TA - Danmark)
+          ensureCategoryList(categoryName, function() {
             if (cancelled) return;
+
+            // Step 3: Click category (TA - Danmark / Driftmeddelande)
+            setProgress('Öppnar ' + categoryName + '...', '', 25);
+            clickLabel(categoryName, function() {
+              if (cancelled) return;
 
             // Step 4: Find all PDF elements
             var pdfNames = [];
@@ -2184,14 +2225,13 @@
                 window.PDFViewerApplication.pdfDocument = null;
               }
 
-              // Click the PDF label
+              // Click the PDF label (only el + parent, NOT grandparent)
               var clicked = false;
               document.querySelectorAll('.storybook-label').forEach(function(el) {
                 if (!clicked && el.innerText.trim() === filename) {
                   clicked = true;
                   el.click();
-                  el.parentElement.click();
-                  if (el.parentElement.parentElement) el.parentElement.parentElement.click();
+                  if (el.parentElement) el.parentElement.click();
                 }
               });
 
@@ -2347,12 +2387,14 @@
       });
     }
 
-    // Step 7: Navigate back to Positionlista and show result with download
+    // Step 7: Navigate back — first go to Hem (resets Dokument SPA state), then Positionlista
     function goBack() {
       if (cancelled) return;
       clearInterval(elapsedTimer);
       setProgress('Navigerar tillbaka...', '', 95);
 
+      // Go to Hem first to reset document navigation state
+      clickLabel('Hem', function() {
       clickLabel('Positionlista', function() {
         if (cancelled) return;
         setProgress('Klar!', '', 100);
@@ -2425,6 +2467,7 @@
             };
           }
         }, 500);
+      });
       });
     }
   }
