@@ -2754,7 +2754,7 @@
           }
         })
         .catch(function(err) {
-          label.textContent = '⚠️ ' + (err.message || 'Fel').slice(0, 30);
+          label.textContent = '⚠️ ' + (err.message || 'Fel').slice(0, 80);
           console.error('[OneVR] Position upload error:', err.message || err);
         });
       };
