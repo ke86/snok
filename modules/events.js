@@ -3444,7 +3444,7 @@
       '</div>' +
       '<div class="onevr-batch-section onevr-batch-compact">' +
         '<div class="onevr-btn-row" style="align-items:center;gap:6px;flex-wrap:wrap;">' +
-          '<button class="onevr-mini-btn" id="onevr-pos-btn" style="flex:0 0 auto;">' +
+          '<button class="onevr-mini-btn onevr-batch-pos" id="onevr-pos-btn" style="flex:0 0 auto;">' +
             '<span class="onevr-mini-icon">👥</span>' +
             '<span class="onevr-mini-label">Positionslista</span>' +
           '</button>' +

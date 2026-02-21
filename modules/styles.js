@@ -932,6 +932,7 @@
       .onevr-batch-scrape { background: linear-gradient(135deg, #5e5ce6, #8884ff); }
       .onevr-batch-upload { background: linear-gradient(135deg, #ff9f0a, #ff7a00); }
       .onevr-batch-json { background: linear-gradient(135deg, #0a84ff, #007aff); }
+      .onevr-batch-pos { background: linear-gradient(135deg, #007AFF, #5AC8FA); }
       .onevr-batch-turns { background: linear-gradient(135deg, #00a550, #30d158); }
       .onevr-batch-doc-ta { background: linear-gradient(135deg, #ff453a, #ff6b6b); }
       .onevr-batch-doc-drift { background: linear-gradient(135deg, #ff9f0a, #ff7a00); }
@@ -2083,6 +2084,11 @@
 
     .onevr-batch-json {
       background: linear-gradient(135deg, #007aff, #0a84ff);
+      box-shadow: 0 3px 12px rgba(0,122,255,.3);
+    }
+
+    .onevr-batch-pos {
+      background: linear-gradient(135deg, #0055CC, #007AFF);
       box-shadow: 0 3px 12px rgba(0,122,255,.3);
     }
 
