@@ -2737,18 +2737,25 @@
           },
           body: json
         })
-        .then(function(res) { return res.json(); })
+        .then(function(res) {
+          if (!res.ok) {
+            return res.text().then(function(t) {
+              throw new Error('HTTP ' + res.status + ': ' + t.slice(0, 200));
+            });
+          }
+          return res.json();
+        })
         .then(function(data) {
           if (data.success) {
             label.textContent = '✅ Sparad i Firebase';
           } else {
-            label.textContent = '⚠️ Fel';
-            console.error('[OneVR] Position upload failed:', data);
+            label.textContent = '⚠️ ' + (data.error || 'Okänt fel');
+            console.error('[OneVR] Position upload failed:', JSON.stringify(data));
           }
         })
         .catch(function(err) {
-          label.textContent = '⚠️ Fel';
-          console.error('[OneVR] Position upload error:', err);
+          label.textContent = '⚠️ ' + (err.message || 'Fel').slice(0, 30);
+          console.error('[OneVR] Position upload error:', err.message || err);
         });
       };
 
