@@ -2667,20 +2667,19 @@
       var blobUrl = URL.createObjectURL(blob);
 
       loadingModal.innerHTML =
-        '<div class="onevr-dagvy-content onevr-export-modal">' +
-          '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#007AFF,#5AC8FA);">' +
+        '<div class="onevr-dagvy-content onevr-export-modal" style="display:flex;flex-direction:column;max-height:90vh;">' +
+          '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#007AFF,#5AC8FA);flex-shrink:0;">' +
             '<span>✅ Positionslista klar!</span>' +
             '<button class="onevr-dagvy-close">✕</button>' +
           '</div>' +
-          '<div style="padding:20px;">' +
-            '<div class="onevr-turns-result-stats">' +
+          '<div style="padding:12px 20px;flex-shrink:0;">' +
+            '<div class="onevr-turns-result-stats" style="margin-bottom:10px;">' +
               '<div class="onevr-turns-result-big">' + totalPersons + '</div>' +
               '<div class="onevr-turns-result-label">person-poster insamlade</div>' +
               '<div class="onevr-turns-result-period">' + startDate + ' → ' + utils.addDays(startDate, totalDays - 1) + '</div>' +
               '<div style="font-size:12px;color:#8e8e93;margin-top:4px;">⏱ ' + elapsed + ' • ' + totalDays + ' dagar • ' + (json.length / 1024).toFixed(0) + ' KB</div>' +
             '</div>' +
-            '<div class="onevr-turns-summary">' + summaryRows + '</div>' +
-            '<div class="onevr-btn-row" style="margin-top:16px;gap:8px;">' +
+            '<div class="onevr-btn-row" style="gap:8px;margin-bottom:8px;">' +
               '<button class="onevr-mini-btn" id="onevr-pos-json" style="flex:1;">' +
                 '<span class="onevr-mini-icon">📥</span>' +
                 '<span class="onevr-mini-label">Ladda ner JSON</span>' +
@@ -2690,7 +2689,10 @@
                 '<span class="onevr-mini-label">Firebase</span>' +
               '</button>' +
             '</div>' +
-            '<button class="onevr-turns-back-btn" id="onevr-pos-done" style="margin-top:16px;width:100%;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">Tillbaka</button>' +
+            '<button class="onevr-turns-back-btn" id="onevr-pos-done" style="width:100%;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">Tillbaka</button>' +
+          '</div>' +
+          '<div style="flex:1;overflow-y:auto;padding:0 20px 16px;-webkit-overflow-scrolling:touch;">' +
+            '<div class="onevr-turns-summary">' + summaryRows + '</div>' +
           '</div>' +
         '</div>';
 
