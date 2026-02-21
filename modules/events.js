@@ -2473,6 +2473,293 @@
     }
   }
 
+  // ═══════════════════════════════════════════
+  //  Scrape Position List (all employees, multi-day)
+  // ═══════════════════════════════════════════
+
+  function scrapePositionList(overlay, numDays) {
+    var startDate = currentData.isoDate || window.OneVR.state.navDate;
+    var totalDays = numDays || 7;
+    var WEEKDAYS_SV = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+    var allDays = {};
+    var totalPersons = 0;
+
+    var cdkC = document.querySelector('.cdk-overlay-container');
+    if (cdkC) { cdkC.style.opacity = '0'; cdkC.style.pointerEvents = 'none'; }
+
+    var loadingModal = document.createElement('div');
+    loadingModal.className = 'onevr-dagvy-modal';
+    loadingModal.innerHTML =
+      '<div class="onevr-dagvy-content">' +
+        '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#007AFF,#5AC8FA);">' +
+          '<span>👥 Positionslista</span>' +
+          '<button class="onevr-dagvy-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-dagvy-loading">' +
+          '<div class="onevr-spinner"></div>' +
+          '<div class="onevr-multi-progress" id="onevr-pos-progress" style="color:inherit;opacity:1;">Förbereder...</div>' +
+          '<div class="onevr-batch-detail" id="onevr-pos-detail" style="color:inherit;opacity:1;"></div>' +
+          '<div class="onevr-progress-bar-wrap">' +
+            '<div class="onevr-progress-bar" id="onevr-pos-bar" style="width:0%"></div>' +
+          '</div>' +
+          '<div class="onevr-progress-pct" id="onevr-pos-pct">0%</div>' +
+          '<div class="onevr-elapsed" id="onevr-pos-elapsed" style="opacity:1;">⏱ 0:00</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(loadingModal);
+
+    var cancelled = false;
+    var elapsedSec = 0;
+    var elapsedEl = document.getElementById('onevr-pos-elapsed');
+    var elapsedTimer = setInterval(function() {
+      elapsedSec++;
+      var m = Math.floor(elapsedSec / 60);
+      var s = elapsedSec % 60;
+      if (elapsedEl) elapsedEl.textContent = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
+    }, 1000);
+
+    var cleanUp = function() {
+      cancelled = true;
+      clearInterval(elapsedTimer);
+      loadingModal.remove();
+      if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+      if (overlay) overlay.style.display = '';
+    };
+    loadingModal.querySelector('.onevr-dagvy-close').onclick = cleanUp;
+    loadingModal.onclick = function(e) { if (e.target === loadingModal) cleanUp(); };
+
+    overlay.style.display = 'none';
+
+    var progressEl = document.getElementById('onevr-pos-progress');
+    var detailEl = document.getElementById('onevr-pos-detail');
+    var barEl = document.getElementById('onevr-pos-bar');
+    var pctEl = document.getElementById('onevr-pos-pct');
+
+    function setProgress(main, detail, pct) {
+      if (progressEl) progressEl.textContent = main;
+      if (detailEl) detailEl.textContent = detail || '';
+      if (typeof pct === 'number') {
+        var p = Math.round(pct);
+        if (barEl) barEl.style.width = p + '%';
+        if (pctEl) pctEl.textContent = p + '%';
+      }
+    }
+
+    // --- Process one day ---
+    function processDay(dayOffset) {
+      if (cancelled) return;
+      if (dayOffset >= totalDays) { navigateBack(); return; }
+
+      var targetDate = utils.addDays(startDate, dayOffset);
+      var dp = targetDate.split('-');
+      var dateObj = new Date(+dp[0], +dp[1] - 1, +dp[2]);
+      var weekday = WEEKDAYS_SV[dateObj.getDay()];
+
+      var pctStart = (dayOffset / totalDays) * 100;
+      setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' — ' + weekday + ' ' + targetDate, 'Läser positionslista...', pctStart);
+
+      function startScraping() {
+        if (cancelled) return;
+        var dayScraped = scraper.scrapePersonnel();
+        var dayPeople = dayScraped.people;
+
+        var dayData = [];
+        dayPeople.forEach(function(p) {
+          dayData.push({
+            namn: p.name,
+            roll: p.role,
+            turnr: p.turnr || '',
+            start: p.start || '-',
+            slut: p.end || '-',
+            tagnr: p.trains || [],
+            anstNr: p.personalNr || '',
+            ort: p.locName || ''
+          });
+        });
+
+        allDays[targetDate] = dayData;
+        totalPersons += dayData.length;
+
+        var withTurn = dayData.filter(function(p) { return p.turnr; }).length;
+        var pctDone = ((dayOffset + 1) / totalDays) * 100;
+        setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' — ' + weekday, dayData.length + ' pers (' + withTurn + ' med tur)', pctDone);
+
+        // Navigate to next day
+        setTimeout(function() {
+          if (cancelled) return;
+          if (dayOffset + 1 < totalDays) {
+            var nextBtn = document.querySelector('.icon-next');
+            if (nextBtn) {
+              nextBtn.click();
+              setTimeout(function() { processDay(dayOffset + 1); }, CFG.ui.dateNavDelay);
+            } else {
+              navigateBack();
+            }
+          } else {
+            navigateBack();
+          }
+        }, 500);
+      }
+
+      startScraping();
+    }
+
+    // --- Navigate back to start date ---
+    function navigateBack() {
+      if (cancelled) return;
+      clearInterval(elapsedTimer);
+      setProgress('Navigerar tillbaka...', '', 100);
+
+      var stepsBack = totalDays - 1;
+      var step = 0;
+      function doStep() {
+        if (cancelled) return;
+        if (step < stepsBack) {
+          var prevBtn = document.querySelector('.icon-prev');
+          if (prevBtn) prevBtn.click();
+          step++;
+          setTimeout(doStep, CFG.ui.loadTimeDelay);
+        } else {
+          window.OneVR.state.navDate = startDate;
+          setTimeout(showResults, 500);
+        }
+      }
+      doStep();
+    }
+
+    // --- Show results modal ---
+    function showResults() {
+      if (cancelled) return;
+      if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+
+      var result = {
+        fran: startDate,
+        till: utils.addDays(startDate, totalDays - 1),
+        antalDagar: totalDays,
+        antalPersoner: totalPersons,
+        skapad: new Date().toISOString(),
+        dagar: allDays
+      };
+
+      window.OneVR.positionData = result;
+      console.log('[OneVR] Position list done: ' + totalPersons + ' entries across ' + totalDays + ' days');
+
+      // Build summary per day
+      var summaryRows = '';
+      var dates = Object.keys(allDays).sort();
+      dates.forEach(function(date) {
+        var dp = date.split('-');
+        var dateObj = new Date(+dp[0], +dp[1] - 1, +dp[2]);
+        var weekday = WEEKDAYS_SV[dateObj.getDay()];
+        var withTurn = allDays[date].filter(function(p) { return p.turnr; }).length;
+        summaryRows += '<div class="onevr-turns-summary-row">' +
+          '<span class="onevr-turns-summary-day">' + weekday + ' ' + date + '</span>' +
+          '<span class="onevr-turns-summary-count">' + allDays[date].length + ' pers (' + withTurn + ' turer)</span>' +
+        '</div>';
+      });
+
+      var em = Math.floor(elapsedSec / 60);
+      var es = elapsedSec % 60;
+      var elapsed = em + ':' + (es < 10 ? '0' : '') + es;
+      var fileName = 'positionslista-' + startDate + '-' + totalDays + 'd.json';
+      var json = JSON.stringify(result, null, 2);
+      var blob = new Blob([json], { type: 'application/json' });
+      var blobUrl = URL.createObjectURL(blob);
+
+      loadingModal.innerHTML =
+        '<div class="onevr-dagvy-content onevr-export-modal">' +
+          '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#007AFF,#5AC8FA);">' +
+            '<span>✅ Positionslista klar!</span>' +
+            '<button class="onevr-dagvy-close">✕</button>' +
+          '</div>' +
+          '<div style="padding:20px;">' +
+            '<div class="onevr-turns-result-stats">' +
+              '<div class="onevr-turns-result-big">' + totalPersons + '</div>' +
+              '<div class="onevr-turns-result-label">person-poster insamlade</div>' +
+              '<div class="onevr-turns-result-period">' + startDate + ' → ' + utils.addDays(startDate, totalDays - 1) + '</div>' +
+              '<div style="font-size:12px;color:#8e8e93;margin-top:4px;">⏱ ' + elapsed + ' • ' + totalDays + ' dagar • ' + (json.length / 1024).toFixed(0) + ' KB</div>' +
+            '</div>' +
+            '<div class="onevr-turns-summary">' + summaryRows + '</div>' +
+            '<div class="onevr-btn-row" style="margin-top:16px;gap:8px;">' +
+              '<button class="onevr-mini-btn" id="onevr-pos-json" style="flex:1;">' +
+                '<span class="onevr-mini-icon">📥</span>' +
+                '<span class="onevr-mini-label">Ladda ner JSON</span>' +
+              '</button>' +
+              '<button class="onevr-mini-btn" id="onevr-pos-firebase" style="flex:1;">' +
+                '<span class="onevr-mini-icon">☁️</span>' +
+                '<span class="onevr-mini-label">Firebase</span>' +
+              '</button>' +
+            '</div>' +
+            '<button class="onevr-turns-back-btn" id="onevr-pos-done" style="margin-top:16px;width:100%;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">Tillbaka</button>' +
+          '</div>' +
+        '</div>';
+
+      // Close handler
+      var closeResults = function() {
+        URL.revokeObjectURL(blobUrl);
+        loadingModal.remove();
+        if (overlay) overlay.style.display = '';
+        showExportMenu();
+      };
+      loadingModal.querySelector('.onevr-dagvy-close').onclick = closeResults;
+      loadingModal.onclick = function(e) { if (e.target === loadingModal) closeResults(); };
+
+      // JSON download
+      document.getElementById('onevr-pos-json').onclick = function() {
+        var a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        this.querySelector('.onevr-mini-label').textContent = '✅ Nedladdad';
+      };
+
+      // Firebase upload
+      document.getElementById('onevr-pos-firebase').onclick = function() {
+        var btn = this;
+        var label = btn.querySelector('.onevr-mini-label');
+        label.textContent = 'Laddar upp...';
+        btn.disabled = true;
+
+        var workerUrl = CFG.firebase && CFG.firebase.workerUrl;
+        var docsCfg = CFG.docs;
+        if (!workerUrl || !docsCfg || !docsCfg.apiKey) {
+          label.textContent = '⚠️ Ej konfigurerad';
+          return;
+        }
+
+        fetch(workerUrl + '/positions', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': docsCfg.apiKey
+          },
+          body: json
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data.success) {
+            label.textContent = '✅ Sparad i Firebase';
+          } else {
+            label.textContent = '⚠️ Fel';
+            console.error('[OneVR] Position upload failed:', data);
+          }
+        })
+        .catch(function(err) {
+          label.textContent = '⚠️ Fel';
+          console.error('[OneVR] Position upload error:', err);
+        });
+      };
+
+      // Done button
+      document.getElementById('onevr-pos-done').onclick = closeResults;
+    }
+
+    // Start!
+    processDay(0);
+  }
+
   /**
    * Scrape weekly turns (Malmö) — navigates 7 days from current,
    * reads all personnel each day, deduplicates by turnr,
@@ -3156,6 +3443,18 @@
         '</div>' +
       '</div>' +
       '<div class="onevr-batch-section onevr-batch-compact">' +
+        '<div class="onevr-btn-row" style="align-items:center;gap:6px;flex-wrap:wrap;">' +
+          '<button class="onevr-mini-btn" id="onevr-pos-btn" style="flex:0 0 auto;">' +
+            '<span class="onevr-mini-icon">👥</span>' +
+            '<span class="onevr-mini-label">Positionslista</span>' +
+          '</button>' +
+          '<div class="onevr-pos-days" style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">' +
+            [1,3,5,7,10,14,20].map(function(d) {
+              return '<button class="onevr-day-sel-btn onevr-pos-day-btn' + (d === 7 ? ' onevr-day-sel-active' : '') + '" data-posdays="' + d + '" style="min-width:28px;padding:4px 6px;font-size:12px;">' + d + '</button>';
+            }).join('') +
+            '<span style="font-size:11px;color:#8e8e93;margin-left:2px;">dagar</span>' +
+          '</div>' +
+        '</div>' +
         '<div class="onevr-btn-row">' +
           '<button class="onevr-mini-btn onevr-mini-wide onevr-batch-turns" id="onevr-batch-turns">' +
             '<span class="onevr-mini-icon">📋</span>' +
@@ -3281,6 +3580,24 @@
       URL.revokeObjectURL(url);
       jsonBtn.classList.add('onevr-batch-done');
       jsonBtn.querySelector('.onevr-mini-label').textContent = '✅ Klar';
+    };
+
+    // Position list button + day selector
+    var selectedPosDays = window.OneVR.posDays || 7;
+    modal.querySelectorAll('.onevr-pos-day-btn').forEach(function(btn) {
+      btn.onclick = function() {
+        selectedPosDays = +btn.getAttribute('data-posdays');
+        window.OneVR.posDays = selectedPosDays;
+        modal.querySelectorAll('.onevr-pos-day-btn').forEach(function(b) { b.classList.remove('onevr-day-sel-active'); });
+        btn.classList.add('onevr-day-sel-active');
+      };
+    });
+
+    var posBtn = modal.querySelector('#onevr-pos-btn');
+    posBtn.onclick = function() {
+      modal.remove();
+      var overlay = document.querySelector('.onevr-overlay');
+      scrapePositionList(overlay, selectedPosDays);
     };
 
     // Weekly turns button (fixed 7 days)
