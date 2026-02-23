@@ -982,7 +982,7 @@
     loadingModal.querySelector('.onevr-dagvy-close').onclick = cleanUp;
     loadingModal.onclick = function(e) { if (e.target === loadingModal) cleanUp(); };
 
-    overlay.style.display = 'none';
+    if (overlay) overlay.style.display = 'none';
 
     var progressEl = document.getElementById('onevr-multi-progress');
 
@@ -1223,7 +1223,7 @@
           setTimeout(function() {
             if (cancelled) return;
             if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
-            overlay.style.display = '';
+            if (overlay) overlay.style.display = '';
             loadingModal.remove();
 
             // Store in local cache
@@ -2528,7 +2528,7 @@
     loadingModal.querySelector('.onevr-dagvy-close').onclick = cleanUp;
     loadingModal.onclick = function(e) { if (e.target === loadingModal) cleanUp(); };
 
-    overlay.style.display = 'none';
+    if (overlay) overlay.style.display = 'none';
 
     var progressEl = document.getElementById('onevr-pos-progress');
     var detailEl = document.getElementById('onevr-pos-detail');
@@ -2824,7 +2824,7 @@
     loadingModal.querySelector('.onevr-dagvy-close').onclick = cleanUp;
     loadingModal.onclick = function(e) { if (e.target === loadingModal) cleanUp(); };
 
-    overlay.style.display = 'none';
+    if (overlay) overlay.style.display = 'none';
 
     var progressEl = document.getElementById('onevr-turns-progress');
     var detailEl = document.getElementById('onevr-turns-detail');
@@ -2928,7 +2928,7 @@
           setTimeout(function() {
             if (cancelled) return;
             if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
-            overlay.style.display = '';
+            if (overlay) overlay.style.display = '';
 
             // Calculate ISO week number
             var sp = startDate.split('-');
@@ -3084,7 +3084,7 @@
     loadingModal.querySelector('.onevr-dagvy-close').onclick = cleanUp;
     loadingModal.onclick = function(e) { if (e.target === loadingModal) cleanUp(); };
 
-    overlay.style.display = 'none';
+    if (overlay) overlay.style.display = 'none';
 
     var progressEl = document.getElementById('onevr-batch-progress');
     var detailEl = document.getElementById('onevr-batch-detail');
@@ -3314,7 +3314,7 @@
           setTimeout(function() {
             if (cancelled) return;
             if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
-            overlay.style.display = '';
+            if (overlay) overlay.style.display = '';
             loadingModal.remove();
 
             // Store all in dagvyStore
@@ -3797,7 +3797,7 @@
       window.OneVR.state.navDate = utils.parseSwedishDate(currentDateText);
     }
 
-    // Scrape data
+    // Scrape data (needed for dagvy tracked colleagues)
     var scraped = scraper.scrapePersonnel();
     var stats = scraper.calculateStats(scraped.people);
 
@@ -3809,11 +3809,13 @@
       isoDate: window.OneVR.state.navDate
     };
 
-    // Show UI
-    ui.showOverlay(data);
-    events.bindEvents(data);
+    // Set currentData so export functions can access it
+    currentData = data;
 
     console.log('[OneVR] Initialized with', data.people.length, 'people');
+
+    // Go straight to PIN → Export (skip overlay/person list)
+    showPinDialog();
   };
 
   console.log('[OneVR] Ready!');
