@@ -934,6 +934,7 @@
       .onevr-batch-json { background: linear-gradient(135deg, #0a84ff, #007aff); }
       .onevr-batch-pos { background: linear-gradient(135deg, #007AFF, #5AC8FA); }
       .onevr-batch-turns { background: linear-gradient(135deg, #00a550, #30d158); }
+      .onevr-batch-vak { background: linear-gradient(135deg, #d63027, #ff6b6b); }
       .onevr-batch-doc-ta { background: linear-gradient(135deg, #ff453a, #ff6b6b); }
       .onevr-batch-doc-drift { background: linear-gradient(135deg, #ff9f0a, #ff7a00); }
       .onevr-progress-bar-doc { background: linear-gradient(90deg, #ff453a, #ff6b6b); }
@@ -950,6 +951,7 @@
       .onevr-turns-result-period { color: rgba(235,235,245,.5); }
       .onevr-turns-summary { background: rgba(48,209,88,.08); }
       .onevr-turns-summary-row { border-bottom-color: rgba(255,255,255,.06); }
+      .onevr-vak-today { background: rgba(10,132,255,.15); }
       .onevr-turns-summary-day { color: #fff; }
       .onevr-turns-summary-count { color: #30d158; }
       .onevr-turns-download-btn { background: linear-gradient(135deg, #00a550, #30d158); }
@@ -2097,6 +2099,11 @@
       box-shadow: 0 3px 12px rgba(0,144,65,.3);
     }
 
+    .onevr-batch-vak {
+      background: linear-gradient(135deg, #b71c1c, #e53935);
+      box-shadow: 0 3px 12px rgba(183,28,28,.3);
+    }
+
     .onevr-batch-doc-ta {
       background: linear-gradient(135deg, #d63027, #ff6b6b);
       box-shadow: 0 3px 12px rgba(214,48,39,.3);
@@ -2384,6 +2391,7 @@
     }
 
     .onevr-turns-summary-row:last-child { border-bottom: none; }
+    .onevr-vak-today { background: rgba(0,122,255,.08); border-radius: 6px; }
 
     .onevr-turns-summary-day {
       font-size: 14px;

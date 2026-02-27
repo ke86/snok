@@ -3029,6 +3029,295 @@
   }
 
   /**
+   * Scrape vacancies for LKF Malmö across 14 days
+   * Navigates 6 days BACK first, then scrapes 14 days forward (6 back + today + 7 forward)
+   * Uses vacancies.findVacancies() to compare expected vs actual turns per day
+   */
+  function scrapeVacancies(overlay) {
+    var todayDate = currentData.isoDate || window.OneVR.state.navDate;
+    var DAYS_BACK = 6;
+    var DAYS_FORWARD = 7;
+    var totalDays = DAYS_BACK + 1 + DAYS_FORWARD; // 14
+    var WEEKDAYS_SV = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+    var allDays = {};
+
+    var vacancies = window.OneVR.vacancies;
+    if (!vacancies) {
+      console.error('[OneVR] Vacancies module not loaded');
+      return;
+    }
+
+    var cdkC = document.querySelector('.cdk-overlay-container');
+    if (cdkC) { cdkC.style.opacity = '0'; cdkC.style.pointerEvents = 'none'; }
+
+    var loadingModal = document.createElement('div');
+    loadingModal.className = 'onevr-dagvy-modal';
+    loadingModal.innerHTML =
+      '<div class="onevr-dagvy-content">' +
+        '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#d63027,#ff6b6b);">' +
+          '<span>🔴 Vakanser LKF Malmö</span>' +
+          '<button class="onevr-dagvy-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-dagvy-loading">' +
+          '<div class="onevr-spinner"></div>' +
+          '<div class="onevr-multi-progress" id="onevr-vak-progress" style="color:inherit;opacity:1;">Navigerar bakåt...</div>' +
+          '<div class="onevr-batch-detail" id="onevr-vak-detail" style="color:inherit;opacity:1;"></div>' +
+          '<div class="onevr-progress-bar-wrap">' +
+            '<div class="onevr-progress-bar" id="onevr-vak-bar" style="width:0%"></div>' +
+          '</div>' +
+          '<div class="onevr-progress-pct" id="onevr-vak-pct">0%</div>' +
+          '<div class="onevr-elapsed" id="onevr-vak-elapsed" style="opacity:1;">⏱ 0:00</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(loadingModal);
+
+    var cancelled = false;
+    var elapsedSec = 0;
+    var elapsedEl = document.getElementById('onevr-vak-elapsed');
+    var elapsedTimer = setInterval(function() {
+      elapsedSec++;
+      var m = Math.floor(elapsedSec / 60);
+      var s = elapsedSec % 60;
+      if (elapsedEl) elapsedEl.textContent = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
+    }, 1000);
+
+    var cleanUp = function() {
+      cancelled = true;
+      clearInterval(elapsedTimer);
+      loadingModal.remove();
+      if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+      if (overlay) overlay.style.display = '';
+    };
+    loadingModal.querySelector('.onevr-dagvy-close').onclick = cleanUp;
+    loadingModal.onclick = function(e) { if (e.target === loadingModal) cleanUp(); };
+
+    if (overlay) overlay.style.display = 'none';
+
+    var progressEl = document.getElementById('onevr-vak-progress');
+    var detailEl = document.getElementById('onevr-vak-detail');
+    var barEl = document.getElementById('onevr-vak-bar');
+    var pctEl = document.getElementById('onevr-vak-pct');
+
+    function setProgress(main, detail, pct) {
+      if (progressEl) progressEl.textContent = main;
+      if (detailEl) detailEl.textContent = detail || '';
+      if (typeof pct === 'number') {
+        var p = Math.round(pct);
+        if (barEl) barEl.style.width = p + '%';
+        if (pctEl) pctEl.textContent = p + '%';
+      }
+    }
+
+    // Step 1: Navigate BACK 6 days
+    function navigateBack(stepsLeft, cb) {
+      if (cancelled) return;
+      if (stepsLeft <= 0) { cb(); return; }
+      setProgress('Navigerar bakåt...', stepsLeft + ' steg kvar', 0);
+      var prevBtn = document.querySelector('.icon-prev');
+      if (prevBtn) {
+        prevBtn.click();
+        setTimeout(function() { navigateBack(stepsLeft - 1, cb); }, CFG.ui.dateNavDelay);
+      } else {
+        cb();
+      }
+    }
+
+    // Step 2: Scrape day by day (14 days forward)
+    function processDay(dayIndex) {
+      if (cancelled) return;
+      if (dayIndex >= totalDays) { navigateToStart(); return; }
+
+      var targetDate = utils.addDays(todayDate, dayIndex - DAYS_BACK);
+      var dp = targetDate.split('-');
+      var dateObj = new Date(+dp[0], +dp[1] - 1, +dp[2]);
+      var weekday = WEEKDAYS_SV[dateObj.getDay()];
+      var isToday = (targetDate === todayDate);
+
+      var pctStart = (dayIndex / totalDays) * 100;
+      setProgress(
+        'Dag ' + (dayIndex + 1) + ' av ' + totalDays + ' — ' + weekday + ' ' + targetDate + (isToday ? ' (idag)' : ''),
+        'Läser vakanser...',
+        pctStart
+      );
+
+      function startScraping() {
+        if (cancelled) return;
+        var dayScraped = scraper.scrapePersonnel();
+        var dayPeople = dayScraped.people;
+
+        // Find vacancies for this day
+        var result = vacancies.findVacancies(dayPeople, targetDate, 'LKF', 'Malmö');
+
+        // Split into reserve and other
+        var reserveVak = [];
+        var otherVak = [];
+        result.vacancies.forEach(function(t) {
+          if (isReserveTurn(t)) {
+            reserveVak.push(t);
+          } else {
+            otherVak.push(t);
+          }
+        });
+
+        allDays[targetDate] = {
+          veckodag: weekday,
+          förväntat: result.expected.length,
+          bemannat: result.current.length,
+          vakanser: otherVak,
+          reservvakanser: reserveVak,
+          totaltVakanser: result.vacancies.length
+        };
+
+        var pctDone = ((dayIndex + 1) / totalDays) * 100;
+        setProgress(
+          'Dag ' + (dayIndex + 1) + ' av ' + totalDays + ' — ' + weekday,
+          result.vacancies.length + ' vakanser (' + otherVak.length + ' turer + ' + reserveVak.length + ' reserv)',
+          pctDone
+        );
+
+        // Navigate to next day
+        setTimeout(function() {
+          if (cancelled) return;
+          if (dayIndex + 1 < totalDays) {
+            var nextBtn = document.querySelector('.icon-next');
+            if (nextBtn) {
+              nextBtn.click();
+              setTimeout(function() { processDay(dayIndex + 1); }, CFG.ui.dateNavDelay);
+            } else {
+              navigateToStart();
+            }
+          } else {
+            navigateToStart();
+          }
+        }, 500);
+      }
+
+      startScraping();
+    }
+
+    // Step 3: Navigate back to today (7 steps back from end position)
+    function navigateToStart() {
+      if (cancelled) return;
+      clearInterval(elapsedTimer);
+      setProgress('Navigerar tillbaka...', '', 100);
+
+      var stepsBack = DAYS_FORWARD;
+      var step = 0;
+      function doStep() {
+        if (cancelled) return;
+        if (step < stepsBack) {
+          var prevBtn = document.querySelector('.icon-prev');
+          if (prevBtn) prevBtn.click();
+          step++;
+          setTimeout(doStep, CFG.ui.loadTimeDelay);
+        } else {
+          window.OneVR.state.navDate = todayDate;
+          setTimeout(function() {
+            if (cancelled) return;
+            if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+            if (overlay) overlay.style.display = '';
+
+            // Build result
+            var firstDate = utils.addDays(todayDate, -DAYS_BACK);
+            var lastDate = utils.addDays(todayDate, DAYS_FORWARD);
+            var em = Math.floor(elapsedSec / 60);
+            var es = elapsedSec % 60;
+            var elapsed = em + ':' + (es < 10 ? '0' : '') + es;
+
+            var totalVakans = 0;
+            var dates = Object.keys(allDays).sort();
+            dates.forEach(function(d) { totalVakans += allDays[d].vakanser.length; });
+
+            var result = {
+              period: firstDate + ' → ' + lastDate,
+              frånDatum: firstDate,
+              tillDatum: lastDate,
+              antalDagar: totalDays,
+              skapad: new Date().toISOString(),
+              dagar: allDays
+            };
+
+            window.OneVR.vacancyData = result;
+            var json = JSON.stringify(result, null, 2);
+            var blob = new Blob([json], { type: 'application/json' });
+            var blobUrl = URL.createObjectURL(blob);
+            var fileName = 'vakanser-malmo-' + firstDate + '-' + lastDate + '.json';
+
+            // Build summary rows
+            var summaryRows = '';
+            dates.forEach(function(date) {
+              var day = allDays[date];
+              var isT = (date === todayDate);
+              var vakCount = day.vakanser.length;
+              var resCount = day.reservvakanser.length;
+              var vakClass = vakCount > 0 ? ' style="color:#d63027;font-weight:600;"' : '';
+              summaryRows += '<div class="onevr-turns-summary-row' + (isT ? ' onevr-vak-today' : '') + '">' +
+                '<span class="onevr-turns-summary-day">' + day.veckodag + ' ' + date + (isT ? ' ★' : '') + '</span>' +
+                '<span class="onevr-turns-summary-count"' + vakClass + '>' +
+                  vakCount + ' vak' + (resCount > 0 ? ' + ' + resCount + ' res' : '') +
+                  ' / ' + day.förväntat + ' turer' +
+                '</span>' +
+              '</div>';
+            });
+
+            loadingModal.innerHTML =
+              '<div class="onevr-dagvy-content onevr-export-modal" style="display:flex;flex-direction:column;max-height:90vh;">' +
+                '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#d63027,#ff6b6b);flex-shrink:0;">' +
+                  '<span>🔴 Vakanser klar!</span>' +
+                  '<button class="onevr-dagvy-close">✕</button>' +
+                '</div>' +
+                '<div style="padding:12px 20px;flex-shrink:0;">' +
+                  '<div class="onevr-turns-result-stats" style="margin-bottom:10px;">' +
+                    '<div class="onevr-turns-result-big">' + totalVakans + '</div>' +
+                    '<div class="onevr-turns-result-label">turvakanser totalt (exkl. reserv)</div>' +
+                    '<div class="onevr-turns-result-period">' + firstDate + ' → ' + lastDate + '</div>' +
+                    '<div style="font-size:12px;color:#8e8e93;margin-top:4px;">⏱ ' + elapsed + ' • ' + totalDays + ' dagar • ' + (json.length / 1024).toFixed(0) + ' KB</div>' +
+                  '</div>' +
+                  '<div class="onevr-btn-row" style="gap:8px;margin-bottom:8px;">' +
+                    '<a href="' + blobUrl + '" download="' + fileName + '" class="onevr-mini-btn" id="onevr-vak-dl" style="flex:1;text-decoration:none;text-align:center;">' +
+                      '<span class="onevr-mini-icon">📥</span>' +
+                      '<span class="onevr-mini-label">Ladda ner JSON</span>' +
+                    '</a>' +
+                  '</div>' +
+                  '<button class="onevr-turns-back-btn" id="onevr-vak-done" style="width:100%;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">Tillbaka</button>' +
+                '</div>' +
+                '<div style="flex:1;overflow-y:auto;padding:0 20px 16px;-webkit-overflow-scrolling:touch;">' +
+                  '<div class="onevr-turns-summary">' + summaryRows + '</div>' +
+                '</div>' +
+              '</div>';
+
+            // Download click handler
+            var dlBtn = loadingModal.querySelector('#onevr-vak-dl');
+            if (dlBtn) {
+              dlBtn.onclick = function() {
+                setTimeout(function() {
+                  dlBtn.querySelector('.onevr-mini-label').textContent = '✅ Nedladdad';
+                }, 300);
+              };
+            }
+
+            // Close / back handlers
+            var closeResults = function() {
+              URL.revokeObjectURL(blobUrl);
+              loadingModal.remove();
+              showExportMenu();
+            };
+            loadingModal.querySelector('.onevr-dagvy-close').onclick = closeResults;
+            loadingModal.onclick = function(e) { if (e.target === loadingModal) closeResults(); };
+            loadingModal.querySelector('#onevr-vak-done').onclick = closeResults;
+          }, 1000);
+        }
+      }
+      doStep();
+    }
+
+    // Start: navigate back 6 days, then scrape
+    navigateBack(DAYS_BACK, function() {
+      processDay(0);
+    });
+  }
+
+  /**
    * Batch scrape all tracked people across 3 days
    * Smart: navigates 3 days ONCE and scrapes everyone per day
    */
@@ -3465,9 +3754,13 @@
           '</div>' +
         '</div>' +
         '<div class="onevr-btn-row">' +
-          '<button class="onevr-mini-btn onevr-mini-wide onevr-batch-turns" id="onevr-batch-turns">' +
+          '<button class="onevr-mini-btn onevr-batch-turns" id="onevr-batch-turns" style="flex:1;">' +
             '<span class="onevr-mini-icon">📋</span>' +
-            '<span class="onevr-mini-label">Malmö-turer (7 dagar)</span>' +
+            '<span class="onevr-mini-label">Malmö-turer (7d)</span>' +
+          '</button>' +
+          '<button class="onevr-mini-btn onevr-batch-vak" id="onevr-batch-vak" style="flex:1;">' +
+            '<span class="onevr-mini-icon">🔴</span>' +
+            '<span class="onevr-mini-label">Vakans (14d)</span>' +
           '</button>' +
         '</div>' +
         '<div class="onevr-btn-row">' +
@@ -3615,6 +3908,14 @@
       modal.remove();
       var overlay = document.querySelector('.onevr-overlay');
       scrapeWeeklyTurns(overlay, 7);
+    };
+
+    // Vacancy scrape button
+    var vakBtn = modal.querySelector('#onevr-batch-vak');
+    vakBtn.onclick = function() {
+      modal.remove();
+      var overlay = document.querySelector('.onevr-overlay');
+      scrapeVacancies(overlay);
     };
 
     // Document download buttons
