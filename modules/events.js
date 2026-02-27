@@ -3107,6 +3107,16 @@
     }
 
     // Helper: extract Malmö turns from people array
+    // Categorize turn by 3rd digit: 1-2=LKF, 3-4=TV, other=ÖVR
+    function turnKategori(turnr) {
+      var m = turnr.match(/^\d\d(\d)/);
+      if (!m) return 'ÖVR';
+      var d3 = m[1];
+      if (d3 === '1' || d3 === '2') return 'LKF';
+      if (d3 === '3' || d3 === '4') return 'TV';
+      return 'ÖVR';
+    }
+
     function getMalmoTurns(people) {
       var turns = {};
       people.forEach(function(p) {
@@ -3114,7 +3124,7 @@
         var firstDigit = p.turnr.match(/^(\d)/);
         if (!firstDigit || firstDigit[1] !== '1') return;
         var clean = p.turnr.replace(/TP$/i, '');
-        turns[clean] = { turnr: p.turnr, start: p.start, slut: p.end };
+        turns[clean] = { turnr: p.turnr, start: p.start, slut: p.end, kat: turnKategori(clean) };
       });
       return turns;
     }
@@ -3243,54 +3253,109 @@
       });
 
       // Compare: for each framåt day, find matching historik weekday
+      // 3-step matching: 1) exact turnr, 2) time-match unmatched, 3) remainder = vacancy
       var totalVakanser = 0;
       var totalNya = 0;
+      var totalOmdöpta = 0;
       var resultDagar = {};
 
       framåtDays.forEach(function(fwd) {
         var hist = historikByWeekday[fwd.weekdayNr];
         var vakanser = [];
         var nyaTurer = [];
+        var omdöpta = [];
 
         if (hist) {
-          // Turns in historik but NOT in framåt → vakans
+          // Step 1: Exact turnr match — find unmatched on each side
+          var unmatchedHist = [];
+          var unmatchedFwd = [];
+
           Object.keys(hist.turns).forEach(function(t) {
             if (!fwd.turns[t]) {
               var info = hist.turns[t];
-              vakanser.push({ turnr: t, start: info.start, slut: info.slut });
+              unmatchedHist.push({ turnr: t, start: info.start, slut: info.slut, kat: info.kat });
             }
           });
-          // Turns in framåt but NOT in historik → ny tur
           Object.keys(fwd.turns).forEach(function(t) {
             if (!hist.turns[t]) {
               var info = fwd.turns[t];
-              nyaTurer.push({ turnr: t, start: info.start, slut: info.slut });
+              unmatchedFwd.push({ turnr: t, start: info.start, slut: info.slut, kat: info.kat });
             }
+          });
+
+          // Step 2: Time-match unmatched (1:1, same category preferred)
+          var fwdUsed = {};
+          unmatchedHist.forEach(function(hTurn) {
+            if (hTurn.start === '-' || hTurn.slut === '-') return;
+            var timeKey = hTurn.start + '-' + hTurn.slut;
+            // First try same category
+            for (var i = 0; i < unmatchedFwd.length; i++) {
+              if (fwdUsed[i]) continue;
+              var fTurn = unmatchedFwd[i];
+              if (fTurn.start === '-' || fTurn.slut === '-') continue;
+              if (fTurn.kat !== hTurn.kat) continue;
+              if (timeKey === fTurn.start + '-' + fTurn.slut) {
+                omdöpta.push({ från: hTurn.turnr, till: fTurn.turnr, start: hTurn.start, slut: hTurn.slut, kat: hTurn.kat });
+                hTurn._matched = true;
+                fwdUsed[i] = true;
+                break;
+              }
+            }
+            // If no same-cat match, try any category
+            if (!hTurn._matched) {
+              for (var j = 0; j < unmatchedFwd.length; j++) {
+                if (fwdUsed[j]) continue;
+                var fTurn2 = unmatchedFwd[j];
+                if (fTurn2.start === '-' || fTurn2.slut === '-') continue;
+                if (timeKey === fTurn2.start + '-' + fTurn2.slut) {
+                  omdöpta.push({ från: hTurn.turnr, till: fTurn2.turnr, start: hTurn.start, slut: hTurn.slut, kat: hTurn.kat });
+                  hTurn._matched = true;
+                  fwdUsed[j] = true;
+                  break;
+                }
+              }
+            }
+          });
+
+          // Step 3: Remaining unmatched
+          unmatchedHist.forEach(function(hTurn) {
+            if (!hTurn._matched) vakanser.push(hTurn);
+          });
+          unmatchedFwd.forEach(function(fTurn, i) {
+            if (!fwdUsed[i]) nyaTurer.push(fTurn);
           });
         }
 
-        // Split vakanser into reserv and other
-        var reservVak = [];
-        var turVak = [];
+        // Split by category and reserve
+        var lkfVak = [], tvVak = [], ovrVak = [];
+        var lkfRes = [], tvRes = [];
+        var lkfNya = [], tvNya = [], ovrNya = [];
+
         vakanser.forEach(function(v) {
-          if (isReserveTurn(v.turnr)) {
-            reservVak.push(v);
-          } else {
-            turVak.push(v);
-          }
+          var isRes = isReserveTurn(v.turnr);
+          if (v.kat === 'LKF') { if (isRes) lkfRes.push(v.turnr); else lkfVak.push(v.turnr); }
+          else if (v.kat === 'TV') { if (isRes) tvRes.push(v.turnr); else tvVak.push(v.turnr); }
+          else { ovrVak.push(v.turnr); }
+        });
+        nyaTurer.forEach(function(v) {
+          if (v.kat === 'LKF') lkfNya.push(v.turnr);
+          else if (v.kat === 'TV') tvNya.push(v.turnr);
+          else ovrNya.push(v.turnr);
         });
 
-        totalVakanser += turVak.length;
+        totalVakanser += lkfVak.length + tvVak.length + ovrVak.length;
         totalNya += nyaTurer.length;
+        totalOmdöpta += omdöpta.length;
 
         resultDagar[fwd.date] = {
           veckodag: fwd.veckodag,
           jämförMed: hist ? hist.date : null,
           turerHistorik: hist ? hist.turnCount : 0,
           turerFram: fwd.turnCount,
-          vakanser: turVak.map(function(v) { return v.turnr; }),
-          reservvakanser: reservVak.map(function(v) { return v.turnr; }),
-          nyaTurer: nyaTurer.map(function(v) { return v.turnr; })
+          lkf: { vakanser: lkfVak, reserv: lkfRes, nya: lkfNya },
+          tv: { vakanser: tvVak, reserv: tvRes, nya: tvNya },
+          övr: { vakanser: ovrVak, nya: ovrNya },
+          omdöpta: omdöpta.map(function(o) { return o.från + ' → ' + o.till + ' (' + o.start + '-' + o.slut + ')'; })
         };
       });
 
@@ -3299,13 +3364,14 @@
 
       var result = {
         typ: 'vakanskoll',
-        beskrivning: 'Jämför faktisk bemanning per veckodag: historik vs framåt',
+        beskrivning: 'Jämför faktisk bemanning per veckodag: historik vs framåt. Tid-matchning filtrerar bort omdöpta turer.',
         period: firstDate + ' → ' + lastDate,
         historik: firstDate + ' → ' + todayDate,
         framåt: utils.addDays(todayDate, 1) + ' → ' + lastDate,
         antalDagar: totalDays,
         totalVakanser: totalVakanser,
         totalNyaTurer: totalNya,
+        totalOmdöpta: totalOmdöpta,
         skapad: new Date().toISOString(),
         dagar: resultDagar
       };
@@ -3316,43 +3382,90 @@
       var blobUrl = URL.createObjectURL(blob);
       var fileName = 'vakanskoll-malmo-' + todayDate + '.json';
 
-      // Build summary — show framåt days with comparison
+      // Build summary — show framåt days with LKF/TV split
       var summaryRows = '';
       var fwdDates = Object.keys(resultDagar).sort();
       fwdDates.forEach(function(date) {
         var day = resultDagar[date];
-        var vakCount = day.vakanser.length;
-        var resCount = day.reservvakanser.length;
-        var nyCount = day.nyaTurer.length;
-        var vakStyle = vakCount > 0 ? ' style="color:#d63027;font-weight:600;"' : '';
-        var vakText = vakCount + ' vak';
-        if (resCount > 0) vakText += ' + ' + resCount + ' res';
-        if (nyCount > 0) vakText += ' · ' + nyCount + ' nya';
-        vakText += ' (jmf ' + (day.jämförMed || '?') + ')';
+        var lkfCount = day.lkf.vakanser.length;
+        var tvCount = day.tv.vakanser.length;
+        var omdCount = day.omdöpta.length;
+        var totalDayVak = lkfCount + tvCount + day.övr.vakanser.length;
+        var vakStyle = totalDayVak > 0 ? ' style="color:#d63027;font-weight:600;"' : '';
+
+        var parts = [];
+        if (lkfCount > 0 || tvCount > 0) {
+          parts.push(lkfCount + ' LKF · ' + tvCount + ' TV');
+        } else {
+          parts.push('0 vak');
+        }
+        if (omdCount > 0) parts.push(omdCount + ' omd');
 
         summaryRows += '<div class="onevr-turns-summary-row">' +
           '<span class="onevr-turns-summary-day">' + day.veckodag + ' ' + date + '</span>' +
-          '<span class="onevr-turns-summary-count"' + vakStyle + '>' + vakText + '</span>' +
+          '<span class="onevr-turns-summary-count"' + vakStyle + '>' + parts.join(' · ') + '</span>' +
         '</div>';
       });
 
-      // Show expanded vacancy details per day
+      // Show expanded vacancy details per day, split by LKF/TV
       var detailRows = '';
       fwdDates.forEach(function(date) {
         var day = resultDagar[date];
-        if (day.vakanser.length === 0 && day.reservvakanser.length === 0) return;
-        detailRows += '<div style="margin-top:10px;">' +
-          '<div style="font-weight:600;font-size:13px;margin-bottom:4px;">' + day.veckodag + ' ' + date + '</div>';
-        if (day.vakanser.length > 0) {
-          detailRows += '<div style="font-size:12px;color:#d63027;margin-bottom:2px;">Vakanser: ' + day.vakanser.join(', ') + '</div>';
+        var hasContent = day.lkf.vakanser.length > 0 || day.lkf.reserv.length > 0 ||
+          day.tv.vakanser.length > 0 || day.tv.reserv.length > 0 ||
+          day.omdöpta.length > 0 || day.lkf.nya.length > 0 || day.tv.nya.length > 0;
+        if (!hasContent) return;
+
+        detailRows += '<div style="margin-top:12px;padding-bottom:8px;border-bottom:1px solid rgba(128,128,128,.15);">' +
+          '<div style="font-weight:600;font-size:13px;margin-bottom:6px;">' + day.veckodag + ' ' + date +
+          ' <span style="font-weight:400;color:#8e8e93;font-size:11px;">jmf ' + (day.jämförMed || '?') + '</span></div>';
+
+        // LKF section
+        if (day.lkf.vakanser.length > 0 || day.lkf.reserv.length > 0 || day.lkf.nya.length > 0) {
+          detailRows += '<div style="margin-left:4px;margin-bottom:4px;">' +
+            '<div style="font-size:12px;font-weight:600;color:#007aff;margin-bottom:2px;">🚂 Lokförare</div>';
+          if (day.lkf.vakanser.length > 0) {
+            detailRows += '<div style="font-size:12px;color:#d63027;margin-left:8px;">🔴 ' + day.lkf.vakanser.join(', ') + '</div>';
+          }
+          if (day.lkf.reserv.length > 0) {
+            detailRows += '<div style="font-size:12px;color:#ff9500;margin-left:8px;">🟠 Res: ' + day.lkf.reserv.join(', ') + '</div>';
+          }
+          if (day.lkf.nya.length > 0) {
+            detailRows += '<div style="font-size:12px;color:#30d158;margin-left:8px;">🟢 Nya: ' + day.lkf.nya.join(', ') + '</div>';
+          }
+          detailRows += '</div>';
         }
-        if (day.reservvakanser.length > 0) {
-          detailRows += '<div style="font-size:12px;color:#ff9500;margin-bottom:2px;">Reserv: ' + day.reservvakanser.join(', ') + '</div>';
+
+        // TV section
+        if (day.tv.vakanser.length > 0 || day.tv.reserv.length > 0 || day.tv.nya.length > 0) {
+          detailRows += '<div style="margin-left:4px;margin-bottom:4px;">' +
+            '<div style="font-size:12px;font-weight:600;color:#af52de;margin-bottom:2px;">🎫 Tågvärd</div>';
+          if (day.tv.vakanser.length > 0) {
+            detailRows += '<div style="font-size:12px;color:#d63027;margin-left:8px;">🔴 ' + day.tv.vakanser.join(', ') + '</div>';
+          }
+          if (day.tv.reserv.length > 0) {
+            detailRows += '<div style="font-size:12px;color:#ff9500;margin-left:8px;">🟠 Res: ' + day.tv.reserv.join(', ') + '</div>';
+          }
+          if (day.tv.nya.length > 0) {
+            detailRows += '<div style="font-size:12px;color:#30d158;margin-left:8px;">🟢 Nya: ' + day.tv.nya.join(', ') + '</div>';
+          }
+          detailRows += '</div>';
         }
-        if (day.nyaTurer.length > 0) {
-          detailRows += '<div style="font-size:12px;color:#30d158;margin-bottom:2px;">Nya: ' + day.nyaTurer.join(', ') + '</div>';
+
+        // Omdöpta (shared)
+        if (day.omdöpta.length > 0) {
+          detailRows += '<div style="font-size:11px;color:#8e8e93;margin-left:4px;">🔄 Omdöpta: ' + day.omdöpta.join(', ') + '</div>';
         }
+
         detailRows += '</div>';
+      });
+
+      // Calculate LKF/TV totals across all days
+      var totalLkf = 0, totalTv = 0;
+      fwdDates.forEach(function(date) {
+        var day = resultDagar[date];
+        totalLkf += day.lkf.vakanser.length;
+        totalTv += day.tv.vakanser.length;
       });
 
       loadingModal.innerHTML =
@@ -3365,8 +3478,9 @@
             '<div class="onevr-turns-result-stats" style="margin-bottom:10px;">' +
               '<div class="onevr-turns-result-big">' + totalVakanser + '</div>' +
               '<div class="onevr-turns-result-label">turvakanser framåt (exkl. reserv)</div>' +
-              '<div class="onevr-turns-result-period">Historik ' + firstDate + ' → Framåt ' + lastDate + '</div>' +
-              '<div style="font-size:12px;color:#8e8e93;margin-top:4px;">⏱ ' + elapsed + ' • ' + totalDays + ' dagar • ' + (json.length / 1024).toFixed(0) + ' KB</div>' +
+              '<div style="font-size:14px;margin-top:6px;">🚂 <strong>' + totalLkf + '</strong> LKF &nbsp;&nbsp; 🎫 <strong>' + totalTv + '</strong> TV</div>' +
+              '<div class="onevr-turns-result-period" style="margin-top:4px;">Historik ' + firstDate + ' → Framåt ' + lastDate + '</div>' +
+              '<div style="font-size:12px;color:#8e8e93;margin-top:4px;">⏱ ' + elapsed + ' • ' + totalDays + ' dagar • ' + totalOmdöpta + ' omdöpta filtrerade • ' + (json.length / 1024).toFixed(0) + ' KB</div>' +
             '</div>' +
             '<div class="onevr-btn-row" style="gap:8px;margin-bottom:8px;">' +
               '<a href="' + blobUrl + '" download="' + fileName + '" class="onevr-mini-btn" id="onevr-vak-dl" style="flex:1;text-decoration:none;text-align:center;">' +
