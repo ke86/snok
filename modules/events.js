@@ -3029,9 +3029,10 @@
   }
 
   /**
-   * Scrape vacancies for LKF Malmö across 14 days
-   * Navigates 6 days BACK first, then scrapes 14 days forward (6 back + today + 7 forward)
-   * Uses vacancies.findVacancies() to compare expected vs actual turns per day
+   * Scrape vacancies for Malmö across 14 days
+   * Navigates 6 days BACK first, then scrapes 14 days (6 back + today + 7 forward)
+   * Compares actual turns per weekday: historik (back) vs framåt (forward)
+   * Vacancy = turn existed on same weekday in the past but missing in the future
    */
   function scrapeVacancies(overlay) {
     var todayDate = currentData.isoDate || window.OneVR.state.navDate;
@@ -3039,13 +3040,10 @@
     var DAYS_FORWARD = 7;
     var totalDays = DAYS_BACK + 1 + DAYS_FORWARD; // 14
     var WEEKDAYS_SV = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
-    var allDays = {};
 
-    var vacancies = window.OneVR.vacancies;
-    if (!vacancies) {
-      console.error('[OneVR] Vacancies module not loaded');
-      return;
-    }
+    // Collect Malmö turns per date
+    // { "2026-02-21": { date, weekday, weekdayNr, turns: Set, phase: "historik"|"framåt" } }
+    var dayData = {};
 
     var cdkC = document.querySelector('.cdk-overlay-container');
     if (cdkC) { cdkC.style.opacity = '0'; cdkC.style.pointerEvents = 'none'; }
@@ -3055,7 +3053,7 @@
     loadingModal.innerHTML =
       '<div class="onevr-dagvy-content">' +
         '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#d63027,#ff6b6b);">' +
-          '<span>🔴 Vakanser LKF Malmö</span>' +
+          '<span>🔴 Vakanskoll Malmö</span>' +
           '<button class="onevr-dagvy-close">✕</button>' +
         '</div>' +
         '<div class="onevr-dagvy-loading">' +
@@ -3108,21 +3106,34 @@
       }
     }
 
+    // Helper: extract Malmö turns from people array
+    function getMalmoTurns(people) {
+      var turns = {};
+      people.forEach(function(p) {
+        if (!p.turnr) return;
+        var firstDigit = p.turnr.match(/^(\d)/);
+        if (!firstDigit || firstDigit[1] !== '1') return;
+        var clean = p.turnr.replace(/TP$/i, '');
+        turns[clean] = { turnr: p.turnr, start: p.start, slut: p.end };
+      });
+      return turns;
+    }
+
     // Step 1: Navigate BACK 6 days
-    function navigateBack(stepsLeft, cb) {
+    function navBack(stepsLeft, cb) {
       if (cancelled) return;
       if (stepsLeft <= 0) { cb(); return; }
       setProgress('Navigerar bakåt...', stepsLeft + ' steg kvar', 0);
       var prevBtn = document.querySelector('.icon-prev');
       if (prevBtn) {
         prevBtn.click();
-        setTimeout(function() { navigateBack(stepsLeft - 1, cb); }, CFG.ui.dateNavDelay);
+        setTimeout(function() { navBack(stepsLeft - 1, cb); }, CFG.ui.dateNavDelay);
       } else {
         cb();
       }
     }
 
-    // Step 2: Scrape day by day (14 days forward)
+    // Step 2: Scrape day by day (14 days)
     function processDay(dayIndex) {
       if (cancelled) return;
       if (dayIndex >= totalDays) { navigateToStart(); return; }
@@ -3130,52 +3141,40 @@
       var targetDate = utils.addDays(todayDate, dayIndex - DAYS_BACK);
       var dp = targetDate.split('-');
       var dateObj = new Date(+dp[0], +dp[1] - 1, +dp[2]);
-      var weekday = WEEKDAYS_SV[dateObj.getDay()];
+      var weekdayNr = dateObj.getDay();
+      var weekday = WEEKDAYS_SV[weekdayNr];
       var isToday = (targetDate === todayDate);
+      var phase = (dayIndex <= DAYS_BACK) ? 'historik' : 'framåt';
 
       var pctStart = (dayIndex / totalDays) * 100;
       setProgress(
-        'Dag ' + (dayIndex + 1) + ' av ' + totalDays + ' — ' + weekday + ' ' + targetDate + (isToday ? ' (idag)' : ''),
-        'Läser vakanser...',
+        'Dag ' + (dayIndex + 1) + ' av ' + totalDays + ' — ' + weekday + ' ' + targetDate,
+        (phase === 'historik' ? '⏪ Historik' : '⏩ Framåt') + (isToday ? ' (idag)' : ''),
         pctStart
       );
 
       function startScraping() {
         if (cancelled) return;
         var dayScraped = scraper.scrapePersonnel();
-        var dayPeople = dayScraped.people;
+        var turns = getMalmoTurns(dayScraped.people);
+        var turnCount = Object.keys(turns).length;
 
-        // Find vacancies for this day
-        var result = vacancies.findVacancies(dayPeople, targetDate, 'LKF', 'Malmö');
-
-        // Split into reserve and other
-        var reserveVak = [];
-        var otherVak = [];
-        result.vacancies.forEach(function(t) {
-          if (isReserveTurn(t)) {
-            reserveVak.push(t);
-          } else {
-            otherVak.push(t);
-          }
-        });
-
-        allDays[targetDate] = {
+        dayData[targetDate] = {
+          date: targetDate,
           veckodag: weekday,
-          förväntat: result.expected.length,
-          bemannat: result.current.length,
-          vakanser: otherVak,
-          reservvakanser: reserveVak,
-          totaltVakanser: result.vacancies.length
+          weekdayNr: weekdayNr,
+          phase: phase,
+          turns: turns,
+          turnCount: turnCount
         };
 
         var pctDone = ((dayIndex + 1) / totalDays) * 100;
         setProgress(
           'Dag ' + (dayIndex + 1) + ' av ' + totalDays + ' — ' + weekday,
-          result.vacancies.length + ' vakanser (' + otherVak.length + ' turer + ' + reserveVak.length + ' reserv)',
+          turnCount + ' Malmö-turer (' + phase + ')',
           pctDone
         );
 
-        // Navigate to next day
         setTimeout(function() {
           if (cancelled) return;
           if (dayIndex + 1 < totalDays) {
@@ -3195,7 +3194,7 @@
       startScraping();
     }
 
-    // Step 3: Navigate back to today (7 steps back from end position)
+    // Step 3: Navigate back to today
     function navigateToStart() {
       if (cancelled) return;
       clearInterval(elapsedTimer);
@@ -3216,103 +3215,196 @@
             if (cancelled) return;
             if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
             if (overlay) overlay.style.display = '';
-
-            // Build result
-            var firstDate = utils.addDays(todayDate, -DAYS_BACK);
-            var lastDate = utils.addDays(todayDate, DAYS_FORWARD);
-            var em = Math.floor(elapsedSec / 60);
-            var es = elapsedSec % 60;
-            var elapsed = em + ':' + (es < 10 ? '0' : '') + es;
-
-            var totalVakans = 0;
-            var dates = Object.keys(allDays).sort();
-            dates.forEach(function(d) { totalVakans += allDays[d].vakanser.length; });
-
-            var result = {
-              period: firstDate + ' → ' + lastDate,
-              frånDatum: firstDate,
-              tillDatum: lastDate,
-              antalDagar: totalDays,
-              skapad: new Date().toISOString(),
-              dagar: allDays
-            };
-
-            window.OneVR.vacancyData = result;
-            var json = JSON.stringify(result, null, 2);
-            var blob = new Blob([json], { type: 'application/json' });
-            var blobUrl = URL.createObjectURL(blob);
-            var fileName = 'vakanser-malmo-' + firstDate + '-' + lastDate + '.json';
-
-            // Build summary rows
-            var summaryRows = '';
-            dates.forEach(function(date) {
-              var day = allDays[date];
-              var isT = (date === todayDate);
-              var vakCount = day.vakanser.length;
-              var resCount = day.reservvakanser.length;
-              var vakClass = vakCount > 0 ? ' style="color:#d63027;font-weight:600;"' : '';
-              summaryRows += '<div class="onevr-turns-summary-row' + (isT ? ' onevr-vak-today' : '') + '">' +
-                '<span class="onevr-turns-summary-day">' + day.veckodag + ' ' + date + (isT ? ' ★' : '') + '</span>' +
-                '<span class="onevr-turns-summary-count"' + vakClass + '>' +
-                  vakCount + ' vak' + (resCount > 0 ? ' + ' + resCount + ' res' : '') +
-                  ' / ' + day.förväntat + ' turer' +
-                '</span>' +
-              '</div>';
-            });
-
-            loadingModal.innerHTML =
-              '<div class="onevr-dagvy-content onevr-export-modal" style="display:flex;flex-direction:column;max-height:90vh;">' +
-                '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#d63027,#ff6b6b);flex-shrink:0;">' +
-                  '<span>🔴 Vakanser klar!</span>' +
-                  '<button class="onevr-dagvy-close">✕</button>' +
-                '</div>' +
-                '<div style="padding:12px 20px;flex-shrink:0;">' +
-                  '<div class="onevr-turns-result-stats" style="margin-bottom:10px;">' +
-                    '<div class="onevr-turns-result-big">' + totalVakans + '</div>' +
-                    '<div class="onevr-turns-result-label">turvakanser totalt (exkl. reserv)</div>' +
-                    '<div class="onevr-turns-result-period">' + firstDate + ' → ' + lastDate + '</div>' +
-                    '<div style="font-size:12px;color:#8e8e93;margin-top:4px;">⏱ ' + elapsed + ' • ' + totalDays + ' dagar • ' + (json.length / 1024).toFixed(0) + ' KB</div>' +
-                  '</div>' +
-                  '<div class="onevr-btn-row" style="gap:8px;margin-bottom:8px;">' +
-                    '<a href="' + blobUrl + '" download="' + fileName + '" class="onevr-mini-btn" id="onevr-vak-dl" style="flex:1;text-decoration:none;text-align:center;">' +
-                      '<span class="onevr-mini-icon">📥</span>' +
-                      '<span class="onevr-mini-label">Ladda ner JSON</span>' +
-                    '</a>' +
-                  '</div>' +
-                  '<button class="onevr-turns-back-btn" id="onevr-vak-done" style="width:100%;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">Tillbaka</button>' +
-                '</div>' +
-                '<div style="flex:1;overflow-y:auto;padding:0 20px 16px;-webkit-overflow-scrolling:touch;">' +
-                  '<div class="onevr-turns-summary">' + summaryRows + '</div>' +
-                '</div>' +
-              '</div>';
-
-            // Download click handler
-            var dlBtn = loadingModal.querySelector('#onevr-vak-dl');
-            if (dlBtn) {
-              dlBtn.onclick = function() {
-                setTimeout(function() {
-                  dlBtn.querySelector('.onevr-mini-label').textContent = '✅ Nedladdad';
-                }, 300);
-              };
-            }
-
-            // Close / back handlers
-            var closeResults = function() {
-              URL.revokeObjectURL(blobUrl);
-              loadingModal.remove();
-              showExportMenu();
-            };
-            loadingModal.querySelector('.onevr-dagvy-close').onclick = closeResults;
-            loadingModal.onclick = function(e) { if (e.target === loadingModal) closeResults(); };
-            loadingModal.querySelector('#onevr-vak-done').onclick = closeResults;
+            showResults();
           }, 1000);
         }
       }
       doStep();
     }
 
-    // Start: navigate back 6 days, then scrape
-    navigateBack(DAYS_BACK, function() {
+    // Step 4: Compare weekday vs weekday and show results
+    function showResults() {
+      var em = Math.floor(elapsedSec / 60);
+      var es = elapsedSec % 60;
+      var elapsed = em + ':' + (es < 10 ? '0' : '') + es;
+
+      // Separate historik and framåt days
+      var dates = Object.keys(dayData).sort();
+      var historikByWeekday = {}; // weekdayNr → { turns, date }
+      var framåtDays = [];        // ordered list of framåt days
+
+      dates.forEach(function(d) {
+        var dd = dayData[d];
+        if (dd.phase === 'historik') {
+          historikByWeekday[dd.weekdayNr] = dd;
+        } else {
+          framåtDays.push(dd);
+        }
+      });
+
+      // Compare: for each framåt day, find matching historik weekday
+      var totalVakanser = 0;
+      var totalNya = 0;
+      var resultDagar = {};
+
+      framåtDays.forEach(function(fwd) {
+        var hist = historikByWeekday[fwd.weekdayNr];
+        var vakanser = [];
+        var nyaTurer = [];
+
+        if (hist) {
+          // Turns in historik but NOT in framåt → vakans
+          Object.keys(hist.turns).forEach(function(t) {
+            if (!fwd.turns[t]) {
+              var info = hist.turns[t];
+              vakanser.push({ turnr: t, start: info.start, slut: info.slut });
+            }
+          });
+          // Turns in framåt but NOT in historik → ny tur
+          Object.keys(fwd.turns).forEach(function(t) {
+            if (!hist.turns[t]) {
+              var info = fwd.turns[t];
+              nyaTurer.push({ turnr: t, start: info.start, slut: info.slut });
+            }
+          });
+        }
+
+        // Split vakanser into reserv and other
+        var reservVak = [];
+        var turVak = [];
+        vakanser.forEach(function(v) {
+          if (isReserveTurn(v.turnr)) {
+            reservVak.push(v);
+          } else {
+            turVak.push(v);
+          }
+        });
+
+        totalVakanser += turVak.length;
+        totalNya += nyaTurer.length;
+
+        resultDagar[fwd.date] = {
+          veckodag: fwd.veckodag,
+          jämförMed: hist ? hist.date : null,
+          turerHistorik: hist ? hist.turnCount : 0,
+          turerFram: fwd.turnCount,
+          vakanser: turVak.map(function(v) { return v.turnr; }),
+          reservvakanser: reservVak.map(function(v) { return v.turnr; }),
+          nyaTurer: nyaTurer.map(function(v) { return v.turnr; })
+        };
+      });
+
+      var firstDate = utils.addDays(todayDate, -DAYS_BACK);
+      var lastDate = utils.addDays(todayDate, DAYS_FORWARD);
+
+      var result = {
+        typ: 'vakanskoll',
+        beskrivning: 'Jämför faktisk bemanning per veckodag: historik vs framåt',
+        period: firstDate + ' → ' + lastDate,
+        historik: firstDate + ' → ' + todayDate,
+        framåt: utils.addDays(todayDate, 1) + ' → ' + lastDate,
+        antalDagar: totalDays,
+        totalVakanser: totalVakanser,
+        totalNyaTurer: totalNya,
+        skapad: new Date().toISOString(),
+        dagar: resultDagar
+      };
+
+      window.OneVR.vacancyData = result;
+      var json = JSON.stringify(result, null, 2);
+      var blob = new Blob([json], { type: 'application/json' });
+      var blobUrl = URL.createObjectURL(blob);
+      var fileName = 'vakanskoll-malmo-' + todayDate + '.json';
+
+      // Build summary — show framåt days with comparison
+      var summaryRows = '';
+      var fwdDates = Object.keys(resultDagar).sort();
+      fwdDates.forEach(function(date) {
+        var day = resultDagar[date];
+        var vakCount = day.vakanser.length;
+        var resCount = day.reservvakanser.length;
+        var nyCount = day.nyaTurer.length;
+        var vakStyle = vakCount > 0 ? ' style="color:#d63027;font-weight:600;"' : '';
+        var vakText = vakCount + ' vak';
+        if (resCount > 0) vakText += ' + ' + resCount + ' res';
+        if (nyCount > 0) vakText += ' · ' + nyCount + ' nya';
+        vakText += ' (jmf ' + (day.jämförMed || '?') + ')';
+
+        summaryRows += '<div class="onevr-turns-summary-row">' +
+          '<span class="onevr-turns-summary-day">' + day.veckodag + ' ' + date + '</span>' +
+          '<span class="onevr-turns-summary-count"' + vakStyle + '>' + vakText + '</span>' +
+        '</div>';
+      });
+
+      // Show expanded vacancy details per day
+      var detailRows = '';
+      fwdDates.forEach(function(date) {
+        var day = resultDagar[date];
+        if (day.vakanser.length === 0 && day.reservvakanser.length === 0) return;
+        detailRows += '<div style="margin-top:10px;">' +
+          '<div style="font-weight:600;font-size:13px;margin-bottom:4px;">' + day.veckodag + ' ' + date + '</div>';
+        if (day.vakanser.length > 0) {
+          detailRows += '<div style="font-size:12px;color:#d63027;margin-bottom:2px;">Vakanser: ' + day.vakanser.join(', ') + '</div>';
+        }
+        if (day.reservvakanser.length > 0) {
+          detailRows += '<div style="font-size:12px;color:#ff9500;margin-bottom:2px;">Reserv: ' + day.reservvakanser.join(', ') + '</div>';
+        }
+        if (day.nyaTurer.length > 0) {
+          detailRows += '<div style="font-size:12px;color:#30d158;margin-bottom:2px;">Nya: ' + day.nyaTurer.join(', ') + '</div>';
+        }
+        detailRows += '</div>';
+      });
+
+      loadingModal.innerHTML =
+        '<div class="onevr-dagvy-content onevr-export-modal" style="display:flex;flex-direction:column;max-height:90vh;">' +
+          '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#d63027,#ff6b6b);flex-shrink:0;">' +
+            '<span>🔴 Vakanskoll klar!</span>' +
+            '<button class="onevr-dagvy-close">✕</button>' +
+          '</div>' +
+          '<div style="padding:12px 20px;flex-shrink:0;">' +
+            '<div class="onevr-turns-result-stats" style="margin-bottom:10px;">' +
+              '<div class="onevr-turns-result-big">' + totalVakanser + '</div>' +
+              '<div class="onevr-turns-result-label">turvakanser framåt (exkl. reserv)</div>' +
+              '<div class="onevr-turns-result-period">Historik ' + firstDate + ' → Framåt ' + lastDate + '</div>' +
+              '<div style="font-size:12px;color:#8e8e93;margin-top:4px;">⏱ ' + elapsed + ' • ' + totalDays + ' dagar • ' + (json.length / 1024).toFixed(0) + ' KB</div>' +
+            '</div>' +
+            '<div class="onevr-btn-row" style="gap:8px;margin-bottom:8px;">' +
+              '<a href="' + blobUrl + '" download="' + fileName + '" class="onevr-mini-btn" id="onevr-vak-dl" style="flex:1;text-decoration:none;text-align:center;">' +
+                '<span class="onevr-mini-icon">📥</span>' +
+                '<span class="onevr-mini-label">Ladda ner JSON</span>' +
+              '</a>' +
+            '</div>' +
+            '<button class="onevr-turns-back-btn" id="onevr-vak-done" style="width:100%;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">Tillbaka</button>' +
+          '</div>' +
+          '<div style="flex:1;overflow-y:auto;padding:0 20px 16px;-webkit-overflow-scrolling:touch;">' +
+            '<div class="onevr-turns-summary">' + summaryRows + '</div>' +
+            (detailRows ? '<div style="border-top:1px solid rgba(128,128,128,.2);padding-top:8px;margin-top:8px;">' + detailRows + '</div>' : '') +
+          '</div>' +
+        '</div>';
+
+      // Download click
+      var dlBtn = loadingModal.querySelector('#onevr-vak-dl');
+      if (dlBtn) {
+        dlBtn.onclick = function() {
+          setTimeout(function() {
+            dlBtn.querySelector('.onevr-mini-label').textContent = '✅ Nedladdad';
+          }, 300);
+        };
+      }
+
+      // Close / back
+      var closeResults = function() {
+        URL.revokeObjectURL(blobUrl);
+        loadingModal.remove();
+        showExportMenu();
+      };
+      loadingModal.querySelector('.onevr-dagvy-close').onclick = closeResults;
+      loadingModal.onclick = function(e) { if (e.target === loadingModal) closeResults(); };
+      loadingModal.querySelector('#onevr-vak-done').onclick = closeResults;
+    }
+
+    // Start: navigate back 6 days, then scrape all 14
+    navBack(DAYS_BACK, function() {
       processDay(0);
     });
   }
