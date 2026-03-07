@@ -2006,6 +2006,7 @@
 
     // Helper: ensure we're on the document category list, not inside a previous category
     // SPA apps remember last navigation state, so clicking "Dokument" might land on TA page
+    // Uses SPA's own back-icon (.back-icon) instead of browser history.back()
     function ensureCategoryList(targetLabel, cb) {
       function checkLabel() {
         var found = false;
@@ -2013,6 +2014,20 @@
           if (el.innerText.trim() === targetLabel) found = true;
         });
         return found;
+      }
+
+      // Click the SPA's internal back button
+      function clickBackIcon() {
+        var backIcon = document.querySelector('storybook-icon.back-icon') ||
+                       document.querySelector('.back-icon.pointer') ||
+                       document.querySelector('.back-icon');
+        if (backIcon) {
+          console.log('[OneVR] Clicking SPA back-icon');
+          backIcon.click();
+          return true;
+        }
+        console.log('[OneVR] No back-icon found');
+        return false;
       }
 
       if (checkLabel()) {
@@ -2027,7 +2042,10 @@
 
       function tryBack() {
         backAttempts++;
-        history.back();
+        var clicked = clickBackIcon();
+        if (!clicked) {
+          console.log('[OneVR] back-icon not found, attempt ' + backAttempts + '/' + maxBack);
+        }
         setTimeout(function() {
           if (checkLabel()) {
             cb();
@@ -2035,6 +2053,7 @@
             tryBack();
           } else {
             // Last resort: full re-navigation Hem → Dokument
+            console.log('[OneVR] Back attempts exhausted, navigating Hem → Dokument');
             clickLabel('Hem', function() {
               clickLabel('Dokument', function() {
                 // Verify we landed on the category list
@@ -2042,8 +2061,8 @@
                   if (checkLabel()) {
                     cb();
                   } else {
-                    // SPA still inside old category, try one more back
-                    history.back();
+                    // SPA still inside old category, try one more back via icon
+                    clickBackIcon();
                     setTimeout(function() {
                       cb(); // proceed regardless — best effort
                     }, NAV_DELAY);
@@ -2268,8 +2287,16 @@
                   failed.push(filename);
                 }
 
-                // Go back to document list
-                history.back();
+                // Go back to document list via SPA back-icon
+                var backIcon = document.querySelector('storybook-icon.back-icon') ||
+                               document.querySelector('.back-icon.pointer') ||
+                               document.querySelector('.back-icon');
+                if (backIcon) {
+                  backIcon.click();
+                } else {
+                  console.log('[OneVR] No back-icon in PDF list, trying history.back');
+                  history.back();
+                }
                 setTimeout(function() {
                   idx++;
                   nextPdf();

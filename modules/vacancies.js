@@ -5,14 +5,6 @@
 (function() {
   'use strict';
 
-  console.log('[OneVR] Vacancies module starting...');
-
-  // Ensure OneVR namespace exists
-  if (!window.OneVR) {
-    console.error('[OneVR] OneVR namespace missing! Creating it...');
-    window.OneVR = {};
-  }
-
   // Turlista för LKF Malmö
   // Index: 0=sön, 1=mån, 2=tis, 3=ons, 4=tor, 5=fre, 6=lör
   var LKF_MALMO = {
@@ -86,78 +78,56 @@
   };
 
   /**
-   * Normalize turnr by removing location suffixes (HB, etc.)
-   * "11111HB" -> "11111"
-   * "12171A" -> "12171A" (A/B are part of the turn, not location)
+   * Normalize turnr by removing HB suffix (Helsingborg temporary assignment)
    */
   function normalizeTurnr(turnr) {
     if (!turnr) return '';
-    // Remove HB suffix (Helsingborg temporary assignment)
     return turnr.trim().replace(/HB$/i, '');
   }
 
   /**
    * Get expected turnr for a given date
-   * @param {string} isoDate - Date in YYYY-MM-DD format
-   * @param {string} role - Role (e.g. 'LF')
-   * @param {string} location - Location (e.g. 'Malmö')
-   * @returns {string[]} Array of expected turnr
    */
   function getExpectedTurnr(isoDate, role, location) {
     var date = new Date(isoDate);
-    var weekday = date.getDay(); // 0=sön, 1=mån, etc.
+    var weekday = date.getDay();
 
     if (role === 'LKF' && location === 'Malmö') {
       return LKF_MALMO[weekday] || [];
     }
-
     return [];
   }
 
   /**
    * Find vacancies (missing turnr) for current data
-   * @param {Object[]} people - Array of person objects
-   * @param {string} isoDate - Current date
-   * @param {string} role - Role filter
-   * @param {string} location - Location filter
-   * @returns {Object} { expected: [], current: [], vacancies: [] }
    */
   function findVacancies(people, isoDate, role, location) {
     var expected = getExpectedTurnr(isoDate, role, location);
 
-    // Get current turnr from filtered people (normalized)
     var currentSet = {};
     people.forEach(function(p) {
       if (p.badge === role && p.locName === location && p.turnr && p.turnr !== '-') {
-        var normalized = normalizeTurnr(p.turnr);
-        currentSet[normalized] = true;
+        currentSet[normalizeTurnr(p.turnr)] = true;
       }
     });
 
-    var current = Object.keys(currentSet);
-
-    // Find vacancies (expected but not in current, using normalized comparison)
     var vacancies = expected.filter(function(t) {
-      var normalizedExpected = normalizeTurnr(t);
-      return !currentSet[normalizedExpected];
+      return !currentSet[normalizeTurnr(t)];
     });
 
     return {
       expected: expected,
-      current: current,
+      current: Object.keys(currentSet),
       vacancies: vacancies
     };
   }
 
-  // Export to global namespace
+  // Export
   window.OneVR.vacancies = {
     getExpectedTurnr: getExpectedTurnr,
     findVacancies: findVacancies,
-    data: {
-      LKF_MALMO: LKF_MALMO
-    }
+    data: { LKF_MALMO: LKF_MALMO }
   };
 
-  console.log('[OneVR] Vacancies loaded, window.OneVR.vacancies =', window.OneVR.vacancies);
-  console.log('[OneVR] OneVR keys:', Object.keys(window.OneVR));
+  console.log('[OneVR] Vacancies loaded');
 })();
