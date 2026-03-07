@@ -5,7 +5,7 @@
 (function() {
   'use strict';
 
-  var CFG = window.OneVR.config;
+  var CFG = window.OneVR.config || {};
   var utils = window.OneVR.utils;
   var scraper = window.OneVR.scraper;
   var ui = window.OneVR.ui;
@@ -4591,8 +4591,25 @@
   // Auto-start: if loader doesn't call init(), start after short delay
   setTimeout(function() {
     if (window.OneVR.init && !window.OneVR._initialized) {
-      console.log('[OneVR] Auto-starting init...');
-      window.OneVR.init();
+      // Ensure config is loaded (old loaders may not load config.json)
+      if (!window.OneVR.config) {
+        var baseUrl = window.OneVR.baseUrl || 'https://ke86.github.io/snok';
+        console.log('[OneVR] Config missing, loading from ' + baseUrl + '/config.json');
+        fetch(baseUrl + '/config.json?v=' + Date.now())
+          .then(function(r) { return r.json(); })
+          .then(function(cfg) {
+            window.OneVR.config = cfg;
+            CFG = cfg; // Update local events.js reference
+            console.log('[OneVR] Config loaded, auto-starting init...');
+            window.OneVR.init();
+          })
+          .catch(function(err) {
+            console.error('[OneVR] Failed to load config:', err);
+          });
+      } else {
+        console.log('[OneVR] Auto-starting init...');
+        window.OneVR.init();
+      }
     }
   }, 500);
 })();
