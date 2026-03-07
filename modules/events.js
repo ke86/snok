@@ -4539,6 +4539,10 @@
   // MAIN INIT FUNCTION
   // ============================================================
   window.OneVR.init = function() {
+    // Guard against double-init (loader + auto-start)
+    if (window.OneVR._initialized) return;
+    window.OneVR._initialized = true;
+
     var utils = window.OneVR.utils;
     var scraper = window.OneVR.scraper;
     var ui = window.OneVR.ui;
@@ -4583,4 +4587,12 @@
   };
 
   console.log('[OneVR] Ready!');
+
+  // Auto-start: if loader doesn't call init(), start after short delay
+  setTimeout(function() {
+    if (window.OneVR.init && !window.OneVR._initialized) {
+      console.log('[OneVR] Auto-starting init...');
+      window.OneVR.init();
+    }
+  }, 500);
 })();
