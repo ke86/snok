@@ -4602,6 +4602,10 @@
           .then(function(cfg) {
             window.OneVR.config = cfg;
             CFG = cfg; // Update local events.js reference
+            // Rebuild utils patterns + scraper CFG with real config
+            if (window.OneVR.utils && window.OneVR.utils.buildPatterns) {
+              window.OneVR.utils.buildPatterns();
+            }
             console.log('[OneVR] Config loaded, auto-starting init...');
             window.OneVR.init();
           })

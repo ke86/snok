@@ -5,7 +5,7 @@
 (function() {
   'use strict';
 
-  var CFG = window.OneVR.config;
+  var CFG = window.OneVR.config || {};
   var utils = window.OneVR.utils;
 
   /**
