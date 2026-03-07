@@ -1903,7 +1903,7 @@
    * @param {Element} overlay - the main overlay element
    * @param {string} categoryName - e.g. "TA - Danmark" or "Driftmeddelande"
    */
-  function fetchDocumentCategory(overlay, categoryName) {
+  function fetchDocumentCategory(overlay, categoryName, onComplete) {
     var NAV_DELAY = 2500;
     var PDF_WAIT_DELAY = 3000;
     var PDF_WAIT_MAX = 20000;
@@ -2420,6 +2420,20 @@
 
         if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
 
+        // Run-all mode: skip result modal, return via callback
+        if (typeof onComplete === 'function') {
+          loadingModal.remove();
+          if (overlay) overlay.style.display = '';
+          onComplete({
+            type: 'docs',
+            category: categoryName,
+            collected: collected.length,
+            failed: failed.length,
+            uploadStatus: uploadStatus
+          });
+          return;
+        }
+
         // Format elapsed time
         var em = Math.floor(elapsedSec / 60);
         var es = elapsedSec % 60;
@@ -2495,7 +2509,7 @@
   //  Scrape Position List (all employees, multi-day)
   // ═══════════════════════════════════════════
 
-  function scrapePositionList(overlay, numDays) {
+  function scrapePositionList(overlay, numDays, onComplete) {
     var startDate = currentData.isoDate || window.OneVR.state.navDate;
     var totalDays = numDays || 7;
     var WEEKDAYS_SV = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
@@ -2660,7 +2674,17 @@
       };
 
       window.OneVR.positionData = result;
+      var json = JSON.stringify(result, null, 2);
       console.log('[OneVR] Position list done: ' + totalPersons + ' entries across ' + totalDays + ' days');
+
+      // Run-all mode: skip result modal, return data via callback
+      if (typeof onComplete === 'function') {
+        clearInterval(elapsedTimer);
+        loadingModal.remove();
+        if (overlay) overlay.style.display = '';
+        onComplete({ type: 'positions', count: totalPersons, days: totalDays, json: json });
+        return;
+      }
 
       // Build summary per day
       var summaryRows = '';
@@ -2680,7 +2704,6 @@
       var es = elapsedSec % 60;
       var elapsed = em + ':' + (es < 10 ? '0' : '') + es;
       var fileName = 'positionslista-' + startDate + '-' + totalDays + 'd.json';
-      var json = JSON.stringify(result, null, 2);
       var blob = new Blob([json], { type: 'application/json' });
       var blobUrl = URL.createObjectURL(blob);
 
@@ -3545,7 +3568,7 @@
    * Batch scrape all tracked people across 3 days
    * Smart: navigates 3 days ONCE and scrapes everyone per day
    */
-  function scrapeAllTracked(overlay, numDays) {
+  function scrapeAllTracked(overlay, numDays, onComplete) {
     var startDate = currentData.isoDate || window.OneVR.state.navDate;
     var totalDays = numDays || window.OneVR.exportDays || 5;
     var trackedNames = scraper.DAGVY_NAMES.slice();
@@ -3842,7 +3865,11 @@
             });
 
             console.log('[OneVR] Batch scrape done: ' + storedCount + '/' + trackedNames.length + ' stored');
-            showExportMenu();
+            if (typeof onComplete === 'function') {
+              onComplete({ type: 'dagvy', stored: storedCount, total: trackedNames.length });
+            } else {
+              showExportMenu();
+            }
           }, 1000);
         }
       }
@@ -3875,6 +3902,206 @@
     }
 
     next();
+  }
+
+  // ═══════════════════════════════════════════
+  //  RUN ALL — Chain: dagvy → positions → TA → Drift → Firebase
+  // ═══════════════════════════════════════════
+
+  function runAll() {
+    var overlay = document.querySelector('.onevr-overlay');
+    var results = [];
+    var startTime = Date.now();
+
+    var STEPS = [
+      { name: 'Skrapar dagvy', detail: '7 dagar', icon: '🔄' },
+      { name: 'Positionslista', detail: '20 dagar', icon: '👥' },
+      { name: 'Hämtar TA', detail: '', icon: '📄' },
+      { name: 'Driftmeddelande', detail: '', icon: '📄' },
+      { name: 'Firebase-uppladdning', detail: '', icon: '☁️' }
+    ];
+
+    // ─── Step banner (persistent, shown between sub-function modals) ───
+    var banner = document.createElement('div');
+    banner.className = 'onevr-runall-banner';
+    banner.innerHTML = '<span id="onevr-runall-text">▶️ Kör allt — Steg 1/' + STEPS.length + '</span>';
+    document.body.appendChild(banner);
+
+    function updateBanner(stepIdx) {
+      var s = STEPS[stepIdx];
+      var text = '▶️ Kör allt — Steg ' + (stepIdx + 1) + '/' + STEPS.length + ' · ' + s.icon + ' ' + s.name;
+      if (s.detail) text += ' (' + s.detail + ')';
+      var el = document.getElementById('onevr-runall-text');
+      if (el) el.textContent = text;
+    }
+
+    // ─── Firebase upload for positions ───
+    function uploadPositions(json, cb) {
+      var workerUrl = CFG.firebase && CFG.firebase.workerUrl;
+      var docsCfg = CFG.docs;
+      if (!workerUrl || !docsCfg || !docsCfg.apiKey) {
+        console.log('[OneVR] RunAll: positions upload skipped — not configured');
+        cb('skip');
+        return;
+      }
+      fetch(workerUrl + '/positions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': docsCfg.apiKey },
+        body: json
+      })
+      .then(function(res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function(data) { cb(data.success ? 'ok' : 'fail'); })
+      .catch(function() { cb('fail'); });
+    }
+
+    // ─── Firebase upload step (dagvy + positions) ───
+    function doFirebaseUpload(cb) {
+      var fbResults = { dagvy: { ok: 0, fail: 0 }, positions: 'skip' };
+
+      // 1) Upload dagvy data
+      uploadAllToFirebase(function(ok, fail) {
+        fbResults.dagvy = { ok: ok, fail: fail };
+
+        // 2) Upload positions data
+        var posResult = results.find(function(r) { return r.type === 'positions'; });
+        if (posResult && posResult.json) {
+          uploadPositions(posResult.json, function(status) {
+            fbResults.positions = status;
+            cb(fbResults);
+          });
+        } else {
+          cb(fbResults);
+        }
+      });
+    }
+
+    // ─── Show final summary ───
+    function showSummary(fbResults) {
+      banner.remove();
+      var elapsed = Math.round((Date.now() - startTime) / 1000);
+      var em = Math.floor(elapsed / 60);
+      var es = elapsed % 60;
+      var elapsedStr = em + ':' + (es < 10 ? '0' : '') + es;
+
+      var summaryHTML = '<div style="text-align:center;padding:20px 16px;">';
+
+      // Step results (first 4 are scrape/fetch steps)
+      for (var ri = 0; ri < Math.min(results.length, 4); ri++) {
+        var r = results[ri];
+        var s = STEPS[ri];
+        var detail = '';
+        if (r && r.type === 'dagvy') {
+          detail = r.stored + '/' + r.total + ' sparade';
+        } else if (r && r.type === 'positions') {
+          detail = r.count + ' poster, ' + r.days + ' dagar';
+        } else if (r && r.type === 'docs') {
+          detail = r.collected + ' dokument';
+          if (r.failed > 0) detail += ' (' + r.failed + ' misslyckades)';
+          if (r.uploadStatus === 'ok') detail += ' ☁️';
+        }
+        summaryHTML += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(128,128,128,.15);">' +
+          '<span style="font-size:18px;">' + s.icon + '</span>' +
+          '<span style="flex:1;text-align:left;font-weight:600;">' + s.name + '</span>' +
+          '<span style="font-size:13px;color:#8e8e93;">' + detail + '</span>' +
+          '<span style="font-size:16px;">✅</span>' +
+        '</div>';
+      }
+
+      // Firebase results (step 5)
+      var fbLine = '';
+      if (fbResults) {
+        var dagvyStr = fbResults.dagvy ? (fbResults.dagvy.ok + ' dagvy') : '—';
+        if (fbResults.dagvy && fbResults.dagvy.fail > 0) dagvyStr += ' (' + fbResults.dagvy.fail + ' fel)';
+        var posStr = fbResults.positions === 'ok' ? '✅' : (fbResults.positions === 'fail' ? '⚠️' : '—');
+        fbLine = '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;">' +
+          '<span style="font-size:18px;">☁️</span>' +
+          '<span style="flex:1;text-align:left;font-weight:600;">Firebase</span>' +
+          '<span style="font-size:13px;color:#8e8e93;">' + dagvyStr + ' · Pos: ' + posStr + '</span>' +
+          '<span style="font-size:16px;">✅</span>' +
+        '</div>';
+      }
+
+      summaryHTML += fbLine;
+      summaryHTML += '<div style="font-size:12px;color:#8e8e93;margin-top:12px;">⏱ Total: ' + elapsedStr + '</div>';
+      summaryHTML += '<button class="onevr-turns-back-btn" id="onevr-runall-done" style="margin-top:16px;width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;">Tillbaka</button>';
+      summaryHTML += '</div>';
+
+      var modal = document.createElement('div');
+      modal.className = 'onevr-dagvy-modal';
+      modal.innerHTML =
+        '<div class="onevr-dagvy-content onevr-export-modal">' +
+          '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#34c759,#30d158);">' +
+            '<span>✅ Kör allt — Klart!</span>' +
+            '<button class="onevr-dagvy-close">✕</button>' +
+          '</div>' +
+          summaryHTML +
+        '</div>';
+      document.body.appendChild(modal);
+
+      modal.querySelector('.onevr-dagvy-close').onclick = function() { modal.remove(); showExportMenu(); };
+      modal.onclick = function(e) { if (e.target === modal) { modal.remove(); showExportMenu(); } };
+      var doneBtn = document.getElementById('onevr-runall-done');
+      if (doneBtn) doneBtn.onclick = function() { modal.remove(); showExportMenu(); };
+    }
+
+    // ─── Execute steps sequentially ───
+    var stepIdx = 0;
+
+    function nextStep() {
+      if (stepIdx >= STEPS.length) {
+        showSummary(results[4]); // fbResults is the last result
+        return;
+      }
+
+      updateBanner(stepIdx);
+
+      switch (stepIdx) {
+        case 0: // Dagvy 7 dagar
+          scrapeAllTracked(overlay, 7, function(result) {
+            results.push(result);
+            stepIdx++;
+            nextStep();
+          });
+          break;
+
+        case 1: // Positionslista 20 dagar
+          scrapePositionList(overlay, 20, function(result) {
+            results.push(result);
+            stepIdx++;
+            nextStep();
+          });
+          break;
+
+        case 2: // TA - Danmark
+          fetchDocumentCategory(overlay, 'TA - Danmark', function(result) {
+            results.push(result);
+            stepIdx++;
+            nextStep();
+          });
+          break;
+
+        case 3: // Driftmeddelande
+          fetchDocumentCategory(overlay, 'Driftmeddelande', function(result) {
+            results.push(result);
+            stepIdx++;
+            nextStep();
+          });
+          break;
+
+        case 4: // Firebase upload
+          doFirebaseUpload(function(fbResults) {
+            results.push(fbResults);
+            stepIdx++;
+            nextStep();
+          });
+          break;
+      }
+    }
+
+    nextStep();
   }
 
   function showExportMenu() {
@@ -3948,6 +4175,11 @@
 
     var batchHTML =
       '<div class="onevr-batch-section onevr-batch-compact">' +
+        '<button class="onevr-mini-btn onevr-batch-run-all" id="onevr-run-all" style="width:100%;margin-bottom:10px;padding:14px 16px;">' +
+          '<span class="onevr-mini-icon" style="font-size:18px;">▶️</span>' +
+          '<span class="onevr-mini-label" style="font-size:15px;font-weight:700;">Kör allt</span>' +
+          '<span style="font-size:11px;opacity:.7;margin-left:6px;">Dagvy 7d · Pos 20d · TA · Drift · Firebase</span>' +
+        '</button>' +
         daySelHTML +
         '<div class="onevr-btn-row">' +
           '<button class="onevr-mini-btn onevr-batch-scrape" id="onevr-batch-scrape">' +
@@ -4038,6 +4270,13 @@
         if (scrapeLabel) scrapeLabel.textContent = 'Skrapa (' + selectedDays + 'd)';
       };
     });
+
+    // Kör allt button
+    var runAllBtn = modal.querySelector('#onevr-run-all');
+    runAllBtn.onclick = function() {
+      modal.remove();
+      runAll();
+    };
 
     // Batch scrape button
     var scrapeBtn = modal.querySelector('#onevr-batch-scrape');

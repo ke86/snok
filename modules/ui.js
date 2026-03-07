@@ -124,7 +124,7 @@
     // Vakanser button - hidden by default, shown when searching "Vakanser" and date is tomorrow+
     var vakansBtn = '<button class="onevr-btn onevr-btn-vakans" id="onevr-vakanser-btn" style="display:none;">🔴 Vakanser - LKF Malmö</button>';
     var exportBtn = '<button class="onevr-btn onevr-btn-export" id="onevr-export-btn">🔒 Exportera</button>';
-    var versionInfo = '<div class="onevr-version">OneVR v29</div>';
+    var versionInfo = '<div class="onevr-version">OneVR v30</div>';
 
     return '<div class="onevr-modal">' +
       '<div class="onevr-header">' +
