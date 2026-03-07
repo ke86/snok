@@ -2007,37 +2007,55 @@
     // Helper: ensure we're on the document category list, not inside a previous category
     // SPA apps remember last navigation state, so clicking "Dokument" might land on TA page
     function ensureCategoryList(targetLabel, cb) {
-      var found = false;
-      document.querySelectorAll('.storybook-label').forEach(function(el) {
-        if (el.innerText.trim() === targetLabel) found = true;
-      });
+      function checkLabel() {
+        var found = false;
+        document.querySelectorAll('.storybook-label').forEach(function(el) {
+          if (el.innerText.trim() === targetLabel) found = true;
+        });
+        return found;
+      }
 
-      if (found) {
-        // Category label visible — we're on the list, proceed
+      if (checkLabel()) {
         cb();
-      } else {
-        // We're probably inside a different category, go back
-        setProgress('Navigerar till kategori-listan...', '', 18);
+        return;
+      }
+
+      // We're probably inside a different category — try going back (up to 3 times)
+      setProgress('Navigerar till kategori-listan...', '', 18);
+      var backAttempts = 0;
+      var maxBack = 3;
+
+      function tryBack() {
+        backAttempts++;
         history.back();
         setTimeout(function() {
-          // Check again after going back
-          var found2 = false;
-          document.querySelectorAll('.storybook-label').forEach(function(el) {
-            if (el.innerText.trim() === targetLabel) found2 = true;
-          });
-
-          if (found2) {
+          if (checkLabel()) {
             cb();
+          } else if (backAttempts < maxBack) {
+            tryBack();
           } else {
-            // Last resort: navigate Hem → Dokument again
+            // Last resort: full re-navigation Hem → Dokument
             clickLabel('Hem', function() {
               clickLabel('Dokument', function() {
-                cb();
+                // Verify we landed on the category list
+                setTimeout(function() {
+                  if (checkLabel()) {
+                    cb();
+                  } else {
+                    // SPA still inside old category, try one more back
+                    history.back();
+                    setTimeout(function() {
+                      cb(); // proceed regardless — best effort
+                    }, NAV_DELAY);
+                  }
+                }, 800);
               });
             });
           }
         }, NAV_DELAY);
       }
+
+      tryBack();
     }
 
     // Helper: extract text from all pages of a PDF document
