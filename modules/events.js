@@ -4541,7 +4541,6 @@
   window.OneVR.init = function() {
     // Guard against double-init (loader + auto-start)
     if (window.OneVR._initialized) return;
-    window.OneVR._initialized = true;
 
     var utils = window.OneVR.utils;
     var scraper = window.OneVR.scraper;
@@ -4551,13 +4550,16 @@
     // Reset filters
     events.resetFilters();
 
-    // Check if cache needs building
+    // Check if cache needs building (init re-called from callback)
     if (!window.OneVR.cache.built) {
       scraper.buildCache(function() {
         window.OneVR.init();
       });
       return;
     }
+
+    // Cache built — lock against further calls
+    window.OneVR._initialized = true;
 
     // Update nav date
     var currentDateText = utils.getCurrentDateText();
