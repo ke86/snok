@@ -14,7 +14,7 @@ const LOADER_URL = 'https://ke86.github.io/snok/modules/loader.js';
 const LOGIN_TIMEOUT = 30000;
 const NAV_TIMEOUT = 20000;
 const INIT_TIMEOUT = 30000;
-const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
+const RUN_ALL_TIMEOUT = 900000; // 15 minutes max for full run
 
 (async () => {
   if (!EMAIL || !PASSWORD) {
@@ -301,26 +301,73 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
     // ══════════════════════════════════════════
     // STEP 7: Wait for completion
     // ══════════════════════════════════════════
+    // Use manual polling loop instead of waitForFunction because the bookmarklet
+    // navigates within the SPA (dagvy days, positionslista days, modals) which
+    // destroys Playwright's evaluation context and crashes waitForFunction.
     const startTime = Date.now();
+    let completed = false;
+    let lastProgress = '';
 
-    // Poll for completion
-    await page.waitForFunction(() => {
-      const doneBtn = document.getElementById('onevr-runall-done');
-      if (doneBtn) return true;
-      const banner = document.querySelector('.onevr-runall-banner');
-      const summaryModal = document.querySelector('.onevr-dagvy-modal');
-      if (!banner && summaryModal) return true;
-      return false;
-    }, { timeout: RUN_ALL_TIMEOUT, polling: 5000 });
+    while (Date.now() - startTime < RUN_ALL_TIMEOUT) {
+      try {
+        const status = await page.evaluate(() => {
+          // Check for summary "Klar" button (run-all finished)
+          const doneBtn = document.getElementById('onevr-runall-done');
+          if (doneBtn) return { done: true };
 
-    const elapsed = Math.round((Date.now() - startTime) / 1000);
-    console.log('[Scraper] "Kör allt" completed in ' + elapsed + 's');
+          // Check for summary modal without banner (all steps completed)
+          const banner = document.querySelector('.onevr-runall-banner');
+          const summaryModal = document.querySelector('.onevr-dagvy-modal');
+          if (!banner && summaryModal) return { done: true };
+
+          // Get current progress for logging
+          const progressEl = document.querySelector('.onevr-runall-banner') ||
+                             document.querySelector('.onevr-dagvy-modal');
+          const progressText = progressEl ? progressEl.innerText.substring(0, 100) : '';
+          return { done: false, progress: progressText };
+        });
+
+        if (status.done) {
+          completed = true;
+          break;
+        }
+
+        // Log progress every 30 seconds (every 6th poll)
+        if (status.progress && status.progress !== lastProgress) {
+          const elapsed = Math.round((Date.now() - startTime) / 1000);
+          console.log('[Scraper] Progress (' + elapsed + 's):', status.progress.replace(/\n/g, ' | '));
+          lastProgress = status.progress;
+        }
+      } catch (evalErr) {
+        // Evaluation context destroyed by SPA navigation — this is expected
+        // Just retry on next poll cycle
+        const elapsed = Math.round((Date.now() - startTime) / 1000);
+        console.log('[Scraper] Poll context lost (' + elapsed + 's) — SPA navigating, retrying...');
+      }
+
+      await page.waitForTimeout(5000);
+    }
+
+    const totalElapsed = Math.round((Date.now() - startTime) / 1000);
+
+    if (!completed) {
+      // Take screenshot of where it got stuck
+      await page.screenshot({ path: 'timeout-screenshot.png' });
+      throw new Error('Kör allt timed out after ' + totalElapsed + 's');
+    }
+
+    console.log('[Scraper] "Kör allt" completed in ' + totalElapsed + 's');
 
     // Grab summary
-    const stats = await page.evaluate(() => {
-      const el = document.querySelector('.onevr-dagvy-modal');
-      return el ? el.innerText : 'No summary found';
-    });
+    let stats = 'No summary found';
+    try {
+      stats = await page.evaluate(() => {
+        const el = document.querySelector('.onevr-dagvy-modal');
+        return el ? el.innerText : 'No summary found';
+      });
+    } catch (e) {
+      console.log('[Scraper] Could not read summary:', e.message);
+    }
     console.log('[Scraper] Summary:\n' + stats);
     await page.screenshot({ path: 'completed.png' });
 
