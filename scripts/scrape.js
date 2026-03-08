@@ -56,18 +56,26 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
     await page.screenshot({ path: 'login-page.png' });
     console.log('[Scraper] Login page loaded, filling credentials...');
 
-    // Fill email — try multiple selectors (mobile vs desktop layout)
+    // Fill email — use type() to trigger Angular form validation
     const emailInput = await page.$('input.input-mobile') ||
                        await page.$('input.input.with-icon') ||
                        await page.$('input[type="text"]');
     if (!emailInput) throw new Error('Could not find email input');
-    await emailInput.fill(EMAIL);
+    await emailInput.click();
+    await emailInput.type(EMAIL, { delay: 50 });
 
-    // Fill password
-    await page.fill('input[type="password"]', PASSWORD);
+    // Fill password — type() triggers Angular change detection
+    const passInput = await page.$('input[type="password"]');
+    if (!passInput) throw new Error('Could not find password input');
+    await passInput.click();
+    await passInput.type(PASSWORD, { delay: 50 });
 
-    // Click login button
-    await page.click('button[type="submit"]');
+    // Wait for Angular to process and enable button
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: 'login-filled.png' });
+
+    // Click login button (force in case Angular still marks it disabled)
+    await page.click('button[type="submit"]', { force: true, timeout: 10000 });
 
     // Wait for redirect to /navigation
     await page.waitForURL('**/navigation**', { timeout: LOGIN_TIMEOUT });
