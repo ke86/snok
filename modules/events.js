@@ -2568,6 +2568,7 @@
 
     // --- Show pre-scrape filter dialog ---
     function showPreFilter(startCb) {
+      console.log('[OneVR] Showing pre-filter dialog');
       var KNOWN_ORTS = ['Malmö', 'Helsingborg', 'Hässleholm', 'Kalmar', 'Karlskrona', 'Halmstad'];
       var typeLabels = {
         reserv: 'Reserv (RESERV/RES)',
@@ -2813,14 +2814,26 @@
           window.OneVR.state.navDate = startDate;
           // Pass 2: apply pre-selected filter and resolve turns without times
           if (resolveFilter && changedTurnsToResolve.length > 0) {
-            // Classify and filter based on pre-selected preferences
+            // Classify and fill ort from cache (built up during 20-day scraping)
             changedTurnsToResolve.forEach(function(entry) {
               entry.type = classifyTurn(entry.turnr);
+              // Try ort from allDays first
               if (!entry.ort) {
                 var p = allDays[entry.date] && allDays[entry.date][entry.index];
                 entry.ort = (p && p.ort) || '';
               }
+              // Fallback: look up location cache (built during scraping)
+              if (!entry.ort && window.OneVR.cache.locations[entry.namn]) {
+                var cached = window.OneVR.cache.locations[entry.namn];
+                entry.ort = cached.locName || '';
+                // Also update allDays so the final JSON has the ort
+                if (allDays[entry.date] && allDays[entry.date][entry.index]) {
+                  allDays[entry.date][entry.index].ort = entry.ort;
+                }
+              }
+              console.log('[OneVR] Classify: ' + entry.turnr + ' (' + entry.namn + ') type=' + entry.type + ' ort=' + (entry.ort || 'Okänd'));
             });
+            // Filter based on pre-selected preferences
             changedTurnsToResolve = changedTurnsToResolve.filter(function(e) {
               return resolveFilter.types.indexOf(e.type) !== -1 &&
                      resolveFilter.orts.indexOf(e.ort || 'Okänd') !== -1;
