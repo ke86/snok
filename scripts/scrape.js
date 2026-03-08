@@ -23,6 +23,7 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
   }
 
   console.log('[Scraper] Starting at', new Date().toISOString());
+  console.log('[Scraper] Email:', EMAIL.substring(0, 3) + '***');
 
   const browser = await chromium.launch({
     headless: true,
@@ -37,12 +38,9 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
 
   const page = await context.newPage();
 
-  // Forward console logs from the page
+  // Forward ALL console logs from the page for debugging
   page.on('console', msg => {
-    const text = msg.text();
-    if (text.includes('[OneVR]')) {
-      console.log('[Page]', text);
-    }
+    console.log('[Page]', msg.text());
   });
 
   try {
@@ -52,44 +50,180 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
     console.log('[Scraper] Step 1: Logging in...');
     await page.goto(BASE_URL + '/login', { waitUntil: 'networkidle', timeout: LOGIN_TIMEOUT });
 
+    // Wait for the login form to be fully visible
+    await page.waitForSelector('input[type="password"]', { state: 'visible', timeout: 15000 });
+    await page.waitForTimeout(1000); // Extra delay for Angular to fully init
+
     // Screenshot login page for debugging
     await page.screenshot({ path: 'login-page.png' });
     console.log('[Scraper] Login page loaded, filling credentials...');
 
     // Fill email — use type() to trigger Angular form validation
-    const emailInput = await page.$('input.input-mobile') ||
-                       await page.$('input.input.with-icon') ||
-                       await page.$('input[type="text"]');
+    // Try multiple selectors for the email field
+    let emailInput = null;
+    for (const sel of ['input.input-mobile', 'input.input.with-icon', 'input[type="text"]', 'input[type="email"]']) {
+      emailInput = await page.$(sel);
+      if (emailInput) {
+        console.log('[Scraper] Found email input with selector:', sel);
+        break;
+      }
+    }
     if (!emailInput) throw new Error('Could not find email input');
-    await emailInput.click();
+
+    // Click, select all, then type (in case there's placeholder text)
+    await emailInput.click({ clickCount: 3 });
+    await page.waitForTimeout(100);
     await emailInput.type(EMAIL, { delay: 50 });
 
     // Fill password — type() triggers Angular change detection
     const passInput = await page.$('input[type="password"]');
     if (!passInput) throw new Error('Could not find password input');
-    await passInput.click();
+    await passInput.click({ clickCount: 3 });
+    await page.waitForTimeout(100);
     await passInput.type(PASSWORD, { delay: 50 });
 
     // Wait for Angular to process and enable button
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
+
+    // Debug: log button state
+    const btnState = await page.evaluate(() => {
+      const btn = document.querySelector('button[type="submit"]');
+      if (!btn) return 'BUTTON NOT FOUND';
+      return JSON.stringify({
+        text: btn.textContent.trim(),
+        disabled: btn.disabled,
+        hasDisabledClass: btn.classList.contains('disabled'),
+        classes: btn.className,
+        type: btn.type,
+        tagName: btn.tagName
+      });
+    });
+    console.log('[Scraper] Submit button state:', btnState);
+
+    // Debug: log what's in the input fields
+    const fieldValues = await page.evaluate(() => {
+      const emailEl = document.querySelector('input.input-mobile') ||
+                      document.querySelector('input.input.with-icon') ||
+                      document.querySelector('input[type="text"]');
+      const passEl = document.querySelector('input[type="password"]');
+      return JSON.stringify({
+        email: emailEl ? emailEl.value : 'NOT FOUND',
+        emailLength: emailEl ? emailEl.value.length : 0,
+        passLength: passEl ? passEl.value.length : 0
+      });
+    });
+    console.log('[Scraper] Field values:', fieldValues);
+
     await page.screenshot({ path: 'login-filled.png' });
 
-    // Click login button (force in case Angular still marks it disabled)
-    await page.click('button[type="submit"]', { force: true, timeout: 10000 });
+    // Click login button — try normal click first (button should be enabled now)
+    console.log('[Scraper] Clicking submit button...');
 
-    // Wait for redirect to /navigation
-    await page.waitForURL('**/navigation**', { timeout: LOGIN_TIMEOUT });
-    console.log('[Scraper] Login successful, on navigation page');
+    // Method 1: Normal Playwright click + wait for navigation
+    try {
+      await Promise.all([
+        page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 }),
+        page.click('button[type="submit"]')
+      ]);
+      console.log('[Scraper] Login successful via normal click');
+    } catch (clickErr) {
+      console.log('[Scraper] Normal click did not navigate:', clickErr.message);
+
+      // Take debug screenshot after failed click
+      await page.screenshot({ path: 'after-click-1.png' });
+
+      // Check for error messages on the page
+      const pageErrors = await page.evaluate(() => {
+        const body = document.body.innerText;
+        return JSON.stringify({
+          url: window.location.href,
+          bodySnippet: body.substring(0, 300),
+          // Look for common error patterns
+          hasError: body.includes('fel') || body.includes('error') || body.includes('Error') || body.includes('Fel'),
+          // Look for Angular error elements
+          errorElements: Array.from(document.querySelectorAll('.error, .alert, [class*="error"], [class*="invalid"], mat-error, .mat-error'))
+            .map(el => el.textContent.trim())
+            .filter(t => t.length > 0)
+        });
+      });
+      console.log('[Scraper] Page state after click 1:', pageErrors);
+
+      // Method 2: Try dispatching events manually on the form
+      console.log('[Scraper] Trying Angular ngSubmit approach...');
+      await page.evaluate(() => {
+        const form = document.querySelector('form');
+        if (form) {
+          // Dispatch submit event (Angular listens for this)
+          form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        }
+        // Also try clicking the button via JS
+        const btn = document.querySelector('button[type="submit"]');
+        if (btn) {
+          btn.disabled = false;
+          btn.removeAttribute('disabled');
+          btn.click();
+        }
+      });
+
+      // Wait for navigation after JS submit
+      try {
+        await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
+        console.log('[Scraper] Login successful via JS submit');
+      } catch (jsErr) {
+        console.log('[Scraper] JS submit also failed:', jsErr.message);
+        await page.screenshot({ path: 'after-click-2.png' });
+
+        // Method 3: Try keyboard Enter
+        console.log('[Scraper] Trying Enter key...');
+        await page.press('input[type="password"]', 'Enter');
+
+        try {
+          await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
+          console.log('[Scraper] Login successful via Enter key');
+        } catch (enterErr) {
+          console.log('[Scraper] Enter key also failed:', enterErr.message);
+          await page.screenshot({ path: 'after-click-3.png' });
+
+          // Final check: maybe we need to look at what Angular thinks
+          const finalState = await page.evaluate(() => {
+            return JSON.stringify({
+              url: window.location.href,
+              forms: document.querySelectorAll('form').length,
+              buttons: Array.from(document.querySelectorAll('button')).map(b => ({
+                text: b.textContent.trim(),
+                type: b.type,
+                disabled: b.disabled,
+                classes: b.className
+              })),
+              inputs: Array.from(document.querySelectorAll('input')).map(i => ({
+                type: i.type,
+                value: i.type === 'password' ? '***' : i.value,
+                classes: i.className
+              }))
+            });
+          });
+          console.log('[Scraper] Final page state:', finalState);
+
+          throw new Error('All login methods failed - could not navigate away from login page');
+        }
+      }
+    }
+
+    console.log('[Scraper] Login successful, current URL:', page.url());
 
     // ══════════════════════════════════════════
     // STEP 2: Navigate to Positionlista
     // ══════════════════════════════════════════
     console.log('[Scraper] Step 2: Navigating to Positionlista...');
 
+    // Wait for the navigation page to load
+    await page.waitForTimeout(2000);
+    await page.screenshot({ path: 'navigation-page.png' });
+
     // Click "Positionlista" in the bottom navigation bar
     // It's a storybook-label element with text "Positionlista"
     await page.waitForSelector('.storybook-label', { timeout: NAV_TIMEOUT });
-    await page.evaluate(() => {
+    const clickedNav = await page.evaluate(() => {
       const labels = document.querySelectorAll('.storybook-label');
       for (const el of labels) {
         if (el.innerText.trim() === 'Positionlista') {
@@ -100,6 +234,7 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
       // Fallback: try direct navigation
       return false;
     });
+    console.log('[Scraper] Clicked Positionlista:', clickedNav);
 
     // Wait for the position list to load (personnel items)
     await page.waitForSelector('.item-wrapper, app-duty-positions-list-element', { timeout: NAV_TIMEOUT });
