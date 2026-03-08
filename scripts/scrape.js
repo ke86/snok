@@ -12,7 +12,7 @@ const LOADER_URL = 'https://ke86.github.io/snok/modules/loader.js';
 
 // Timeout settings (ms)
 const LOGIN_TIMEOUT = 30000;
-const NAV_TIMEOUT = 15000;
+const NAV_TIMEOUT = 20000;
 const INIT_TIMEOUT = 30000;
 const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
 
@@ -54,12 +54,10 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
     await page.waitForSelector('input[type="password"]', { state: 'visible', timeout: 15000 });
     await page.waitForTimeout(1000); // Extra delay for Angular to fully init
 
-    // Screenshot login page for debugging
     await page.screenshot({ path: 'login-page.png' });
     console.log('[Scraper] Login page loaded, filling credentials...');
 
     // Fill email — use type() to trigger Angular form validation
-    // Try multiple selectors for the email field
     let emailInput = null;
     for (const sel of ['input.input-mobile', 'input.input.with-icon', 'input[type="text"]', 'input[type="email"]']) {
       emailInput = await page.$(sel);
@@ -70,12 +68,11 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
     }
     if (!emailInput) throw new Error('Could not find email input');
 
-    // Click, select all, then type (in case there's placeholder text)
     await emailInput.click({ clickCount: 3 });
     await page.waitForTimeout(100);
     await emailInput.type(EMAIL, { delay: 50 });
 
-    // Fill password — type() triggers Angular change detection
+    // Fill password
     const passInput = await page.$('input[type="password"]');
     if (!passInput) throw new Error('Could not find password input');
     await passInput.click({ clickCount: 3 });
@@ -84,163 +81,162 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
 
     // Wait for Angular to process and enable button
     await page.waitForTimeout(1000);
-
-    // Debug: log button state
-    const btnState = await page.evaluate(() => {
-      const btn = document.querySelector('button[type="submit"]');
-      if (!btn) return 'BUTTON NOT FOUND';
-      return JSON.stringify({
-        text: btn.textContent.trim(),
-        disabled: btn.disabled,
-        hasDisabledClass: btn.classList.contains('disabled'),
-        classes: btn.className,
-        type: btn.type,
-        tagName: btn.tagName
-      });
-    });
-    console.log('[Scraper] Submit button state:', btnState);
-
-    // Debug: log what's in the input fields
-    const fieldValues = await page.evaluate(() => {
-      const emailEl = document.querySelector('input.input-mobile') ||
-                      document.querySelector('input.input.with-icon') ||
-                      document.querySelector('input[type="text"]');
-      const passEl = document.querySelector('input[type="password"]');
-      return JSON.stringify({
-        email: emailEl ? emailEl.value : 'NOT FOUND',
-        emailLength: emailEl ? emailEl.value.length : 0,
-        passLength: passEl ? passEl.value.length : 0
-      });
-    });
-    console.log('[Scraper] Field values:', fieldValues);
-
     await page.screenshot({ path: 'login-filled.png' });
 
-    // Click login button — try normal click first (button should be enabled now)
-    console.log('[Scraper] Clicking submit button...');
+    // Submit login — Enter key works best with this Angular app
+    console.log('[Scraper] Pressing Enter to submit...');
+    await Promise.all([
+      page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: LOGIN_TIMEOUT }),
+      page.press('input[type="password"]', 'Enter')
+    ]);
 
-    // Method 1: Normal Playwright click + wait for navigation
-    try {
-      await Promise.all([
-        page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 }),
-        page.click('button[type="submit"]')
-      ]);
-      console.log('[Scraper] Login successful via normal click');
-    } catch (clickErr) {
-      console.log('[Scraper] Normal click did not navigate:', clickErr.message);
-
-      // Take debug screenshot after failed click
-      await page.screenshot({ path: 'after-click-1.png' });
-
-      // Check for error messages on the page
-      const pageErrors = await page.evaluate(() => {
-        const body = document.body.innerText;
-        return JSON.stringify({
-          url: window.location.href,
-          bodySnippet: body.substring(0, 300),
-          // Look for common error patterns
-          hasError: body.includes('fel') || body.includes('error') || body.includes('Error') || body.includes('Fel'),
-          // Look for Angular error elements
-          errorElements: Array.from(document.querySelectorAll('.error, .alert, [class*="error"], [class*="invalid"], mat-error, .mat-error'))
-            .map(el => el.textContent.trim())
-            .filter(t => t.length > 0)
-        });
-      });
-      console.log('[Scraper] Page state after click 1:', pageErrors);
-
-      // Method 2: Try dispatching events manually on the form
-      console.log('[Scraper] Trying Angular ngSubmit approach...');
-      await page.evaluate(() => {
-        const form = document.querySelector('form');
-        if (form) {
-          // Dispatch submit event (Angular listens for this)
-          form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-        }
-        // Also try clicking the button via JS
-        const btn = document.querySelector('button[type="submit"]');
-        if (btn) {
-          btn.disabled = false;
-          btn.removeAttribute('disabled');
-          btn.click();
-        }
-      });
-
-      // Wait for navigation after JS submit
-      try {
-        await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
-        console.log('[Scraper] Login successful via JS submit');
-      } catch (jsErr) {
-        console.log('[Scraper] JS submit also failed:', jsErr.message);
-        await page.screenshot({ path: 'after-click-2.png' });
-
-        // Method 3: Try keyboard Enter
-        console.log('[Scraper] Trying Enter key...');
-        await page.press('input[type="password"]', 'Enter');
-
-        try {
-          await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
-          console.log('[Scraper] Login successful via Enter key');
-        } catch (enterErr) {
-          console.log('[Scraper] Enter key also failed:', enterErr.message);
-          await page.screenshot({ path: 'after-click-3.png' });
-
-          // Final check: maybe we need to look at what Angular thinks
-          const finalState = await page.evaluate(() => {
-            return JSON.stringify({
-              url: window.location.href,
-              forms: document.querySelectorAll('form').length,
-              buttons: Array.from(document.querySelectorAll('button')).map(b => ({
-                text: b.textContent.trim(),
-                type: b.type,
-                disabled: b.disabled,
-                classes: b.className
-              })),
-              inputs: Array.from(document.querySelectorAll('input')).map(i => ({
-                type: i.type,
-                value: i.type === 'password' ? '***' : i.value,
-                classes: i.className
-              }))
-            });
-          });
-          console.log('[Scraper] Final page state:', finalState);
-
-          throw new Error('All login methods failed - could not navigate away from login page');
-        }
-      }
-    }
-
-    console.log('[Scraper] Login successful, current URL:', page.url());
+    console.log('[Scraper] Login successful! URL:', page.url());
 
     // ══════════════════════════════════════════
     // STEP 2: Navigate to Positionlista
     // ══════════════════════════════════════════
     console.log('[Scraper] Step 2: Navigating to Positionlista...');
 
-    // Wait for the navigation page to load
-    await page.waitForTimeout(2000);
-    await page.screenshot({ path: 'navigation-page.png' });
+    // Wait for the home page to fully render
+    await page.waitForTimeout(3000);
+    await page.screenshot({ path: 'home-page.png' });
 
-    // Click "Positionlista" in the bottom navigation bar
-    // It's a storybook-label element with text "Positionlista"
-    await page.waitForSelector('.storybook-label', { timeout: NAV_TIMEOUT });
-    const clickedNav = await page.evaluate(() => {
-      const labels = document.querySelectorAll('.storybook-label');
-      for (const el of labels) {
-        if (el.innerText.trim() === 'Positionlista') {
-          el.closest('[class*="pointer"]') ? el.closest('[class*="pointer"]').click() : el.click();
-          return true;
+    // Debug: log ALL elements in the bottom nav area
+    const navDebug = await page.evaluate(() => {
+      // Find all text content that contains "Position" anywhere on the page
+      const allElements = document.querySelectorAll('*');
+      const matches = [];
+      for (const el of allElements) {
+        const text = el.textContent.trim();
+        if (text === 'Positionlista' && el.children.length === 0) {
+          matches.push({
+            tag: el.tagName,
+            classes: el.className,
+            id: el.id,
+            parentTag: el.parentElement ? el.parentElement.tagName : null,
+            parentClasses: el.parentElement ? el.parentElement.className : null,
+            grandParentTag: el.parentElement && el.parentElement.parentElement ? el.parentElement.parentElement.tagName : null,
+            grandParentClasses: el.parentElement && el.parentElement.parentElement ? el.parentElement.parentElement.className : null
+          });
         }
       }
-      // Fallback: try direct navigation
-      return false;
+      // Also check for storybook-label elements
+      const labels = document.querySelectorAll('storybook-label, .storybook-label, [class*="storybook"]');
+      const labelInfo = [];
+      for (const l of labels) {
+        labelInfo.push({
+          tag: l.tagName,
+          text: l.textContent.trim().substring(0, 30),
+          classes: l.className
+        });
+      }
+      return JSON.stringify({ positionlistaElements: matches, storybookLabels: labelInfo.slice(0, 10) });
     });
-    console.log('[Scraper] Clicked Positionlista:', clickedNav);
+    console.log('[Scraper] Nav debug:', navDebug);
 
-    // Wait for the position list to load (personnel items)
-    await page.waitForSelector('.item-wrapper, app-duty-positions-list-element', { timeout: NAV_TIMEOUT });
-    console.log('[Scraper] Position list loaded');
+    // Try multiple approaches to click Positionlista
+    let navClicked = false;
 
-    // Small delay to ensure everything is rendered
+    // Approach 1: storybook-label with exact text
+    if (!navClicked) {
+      navClicked = await page.evaluate(() => {
+        const labels = document.querySelectorAll('storybook-label, .storybook-label');
+        for (const el of labels) {
+          if (el.textContent.trim() === 'Positionlista') {
+            el.click();
+            return true;
+          }
+        }
+        return false;
+      });
+      if (navClicked) console.log('[Scraper] Clicked via storybook-label');
+    }
+
+    // Approach 2: Any element with exact text "Positionlista" — click it or its parent
+    if (!navClicked) {
+      navClicked = await page.evaluate(() => {
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+        while (walker.nextNode()) {
+          if (walker.currentNode.textContent.trim() === 'Positionlista') {
+            const el = walker.currentNode.parentElement;
+            // Try clicking parent chain up to find a clickable container
+            let target = el;
+            for (let i = 0; i < 5; i++) {
+              if (!target) break;
+              const style = window.getComputedStyle(target);
+              if (style.cursor === 'pointer' || target.onclick || target.hasAttribute('routerlink') ||
+                  target.tagName === 'A' || target.tagName === 'BUTTON' ||
+                  target.classList.contains('pointer') || target.getAttribute('role') === 'button') {
+                target.click();
+                return true;
+              }
+              target = target.parentElement;
+            }
+            // Fallback: just click the text element itself
+            el.click();
+            return true;
+          }
+        }
+        return false;
+      });
+      if (navClicked) console.log('[Scraper] Clicked via text walker');
+    }
+
+    // Approach 3: Try getByText (Playwright built-in)
+    if (!navClicked) {
+      try {
+        await page.getByText('Positionlista', { exact: true }).click({ timeout: 5000 });
+        navClicked = true;
+        console.log('[Scraper] Clicked via getByText');
+      } catch (e) {
+        console.log('[Scraper] getByText failed:', e.message);
+      }
+    }
+
+    if (!navClicked) {
+      await page.screenshot({ path: 'nav-click-failed.png' });
+      throw new Error('Could not click Positionlista navigation');
+    }
+
+    // Wait for position list to load — try multiple selectors
+    console.log('[Scraper] Waiting for position list to load...');
+    await page.waitForTimeout(3000);
+
+    // Debug: check what's on the page now
+    const pageCheck = await page.evaluate(() => {
+      return JSON.stringify({
+        url: window.location.href,
+        title: document.title,
+        hasItemWrapper: !!document.querySelector('.item-wrapper'),
+        hasDutyElement: !!document.querySelector('app-duty-positions-list-element'),
+        bodySnippet: document.body.innerText.substring(0, 200)
+      });
+    });
+    console.log('[Scraper] After nav click:', pageCheck);
+
+    await page.screenshot({ path: 'position-list.png' });
+
+    // Wait for content to appear — try various selectors that might be on the position list page
+    try {
+      await page.waitForSelector('.item-wrapper, app-duty-positions-list-element, .duty-name, .personnel-list', {
+        timeout: NAV_TIMEOUT
+      });
+      console.log('[Scraper] Position list content loaded');
+    } catch (e) {
+      console.log('[Scraper] Position list selector timeout, checking page state...');
+      const currentState = await page.evaluate(() => {
+        return JSON.stringify({
+          url: window.location.href,
+          allClasses: Array.from(new Set(
+            Array.from(document.querySelectorAll('[class]'))
+              .flatMap(el => Array.from(el.classList))
+          )).filter(c => c.includes('duty') || c.includes('position') || c.includes('item') || c.includes('list') || c.includes('person')).slice(0, 20)
+        });
+      });
+      console.log('[Scraper] Page classes:', currentState);
+      // Continue anyway — maybe the content is there with different selectors
+    }
+
     await page.waitForTimeout(2000);
 
     // ══════════════════════════════════════════
@@ -270,6 +266,7 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
     }, { timeout: INIT_TIMEOUT });
 
     console.log('[Scraper] OneVR initialized');
+    await page.screenshot({ path: 'onevr-initialized.png' });
 
     // ══════════════════════════════════════════
     // STEP 5: Enter PIN
@@ -285,53 +282,47 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
       await page.waitForTimeout(100);
     }
 
-    // Wait for PIN dialog to close and export menu to appear
+    // Wait for PIN dialog to close
     await page.waitForSelector('.onevr-pin-modal', { state: 'detached', timeout: 5000 });
-    console.log('[Scraper] PIN accepted, export menu visible');
+    console.log('[Scraper] PIN accepted');
+    await page.screenshot({ path: 'pin-accepted.png' });
 
     // ══════════════════════════════════════════
     // STEP 6: Click "Kör allt"
     // ══════════════════════════════════════════
     console.log('[Scraper] Step 6: Starting "Kör allt"...');
 
-    // Wait for the export menu and find "Kör allt" button
     await page.waitForSelector('#onevr-run-all', { timeout: 5000 });
     await page.click('#onevr-run-all');
 
     console.log('[Scraper] "Kör allt" clicked, waiting for completion...');
+    await page.screenshot({ path: 'run-all-started.png' });
 
     // ══════════════════════════════════════════
     // STEP 7: Wait for completion
     // ══════════════════════════════════════════
-    // The run-all process ends with a summary modal containing "onevr-runall-done" button
-    // or we can watch for the console log "[OneVR] Pass 2 complete" or firebase uploads
-
     const startTime = Date.now();
 
-    // Poll for completion: either the summary modal appears or timeout
+    // Poll for completion
     await page.waitForFunction(() => {
-      // Check for summary "Klar" button
       const doneBtn = document.getElementById('onevr-runall-done');
       if (doneBtn) return true;
-
-      // Also check if runall banner is gone (all steps completed)
       const banner = document.querySelector('.onevr-runall-banner');
       const summaryModal = document.querySelector('.onevr-dagvy-modal');
       if (!banner && summaryModal) return true;
-
       return false;
     }, { timeout: RUN_ALL_TIMEOUT, polling: 5000 });
 
     const elapsed = Math.round((Date.now() - startTime) / 1000);
     console.log('[Scraper] "Kör allt" completed in ' + elapsed + 's');
 
-    // Grab any final stats from the page
+    // Grab summary
     const stats = await page.evaluate(() => {
       const el = document.querySelector('.onevr-dagvy-modal');
       return el ? el.innerText : 'No summary found';
     });
-
     console.log('[Scraper] Summary:\n' + stats);
+    await page.screenshot({ path: 'completed.png' });
 
     // ══════════════════════════════════════════
     // DONE
@@ -341,10 +332,20 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
   } catch (error) {
     console.error('[Scraper] ERROR:', error.message);
 
-    // Take screenshot on failure for debugging
     try {
       await page.screenshot({ path: 'error-screenshot.png', fullPage: true });
-      console.log('[Scraper] Error screenshot saved to error-screenshot.png');
+      console.log('[Scraper] Error screenshot saved');
+
+      // Dump page info for debugging
+      const debugInfo = await page.evaluate(() => {
+        return JSON.stringify({
+          url: window.location.href,
+          title: document.title,
+          bodyLength: document.body.innerHTML.length,
+          bodySnippet: document.body.innerText.substring(0, 500)
+        });
+      });
+      console.log('[Scraper] Debug info:', debugInfo);
     } catch (e) {
       // ignore screenshot errors
     }
