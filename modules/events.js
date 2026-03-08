@@ -2542,6 +2542,18 @@
     var WEEKDAYS_SV = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
     var allDays = {};
     var totalPersons = 0;
+    var changedTurnsToResolve = []; // Pass 2: ändrade turer idag/imorgon att öppna
+
+    // Calculate today and tomorrow ISO dates for changed-turn detection
+    var nowDate = new Date();
+    var todayISO = nowDate.getFullYear() + '-' +
+      String(nowDate.getMonth() + 1).padStart(2, '0') + '-' +
+      String(nowDate.getDate()).padStart(2, '0');
+    var tomDate = new Date(nowDate);
+    tomDate.setDate(tomDate.getDate() + 1);
+    var tomorrowISO = tomDate.getFullYear() + '-' +
+      String(tomDate.getMonth() + 1).padStart(2, '0') + '-' +
+      String(tomDate.getDate()).padStart(2, '0');
 
     var cdkC = document.querySelector('.cdk-overlay-container');
     if (cdkC) { cdkC.style.opacity = '0'; cdkC.style.pointerEvents = 'none'; }
@@ -2639,6 +2651,21 @@
         allDays[targetDate] = dayData;
         totalPersons += dayData.length;
 
+        // Collect changed turns (123456-123456) for today/tomorrow that lack times
+        if (targetDate === todayISO || targetDate === tomorrowISO) {
+          dayData.forEach(function(p, idx) {
+            if (utils.isChangedReserve(p.turnr) && (p.start === '-' || !p.start || p.slut === '-' || !p.slut)) {
+              changedTurnsToResolve.push({
+                date: targetDate,
+                index: idx,
+                turnr: p.turnr,
+                namn: p.namn,
+                dayOffset: dayOffset
+              });
+            }
+          });
+        }
+
         var withTurn = dayData.filter(function(p) { return p.turnr; }).length;
         var pctDone = ((dayOffset + 1) / totalDays) * 100;
         setProgress('Dag ' + (dayOffset + 1) + ' av ' + totalDays + ' — ' + weekday, dayData.length + ' pers (' + withTurn + ' med tur)', pctDone);
@@ -2680,10 +2707,174 @@
           setTimeout(doStep, CFG.ui.loadTimeDelay);
         } else {
           window.OneVR.state.navDate = startDate;
-          setTimeout(showResults, 500);
+          // Pass 2: resolve changed turns before showing results
+          if (changedTurnsToResolve.length > 0) {
+            setTimeout(function() { resolveChangedTurns(showResults); }, 500);
+          } else {
+            setTimeout(showResults, 500);
+          }
         }
       }
       doStep();
+    }
+
+    // --- Pass 2: Open changed turns (today/tomorrow) to fetch times ---
+    function resolveChangedTurns(doneCb) {
+      if (cancelled) { doneCb(); return; }
+
+      var MODAL_DELAY = 1200;  // Wait for modal to open/close
+      var NAV_DELAY_RES = (CFG.ui && CFG.ui.dateNavDelay) || 1500;
+
+      // Group by date for efficient navigation
+      var byDate = {};
+      changedTurnsToResolve.forEach(function(entry) {
+        if (!byDate[entry.date]) byDate[entry.date] = [];
+        byDate[entry.date].push(entry);
+      });
+      var dates = Object.keys(byDate).sort();
+      var totalToResolve = changedTurnsToResolve.length;
+      var resolved = 0;
+
+      console.log('[OneVR] Pass 2: Resolving ' + totalToResolve + ' changed turns across ' + dates.length + ' day(s)');
+      setProgress('Hämtar tider för ändrade turer...', '0/' + totalToResolve, 0);
+
+      // We're currently on startDate. Calculate steps needed for each date.
+      var currentDateISO = startDate;
+
+      function navigateToDate(targetDate, cb) {
+        if (currentDateISO === targetDate) { cb(); return; }
+
+        // Calculate how many days forward we need to go
+        var cur = new Date(currentDateISO);
+        var tgt = new Date(targetDate);
+        var diffDays = Math.round((tgt - cur) / (86400000));
+
+        if (diffDays === 0) { cb(); return; }
+
+        var btnClass = diffDays > 0 ? '.icon-next' : '.icon-prev';
+        var stepsNeeded = Math.abs(diffDays);
+        var navStep = 0;
+
+        function doNav() {
+          if (navStep < stepsNeeded) {
+            var btn = document.querySelector(btnClass);
+            if (btn) btn.click();
+            navStep++;
+            setTimeout(doNav, (CFG.ui && CFG.ui.loadTimeDelay) || 600);
+          } else {
+            currentDateISO = targetDate;
+            setTimeout(cb, 500);
+          }
+        }
+        doNav();
+      }
+
+      // Process one changed turn: find element, click, parse modal, close
+      function resolveOne(entry, cb) {
+        if (cancelled) { cb(); return; }
+
+        var turnr = entry.turnr;
+        console.log('[OneVR] Resolving changed turn: ' + turnr + ' (' + entry.namn + ')');
+        setProgress('Hämtar tider för ändrade turer...', entry.namn + ' — ' + turnr + ' (' + (resolved + 1) + '/' + totalToResolve + ')', (resolved / totalToResolve) * 100);
+
+        // Find the clickable duty-name element with this turn number
+        var clickTarget = null;
+        document.querySelectorAll('storybook-label.duty-name.pointer').forEach(function(el) {
+          var inner = el.querySelector('.storybook-label');
+          if (inner && inner.innerText.trim() === turnr) {
+            clickTarget = el;
+          }
+        });
+
+        if (!clickTarget) {
+          console.log('[OneVR] Could not find element for turn ' + turnr + ', skipping');
+          resolved++;
+          cb();
+          return;
+        }
+
+        // Click to open modal
+        clickTarget.click();
+
+        setTimeout(function() {
+          // Parse times from the modal
+          var overlay = document.querySelector('.cdk-overlay-container');
+          if (!overlay) {
+            console.log('[OneVR] No overlay found after clicking ' + turnr);
+            resolved++;
+            cb();
+            return;
+          }
+
+          var timeEls = overlay.querySelectorAll('.storybook-label-H3semibold-Desktop');
+          var firstStart = null;
+          var lastEnd = null;
+
+          timeEls.forEach(function(el) {
+            var text = el.innerText.trim();
+            var match = text.match(/(\d{2}:\d{2})\s*[-–]\s*(\d{2}:\d{2})/);
+            if (match) {
+              if (!firstStart) firstStart = match[1];
+              lastEnd = match[2];
+            }
+          });
+
+          console.log('[OneVR] ' + turnr + ' times: ' + (firstStart || '?') + ' - ' + (lastEnd || '?') + ' (' + timeEls.length + ' activities)');
+
+          // Update the data in allDays
+          if (firstStart && lastEnd) {
+            allDays[entry.date][entry.index].start = firstStart;
+            allDays[entry.date][entry.index].slut = lastEnd;
+            allDays[entry.date][entry.index].resolvedTimes = true;
+          }
+
+          // Close modal: click storybook-icon inside .close-circle
+          var closeBtn = overlay.querySelector('.close-circle storybook-icon') ||
+                         overlay.querySelector('.close-circle');
+          if (closeBtn) {
+            closeBtn.click();
+          }
+
+          resolved++;
+          // Wait for modal to close before continuing
+          setTimeout(cb, MODAL_DELAY);
+
+        }, MODAL_DELAY);
+      }
+
+      // Process all entries for one date, then move to next date
+      var dateIdx = 0;
+      function processDate() {
+        if (cancelled || dateIdx >= dates.length) {
+          // Navigate back to startDate before finishing
+          navigateToDate(startDate, function() {
+            console.log('[OneVR] Pass 2 complete: resolved ' + resolved + '/' + totalToResolve + ' changed turns');
+            doneCb();
+          });
+          return;
+        }
+
+        var date = dates[dateIdx];
+        var entries = byDate[date];
+        var entryIdx = 0;
+
+        navigateToDate(date, function() {
+          function nextEntry() {
+            if (cancelled || entryIdx >= entries.length) {
+              dateIdx++;
+              processDate();
+              return;
+            }
+            resolveOne(entries[entryIdx], function() {
+              entryIdx++;
+              nextEntry();
+            });
+          }
+          nextEntry();
+        });
+      }
+
+      processDate();
     }
 
     // --- Show results modal ---
@@ -4577,15 +4768,8 @@
     // Reset filters
     events.resetFilters();
 
-    // Check if cache needs building (init re-called from callback)
-    if (!window.OneVR.cache.built) {
-      scraper.buildCache(function() {
-        window.OneVR.init();
-      });
-      return;
-    }
-
-    // Cache built — lock against further calls
+    // Skip buildCache — location cache builds up naturally during scraping
+    window.OneVR.cache.built = true;
     window.OneVR._initialized = true;
 
     // Update nav date
