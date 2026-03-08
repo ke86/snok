@@ -2651,10 +2651,10 @@
         allDays[targetDate] = dayData;
         totalPersons += dayData.length;
 
-        // Collect changed turns (123456-123456) for today/tomorrow that lack times
+        // Collect ALL turns without times for today/tomorrow — to open and fetch times
         if (targetDate === todayISO || targetDate === tomorrowISO) {
           dayData.forEach(function(p, idx) {
-            if (utils.isChangedReserve(p.turnr) && (p.start === '-' || !p.start || p.slut === '-' || !p.slut)) {
+            if (p.turnr && (p.start === '-' || !p.start || p.slut === '-' || !p.slut)) {
               changedTurnsToResolve.push({
                 date: targetDate,
                 index: idx,
