@@ -5,13 +5,13 @@ on:
   #   05:15 → 03:15 UTC
   #   09:00 → 07:00 UTC
   #   17:00 → 15:00 UTC
-  #   23:00 → 21:00 UTC
-  # (Vintertid blir det 1h senare svensk tid: 06:15, 10:00, 18:00, 00:00)
+  #   22:30 → 20:30 UTC
+  # (Vintertid blir det 1h senare svensk tid: 06:15, 10:00, 18:00, 23:30)
   schedule:
     - cron: '15 3 * * *'
     - cron: '0 7 * * *'
     - cron: '0 15 * * *'
-    - cron: '0 21 * * *'
+    - cron: '30 20 * * *'
 
   # Allow manual trigger from GitHub Actions UI
   workflow_dispatch:
