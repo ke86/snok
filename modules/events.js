@@ -2536,7 +2536,7 @@
   //  Scrape Position List (all employees, multi-day)
   // ═══════════════════════════════════════════
 
-  function scrapePositionList(overlay, numDays, onComplete) {
+  function scrapePositionList(overlay, numDays, onComplete, resolveFilterParam) {
     var startDate = currentData.isoDate || window.OneVR.state.navDate;
     var totalDays = numDays || 7;
     var WEEKDAYS_SV = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
@@ -2563,101 +2563,8 @@
       return 'other';
     }
 
-    // Resolve filter settings (set by pre-filter or defaults)
-    var resolveFilter = { types: ['reserv', 'changed', 'tp'], orts: ['Malmö', 'Helsingborg', 'Hässleholm'] };
-
-    // --- Show pre-scrape filter dialog ---
-    function showPreFilter(startCb) {
-      console.log('[OneVR] Showing pre-filter dialog');
-      var KNOWN_ORTS = ['Malmö', 'Helsingborg', 'Hässleholm', 'Kalmar', 'Karlskrona', 'Halmstad'];
-      var typeLabels = {
-        reserv: 'Reserv (RESERV/RES)',
-        changed: 'Ändrad tur (NNNNNN-ÅÅMMDD)',
-        tp: 'TP-turer',
-        other: 'Övriga (ADM, INSUTB, FL, VXL...)'
-      };
-
-      var html = '<div style="padding:20px;max-width:400px;margin:0 auto;">';
-      html += '<h3 style="margin:0 0 4px;font-size:17px;font-weight:700;">🔍 Hämta tider utan tid</h3>';
-      html += '<p style="margin:0 0 14px;font-size:13px;opacity:.7;">Välj vilka turtyper och orter som ska öppnas efter scrapning (idag + imorgon)</p>';
-
-      // Turn type checkboxes
-      html += '<div style="margin-bottom:14px;">';
-      html += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">Turtyp:</div>';
-      ['reserv', 'changed', 'tp', 'other'].forEach(function(type) {
-        var checked = type !== 'other' ? 'checked' : '';
-        html += '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:14px;cursor:pointer;">';
-        html += '<input type="checkbox" class="onevr-resolve-type" data-type="' + type + '" ' + checked + ' style="width:18px;height:18px;">';
-        html += '<span>' + typeLabels[type] + '</span>';
-        html += '</label>';
-      });
-      html += '</div>';
-
-      // Location checkboxes
-      html += '<div style="margin-bottom:14px;">';
-      html += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">Ort:</div>';
-      KNOWN_ORTS.forEach(function(ort) {
-        var checked = resolveFilter.orts.indexOf(ort) !== -1 ? 'checked' : '';
-        html += '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:14px;cursor:pointer;">';
-        html += '<input type="checkbox" class="onevr-resolve-ort" data-ort="' + ort + '" ' + checked + ' style="width:18px;height:18px;">';
-        html += '<span>' + ort + '</span>';
-        html += '</label>';
-      });
-      // "Okänd" for turns without location
-      html += '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:14px;cursor:pointer;">';
-      html += '<input type="checkbox" class="onevr-resolve-ort" data-ort="Okänd" style="width:18px;height:18px;">';
-      html += '<span style="opacity:.6;">Okänd ort</span>';
-      html += '</label>';
-      html += '</div>';
-
-      // Buttons
-      html += '<div style="display:flex;gap:10px;">';
-      html += '<button id="onevr-pf-skip" style="flex:1;padding:12px;border:1px solid rgba(128,128,128,0.3);background:transparent;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;color:inherit;">Hoppa över</button>';
-      html += '<button id="onevr-pf-run" style="flex:1;padding:12px;border:none;background:linear-gradient(135deg,#5856d6,#af52de);color:#fff;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Kör</button>';
-      html += '</div>';
-      html += '</div>';
-
-      var filterModal = document.createElement('div');
-      filterModal.className = 'onevr-modal';
-      filterModal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:100010;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
-      var inner = document.createElement('div');
-      inner.style.cssText = 'background:var(--onevr-bg,#1c1c1e);color:var(--onevr-text,#fff);border-radius:16px;max-height:80vh;overflow-y:auto;width:90%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.4);';
-      inner.innerHTML = html;
-      filterModal.appendChild(inner);
-      document.body.appendChild(filterModal);
-
-      // Skip — no pass 2 at all
-      filterModal.querySelector('#onevr-pf-skip').onclick = function() {
-        resolveFilter = null; // null = skip pass 2 entirely
-        filterModal.remove();
-        startCb();
-      };
-
-      // Run — save selections and start scraping
-      filterModal.querySelector('#onevr-pf-run').onclick = function() {
-        var types = [];
-        filterModal.querySelectorAll('.onevr-resolve-type:checked').forEach(function(cb) {
-          types.push(cb.getAttribute('data-type'));
-        });
-        var orts = [];
-        filterModal.querySelectorAll('.onevr-resolve-ort:checked').forEach(function(cb) {
-          orts.push(cb.getAttribute('data-ort'));
-        });
-        resolveFilter = { types: types, orts: orts };
-        filterModal.remove();
-        startCb();
-      };
-    }
-
-    // Show pre-filter first (unless in runAll mode — use defaults)
-    if (typeof onComplete === 'function') {
-      // "Kör allt" mode — use default filter, start immediately
-      beginScraping();
-    } else {
-      showPreFilter(beginScraping);
-    }
-
-    function beginScraping() {
+    // Resolve filter: passed from runAll, or null (no pass 2 for standalone)
+    var resolveFilter = resolveFilterParam || null;
 
     var cdkC = document.querySelector('.cdk-overlay-container');
     if (cdkC) { cdkC.style.opacity = '0'; cdkC.style.pointerEvents = 'none'; }
@@ -3161,8 +3068,6 @@
 
     // Start!
     processDay(0);
-
-    } // end beginScraping
   } // end scrapePositionList
 
   /**
@@ -4276,6 +4181,94 @@
       { name: 'Firebase-uppladdning', detail: '', icon: '☁️' }
     ];
 
+    // ─── Show resolve-filter dialog before starting ───
+    var KNOWN_ORTS = ['Malmö', 'Helsingborg', 'Hässleholm', 'Kalmar', 'Karlskrona', 'Halmstad'];
+    var DEFAULT_TYPES = ['reserv', 'changed', 'tp'];
+    var DEFAULT_ORTS = ['Malmö', 'Helsingborg', 'Hässleholm'];
+    var typeLabels = {
+      reserv: 'Reserv (RESERV/RES)',
+      changed: 'Ändrad tur (NNNNNN-ÅÅMMDD)',
+      tp: 'TP-turer',
+      other: 'Övriga (ADM, INSUTB, FL, VXL...)'
+    };
+
+    var fHtml = '<div style="padding:20px;max-width:400px;margin:0 auto;">';
+    fHtml += '<h3 style="margin:0 0 4px;font-size:17px;font-weight:700;">▶️ Kör allt</h3>';
+    fHtml += '<p style="margin:0 0 6px;font-size:13px;opacity:.7;">Dagvy 7d · Positionslista 20d · TA · Driftmeddelande · Firebase</p>';
+    fHtml += '<hr style="border:none;border-top:1px solid rgba(128,128,128,0.2);margin:10px 0;">';
+    fHtml += '<p style="margin:0 0 10px;font-size:14px;font-weight:600;">🔍 Hämta tider för turer utan tid (idag + imorgon):</p>';
+
+    // Turn type checkboxes
+    fHtml += '<div style="margin-bottom:12px;">';
+    fHtml += '<div style="font-size:12px;font-weight:600;margin-bottom:4px;opacity:.6;">TURTYP</div>';
+    ['reserv', 'changed', 'tp', 'other'].forEach(function(type) {
+      var checked = DEFAULT_TYPES.indexOf(type) !== -1 ? 'checked' : '';
+      fHtml += '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:14px;cursor:pointer;">';
+      fHtml += '<input type="checkbox" class="onevr-ra-type" data-type="' + type + '" ' + checked + ' style="width:18px;height:18px;">';
+      fHtml += '<span>' + typeLabels[type] + '</span>';
+      fHtml += '</label>';
+    });
+    fHtml += '</div>';
+
+    // Location checkboxes
+    fHtml += '<div style="margin-bottom:14px;">';
+    fHtml += '<div style="font-size:12px;font-weight:600;margin-bottom:4px;opacity:.6;">ORT</div>';
+    KNOWN_ORTS.forEach(function(ort) {
+      var checked = DEFAULT_ORTS.indexOf(ort) !== -1 ? 'checked' : '';
+      fHtml += '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:14px;cursor:pointer;">';
+      fHtml += '<input type="checkbox" class="onevr-ra-ort" data-ort="' + ort + '" ' + checked + ' style="width:18px;height:18px;">';
+      fHtml += '<span>' + ort + '</span>';
+      fHtml += '</label>';
+    });
+    fHtml += '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:14px;cursor:pointer;">';
+    fHtml += '<input type="checkbox" class="onevr-ra-ort" data-ort="Okänd" style="width:18px;height:18px;">';
+    fHtml += '<span style="opacity:.6;">Okänd ort</span>';
+    fHtml += '</label>';
+    fHtml += '</div>';
+
+    // Buttons
+    fHtml += '<div style="display:flex;gap:10px;">';
+    fHtml += '<button id="onevr-ra-skip" style="flex:1;padding:12px;border:1px solid rgba(128,128,128,0.3);background:transparent;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;color:inherit;">Avbryt</button>';
+    fHtml += '<button id="onevr-ra-run" style="flex:1;padding:12px;border:none;background:linear-gradient(135deg,#5856d6,#af52de);color:#fff;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Kör allt</button>';
+    fHtml += '</div>';
+    fHtml += '</div>';
+
+    var filterModal = document.createElement('div');
+    filterModal.className = 'onevr-modal';
+    filterModal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:100010;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+    var fInner = document.createElement('div');
+    fInner.style.cssText = 'background:var(--onevr-bg,#1c1c1e);color:var(--onevr-text,#fff);border-radius:16px;max-height:85vh;overflow-y:auto;width:90%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.4);';
+    fInner.innerHTML = fHtml;
+    filterModal.appendChild(fInner);
+    document.body.appendChild(filterModal);
+
+    // Collect user selections
+    var runAllFilter = null;
+
+    filterModal.querySelector('#onevr-ra-skip').onclick = function() {
+      filterModal.remove();
+      showExportMenu();
+    };
+
+    filterModal.querySelector('#onevr-ra-run').onclick = function() {
+      var types = [];
+      filterModal.querySelectorAll('.onevr-ra-type:checked').forEach(function(cb) {
+        types.push(cb.getAttribute('data-type'));
+      });
+      var orts = [];
+      filterModal.querySelectorAll('.onevr-ra-ort:checked').forEach(function(cb) {
+        orts.push(cb.getAttribute('data-ort'));
+      });
+      runAllFilter = { types: types, orts: orts };
+      console.log('[OneVR] RunAll filter: types=' + types.join(',') + ' orts=' + orts.join(','));
+      filterModal.remove();
+      startRunAll();
+    };
+
+    return; // Wait for user to click
+
+    function startRunAll() {
+
     // ─── Step banner (persistent, shown between sub-function modals) ───
     var banner = document.createElement('div');
     banner.className = 'onevr-runall-banner';
@@ -4427,7 +4420,7 @@
             results.push(result);
             stepIdx++;
             nextStep();
-          });
+          }, runAllFilter);
           break;
 
         case 2: // TA - Danmark
@@ -4457,7 +4450,9 @@
     }
 
     nextStep();
-  }
+
+    } // end startRunAll
+  } // end runAll
 
   function showExportMenu() {
     console.log('[OneVR] Export unlocked');
