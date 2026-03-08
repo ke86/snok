@@ -1,9 +1,17 @@
 name: Daily OneVR Scrape
 
 on:
-  # Run every day at 03:00 UTC (05:00 Swedish time in summer, 04:00 in winter)
+  # Svensk sommartid (UTC+2):
+  #   05:15 → 03:15 UTC
+  #   09:00 → 07:00 UTC
+  #   17:00 → 15:00 UTC
+  #   23:00 → 21:00 UTC
+  # (Vintertid blir det 1h senare svensk tid: 06:15, 10:00, 18:00, 00:00)
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '15 3 * * *'
+    - cron: '0 7 * * *'
+    - cron: '0 15 * * *'
+    - cron: '0 21 * * *'
 
   # Allow manual trigger from GitHub Actions UI
   workflow_dispatch:
@@ -11,7 +19,7 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
