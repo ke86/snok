@@ -31,6 +31,7 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
 
   const context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
+    locale: 'sv-SE',
     userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
   });
 
@@ -51,10 +52,20 @@ const RUN_ALL_TIMEOUT = 600000; // 10 minutes max for full run
     console.log('[Scraper] Step 1: Logging in...');
     await page.goto(BASE_URL + '/login', { waitUntil: 'networkidle', timeout: LOGIN_TIMEOUT });
 
-    // Fill email
-    await page.fill('input.input-mobile', EMAIL);
+    // Screenshot login page for debugging
+    await page.screenshot({ path: 'login-page.png' });
+    console.log('[Scraper] Login page loaded, filling credentials...');
+
+    // Fill email — try multiple selectors (mobile vs desktop layout)
+    const emailInput = await page.$('input.input-mobile') ||
+                       await page.$('input.input.with-icon') ||
+                       await page.$('input[type="text"]');
+    if (!emailInput) throw new Error('Could not find email input');
+    await emailInput.fill(EMAIL);
+
     // Fill password
     await page.fill('input[type="password"]', PASSWORD);
+
     // Click login button
     await page.click('button[type="submit"]');
 
