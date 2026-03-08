@@ -1,8 +1,11 @@
 name: Daily OneVR Scrape
 
 on:
+  # Run every day at 03:00 UTC (05:00 Swedish time in summer, 04:00 in winter)
   schedule:
     - cron: '0 3 * * *'
+
+  # Allow manual trigger from GitHub Actions UI
   workflow_dispatch:
 
 jobs:
@@ -35,10 +38,10 @@ jobs:
           ONEVR_PIN: ${{ secrets.ONEVR_PIN }}
         run: node scrape.js
 
-      - name: Upload error screenshot (if failed)
-        if: failure()
+      - name: Upload debug screenshots
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: error-screenshot
-          path: scripts/error-screenshot.png
+          name: debug-screenshots
+          path: scripts/*.png
           retention-days: 7
