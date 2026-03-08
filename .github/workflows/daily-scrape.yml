@@ -1,0 +1,44 @@
+name: Daily OneVR Scrape
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: scripts
+        run: npm install
+
+      - name: Install Playwright Chromium
+        working-directory: scripts
+        run: npx playwright install chromium --with-deps
+
+      - name: Run scraper
+        working-directory: scripts
+        env:
+          ONEVR_EMAIL: ${{ secrets.ONEVR_EMAIL }}
+          ONEVR_PASSWORD: ${{ secrets.ONEVR_PASSWORD }}
+          ONEVR_PIN: ${{ secrets.ONEVR_PIN }}
+        run: node scrape.js
+
+      - name: Upload error screenshot (if failed)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-screenshot
+          path: scripts/error-screenshot.png
+          retention-days: 7
