@@ -2018,11 +2018,15 @@
 
       // Click the SPA's internal back button
       function clickBackIcon() {
-        var backIcon = document.querySelector('storybook-icon.back-icon') ||
-                       document.querySelector('.back-icon.pointer') ||
+        // Try multiple back-icon selectors (OneVR changes class names between versions)
+        var backIcon = document.querySelector('storybook-icon.back-icon') ||           // Old style
+                       document.querySelector('storybook-icon.arrow-icon-left') ||     // New style (left arrow)
+                       document.querySelector('storybook-icon.drawer-arrow-icon') ||   // Drawer back
+                       document.querySelector('[class*="arrow-icon-left"]') ||          // Fallback
+                       document.querySelector('.back-icon.pointer') ||                  // Legacy
                        document.querySelector('.back-icon');
         if (backIcon) {
-          console.log('[OneVR] Clicking SPA back-icon');
+          console.log('[OneVR] Clicking SPA back-icon (' + (backIcon.className || 'unknown') + ')');
           backIcon.click();
           return true;
         }
@@ -2211,20 +2215,52 @@
       clickLabel('Hem', function() {
         if (cancelled) return;
 
-        // Step 2: Click Dokument
+        // Step 2: Click Dokument (large card section on Hem, not a storybook-label)
         setProgress('Öppnar Dokument...', '', 15);
-        clickLabel('Dokument', function() {
+        setTimeout(function() {
           if (cancelled) return;
 
-          // Step 2b: Ensure we're on the category list, not inside a previous category
-          // SPA may remember last document position (e.g., TA - Danmark)
-          ensureCategoryList(categoryName, function() {
+          // Find Dokument section
+          var dokumentSection = Array.from(document.querySelectorAll('*'))
+            .find(function(el) {
+              return el.innerText.includes('Dokument') && el.innerText.length < 200;
+            });
+
+          if (dokumentSection) {
+            var clickTarget = dokumentSection.closest('button, [role="button"], [class*="card"], [class*="item"], div[class*="section"]') || dokumentSection;
+            console.log('[OneVR] Clicking Dokument section');
+            clickTarget.click();
+          } else {
+            console.log('[OneVR] Dokument section not found, trying fallback clickLabel');
+            clickLabel('Dokument', function() {});
+          }
+
+          // Wait for documents page to load
+          setTimeout(function() {
             if (cancelled) return;
 
-            // Step 3: Click category (TA - Danmark / Driftmeddelande)
-            setProgress('Öppnar ' + categoryName + '...', '', 25);
-            clickLabel(categoryName, function() {
+            // Step 2b: Ensure we're on the category list, not inside a previous category
+            // SPA may remember last document position (e.g., TA - Danmark)
+            ensureCategoryList(categoryName, function() {
               if (cancelled) return;
+
+              // Step 3: Click category (TA - Danmark / Driftmeddelande)
+              setProgress('Öppnar ' + categoryName + '...', '', 25);
+
+              // Find and click the category using both storybook-label AND parent click
+              var categoryEl = Array.from(document.querySelectorAll('.storybook-label'))
+                .find(function(el) { return el.innerText.trim() === categoryName; });
+
+              if (categoryEl) {
+                console.log('[OneVR] Clicking category ' + categoryName);
+                categoryEl.click();
+                if (categoryEl.parentElement) categoryEl.parentElement.click();
+              } else {
+                console.log('[OneVR] Category not found: ' + categoryName);
+              }
+
+              setTimeout(function() {
+                if (cancelled) return;
 
             // Step 4: Find all PDF elements
             var pdfNames = [];
@@ -2305,9 +2341,11 @@
             }
 
             nextPdf();
+              }, NAV_DELAY);
+            });
+          }, NAV_DELAY);
           });
-          });
-        });
+        }, NAV_DELAY);
       });
     });
 
