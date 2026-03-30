@@ -2343,7 +2343,6 @@
             nextPdf();
               }, NAV_DELAY);
             });
-          }, NAV_DELAY);
           });
         }, NAV_DELAY);
       });
