@@ -442,14 +442,40 @@
 
   /**
    * Find turnable label in element
+   * knownTurnr (optional): person's known turn number for exact matching
+   * Prefers labels with alphabetic chars (V19, TP, A, B) over pure-numeric labels
+   * to avoid matching employee numbers (anställningsnummer)
    */
-  function findTurnLabel(el) {
+  function findTurnLabel(el, knownTurnr) {
     var labels = el.querySelectorAll(CFG.ui.labelSelector);
+    var candidates = [];
+
+    // Clean known turnr: remove " - TP" suffix for exact matching
+    var cleanTurnr = '';
+    if (knownTurnr) {
+      cleanTurnr = knownTurnr.replace(/\s*-\s*TP$/i, '').trim();
+    }
+
     for (var i = 0; i < labels.length; i++) {
       var t = (labels[i].innerText || '').trim();
-      if (utils.chkTurn(t)) return labels[i];
+      if (utils.chkTurn(t)) {
+        // Exact match with known turnr → return immediately
+        if (cleanTurnr && t === cleanTurnr) return labels[i];
+        candidates.push(labels[i]);
+      }
     }
-    return null;
+
+    if (candidates.length === 0) return null;
+    if (candidates.length === 1) return candidates[0];
+
+    // Multiple matches: prefer labels with alphabetic chars (V19, TP, ADM, RESERV, FL, etc.)
+    // Pure-numeric 6-digit labels are likely employee numbers (anställningsnummer)
+    for (var j = 0; j < candidates.length; j++) {
+      var ct = (candidates[j].innerText || '').trim();
+      if (ct.match(/[A-Za-z]/)) return candidates[j];
+    }
+
+    return candidates[0];
   }
 
   /**
@@ -581,7 +607,7 @@
         loadTimesEl.textContent = '⏳ ' + idx + '/' + filteredPeople.length;
 
         if (el) {
-          var tE = findTurnLabel(el) || el;
+          var tE = findTurnLabel(el, p.turnr) || el;
           el.scrollIntoView({ behavior: 'instant', block: 'center' });
 
           waitClose(function() {
@@ -832,7 +858,11 @@
         var eI = +tE.getAttribute('data-elidx');
         var oE = currentData.elements[eI];
         if (oE) {
-          var cT = findTurnLabel(oE) || oE;
+          var pData = null;
+          for (var pi = 0; pi < currentData.people.length; pi++) {
+            if (currentData.people[pi].elIdx === eI) { pData = currentData.people[pi]; break; }
+          }
+          var cT = findTurnLabel(oE, pData ? pData.turnr : '') || oE;
           overlay.style.display = 'none';
           oE.scrollIntoView({ behavior: 'instant', block: 'center' });
           setTimeout(function() {
@@ -914,7 +944,7 @@
     };
 
     overlay.style.display = 'none';
-    var tE = findTurnLabel(el) || el;
+    var tE = findTurnLabel(el, person.turnr) || el;
     el.scrollIntoView({ behavior: 'instant', block: 'center' });
 
     waitClose(function() {
@@ -1003,10 +1033,10 @@
     }
 
     // ─── Scrape crew for one train by opening dagvy popup → clicking train nr ───
-    function scrapeCrewForTrain(personEl, trainNr, cb) {
+    function scrapeCrewForTrain(personEl, trainNr, personTurnr, cb) {
       if (cancelled) { cb(null); return; }
 
-      var tE = findTurnLabel(personEl) || personEl;
+      var tE = findTurnLabel(personEl, personTurnr) || personEl;
       personEl.scrollIntoView({ behavior: 'instant', block: 'center' });
 
       waitClose(function() {
@@ -1073,7 +1103,7 @@
     }
 
     // ─── Scrape all crews for one day's trains (sequential) ───
-    function scrapeAllCrews(dayData, personEl, cb) {
+    function scrapeAllCrews(dayData, personEl, personTurnr, cb) {
       if (cancelled) { cb(); return; }
 
       var trainSegs = dayData.segments.filter(function(s) { return !!s.trainNr; });
@@ -1091,7 +1121,7 @@
 
         updateProgress('Dag ' + (daysCollected.length) + ' av ' + totalDays + ' – 🚆 Tåg ' + trainNr + ' (' + (idx + 1) + '/' + trainSegs.length + ')');
 
-        scrapeCrewForTrain(personEl, trainNr, function(crewData) {
+        scrapeCrewForTrain(personEl, trainNr, personTurnr, function(crewData) {
           if (crewData) {
             crewData.date = dayData.date; // Override popup date with calculated date
             dayData.crews[trainNr] = crewData;
@@ -1109,7 +1139,7 @@
       if (cancelled) { cb(); return; }
       updateProgress('Dag ' + dayNum + ' av ' + totalDays + ' – Skrapar dagvy...');
 
-      var tE = findTurnLabel(personEl) || personEl;
+      var tE = findTurnLabel(personEl, foundPerson.turnr) || personEl;
       personEl.scrollIntoView({ behavior: 'instant', block: 'center' });
 
       waitClose(function() {
@@ -1132,7 +1162,7 @@
               daysCollected.push(dayData);
 
               // Now scrape crews for all trains on this day
-              scrapeAllCrews(dayData, personEl, cb);
+              scrapeAllCrews(dayData, personEl, foundPerson.turnr, cb);
             });
           }, 6000);
         }, 200);
@@ -1628,7 +1658,7 @@
     loadingModal.onclick = function(e) { if (e.target === loadingModal) { loadingModal.remove(); cleanUp(); } };
 
     if (overlay) overlay.style.display = 'none';
-    var tE = findTurnLabel(el) || el;
+    var tE = findTurnLabel(el, person.turnr) || el;
     el.scrollIntoView({ behavior: 'instant', block: 'center' });
 
     // Step 1: Open person's dagvy popup
@@ -3946,10 +3976,10 @@
     }
 
     // ─── Scrape crew for one train ───
-    function batchScrapeCrewForTrain(personEl, firstName, trainNr, cb) {
+    function batchScrapeCrewForTrain(personEl, firstName, trainNr, personTurnr, cb) {
       if (cancelled) { cb(null); return; }
 
-      var tE = findTurnLabel(personEl) || personEl;
+      var tE = findTurnLabel(personEl, personTurnr) || personEl;
       personEl.scrollIntoView({ behavior: 'instant', block: 'center' });
 
       waitClose(function() {
@@ -4016,7 +4046,7 @@
 
       setProgress(progressEl.textContent, firstName + ' – dagvy...');
 
-      var tE = findTurnLabel(foundEl) || foundEl;
+      var tE = findTurnLabel(foundEl, foundP.turnr) || foundEl;
       foundEl.scrollIntoView({ behavior: 'instant', block: 'center' });
 
       waitClose(function() {
@@ -4040,7 +4070,7 @@
 
                 setProgress(progressEl.textContent, firstName + ' – 🚆 ' + tn + ' (' + (ti + 1) + '/' + trainSegs.length + ')');
 
-                batchScrapeCrewForTrain(foundEl, firstName, tn, function(crewData) {
+                batchScrapeCrewForTrain(foundEl, firstName, tn, foundP.turnr, function(crewData) {
                   if (crewData) {
                     crewData.date = dayData.date; // Override popup date with calculated date
                     dayData.crews[tn] = crewData;
@@ -4556,7 +4586,7 @@
         '<div class="onevr-export-names">' +
           '<span class="onevr-export-names-label">Bevakar:</span> ' + allNames +
         '</div>' +
-        '<div class="onevr-export-version" style="text-align:center;padding:12px;font-size:12px;color:#8e8e93;border-top:1px solid #e5e5ea;">OneVR v16.4 (2s wait)</div>' +
+        '<div class="onevr-export-version" style="text-align:center;padding:12px;font-size:12px;color:#8e8e93;border-top:1px solid #e5e5ea;">OneVR v16.5 (smart turn match)</div>' +
       '</div>';
 
     document.body.appendChild(modal);
