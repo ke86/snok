@@ -643,6 +643,19 @@
       if (pn) {
         var tx = pn.innerText || '';
         if (!tx.includes('Laddar') && tx.includes(nm)) {
+          // Extra check: wait for pieces to render (important for V19+ turns)
+          var pieces = pn.querySelectorAll('.piece-container');
+          if (pieces.length > 0) {
+            cb(pn, tx);
+            return;
+          }
+          // If no pieces yet but name is there, wait a bit more
+          if (w < mx - 1000) {
+            w += 200;
+            setTimeout(ck, 200);
+            return;
+          }
+          // Timeout reached, return anyway (might be empty dagvy)
           cb(pn, tx);
           return;
         }
