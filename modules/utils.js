@@ -11,7 +11,7 @@
     tdsShift: '^TDS\\d$',
     tpSuffix: 'TP$',
     flShift: '^FL\\d*$',
-    turnNumber: '^\\d{5,6}[A-Z]{0,2}$',
+    turnNumber: '^\\d{5,6}([A-Z]{0,2}|V\\d{2})$',
     reserve: '^RESERV?\\d*$',
     changedReserve: '^\\d{6}-\\d{6}$'
   };

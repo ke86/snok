@@ -38,7 +38,7 @@
       // Fallback: look for 5-6 digit number
       if (!turnr) {
         for (var j = 0; j < lines.length; j++) {
-          if (lines[j].match(/^\d{5,6}[A-Z]?$/)) {
+          if (lines[j].match(/^\d{5,6}([A-Z]|V\d{2})?$/)) {
             turnr = lines[j];
             break;
           }
