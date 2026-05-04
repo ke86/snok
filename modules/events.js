@@ -643,33 +643,11 @@
       if (pn) {
         var tx = pn.innerText || '';
         if (!tx.includes('Laddar') && tx.includes(nm)) {
-          // Extra check: wait for pieces WITH CONTENT to render (important for V19+ turns)
-          var pieces = pn.querySelectorAll('.piece-container');
-          if (pieces.length > 0) {
-            // Verify that pieces have actual content (not just empty divs)
-            var hasContent = false;
-            for (var i = 0; i < pieces.length; i++) {
-              var pieceText = pieces[i].innerText || '';
-              // Check for time indicators or activity text
-              if (pieceText.match(/\d{1,2}:\d{2}/) || pieceText.length > 10) {
-                hasContent = true;
-                break;
-              }
-            }
-            if (hasContent) {
-              cb(pn, tx);
-              return;
-            }
-          }
-          // If no pieces or no content yet, wait a bit more
-          if (w < mx - 1000) {
-            w += 200;
-            setTimeout(ck, 200);
+          // Simple wait: just give it 800ms after modal appears
+          if (w >= 800) {
+            cb(pn, tx);
             return;
           }
-          // Timeout reached, return anyway (might be empty dagvy)
-          cb(pn, tx);
-          return;
         }
       }
       w += 200;
@@ -4578,7 +4556,7 @@
         '<div class="onevr-export-names">' +
           '<span class="onevr-export-names-label">Bevakar:</span> ' + allNames +
         '</div>' +
-        '<div class="onevr-export-version" style="text-align:center;padding:12px;font-size:12px;color:#8e8e93;border-top:1px solid #e5e5ea;">OneVR v16.1 (V19-fix + content validation)</div>' +
+        '<div class="onevr-export-version" style="text-align:center;padding:12px;font-size:12px;color:#8e8e93;border-top:1px solid #e5e5ea;">OneVR v16.2 (Simple 800ms wait)</div>' +
       '</div>';
 
     document.body.appendChild(modal);
