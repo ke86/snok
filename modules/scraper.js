@@ -35,10 +35,10 @@
         }
       }
 
-      // Fallback: look for 5-6 digit number (now with optional V19 week suffix)
+      // Fallback: look for 5-6 digit number starting with 1-6 (now with optional V19 week suffix)
       if (!turnr) {
         for (var j = 0; j < lines.length; j++) {
-          if (lines[j].match(/^\d{5,6}([A-Z]|V\d{2})?$/)) {
+          if (lines[j].match(/^[1-6]\d{4,5}([A-Z]|V\d{2})?$/)) {
             turnr = lines[j];
             break;
           }
