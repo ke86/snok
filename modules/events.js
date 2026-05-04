@@ -4578,6 +4578,7 @@
         '<div class="onevr-export-names">' +
           '<span class="onevr-export-names-label">Bevakar:</span> ' + allNames +
         '</div>' +
+        '<div class="onevr-export-version" style="text-align:center;padding:12px;font-size:12px;color:#8e8e93;border-top:1px solid #e5e5ea;">OneVR v16.1 (V19-fix + content validation)</div>' +
       '</div>';
 
     document.body.appendChild(modal);
