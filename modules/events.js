@@ -643,13 +643,25 @@
       if (pn) {
         var tx = pn.innerText || '';
         if (!tx.includes('Laddar') && tx.includes(nm)) {
-          // Extra check: wait for pieces to render (important for V19+ turns)
+          // Extra check: wait for pieces WITH CONTENT to render (important for V19+ turns)
           var pieces = pn.querySelectorAll('.piece-container');
           if (pieces.length > 0) {
-            cb(pn, tx);
-            return;
+            // Verify that pieces have actual content (not just empty divs)
+            var hasContent = false;
+            for (var i = 0; i < pieces.length; i++) {
+              var pieceText = pieces[i].innerText || '';
+              // Check for time indicators or activity text
+              if (pieceText.match(/\d{1,2}:\d{2}/) || pieceText.length > 10) {
+                hasContent = true;
+                break;
+              }
+            }
+            if (hasContent) {
+              cb(pn, tx);
+              return;
+            }
           }
-          // If no pieces yet but name is there, wait a bit more
+          // If no pieces or no content yet, wait a bit more
           if (w < mx - 1000) {
             w += 200;
             setTimeout(ck, 200);
