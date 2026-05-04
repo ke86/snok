@@ -643,8 +643,8 @@
       if (pn) {
         var tx = pn.innerText || '';
         if (!tx.includes('Laddar') && tx.includes(nm)) {
-          // Simple wait: just give it 800ms after modal appears
-          if (w >= 800) {
+          // Wait 2000ms to ensure content is fully loaded (V19 turns need more time)
+          if (w >= 2000) {
             cb(pn, tx);
             return;
           }
@@ -4556,7 +4556,7 @@
         '<div class="onevr-export-names">' +
           '<span class="onevr-export-names-label">Bevakar:</span> ' + allNames +
         '</div>' +
-        '<div class="onevr-export-version" style="text-align:center;padding:12px;font-size:12px;color:#8e8e93;border-top:1px solid #e5e5ea;">OneVR v16.3 (Turnr-fix)</div>' +
+        '<div class="onevr-export-version" style="text-align:center;padding:12px;font-size:12px;color:#8e8e93;border-top:1px solid #e5e5ea;">OneVR v16.4 (2s wait)</div>' +
       '</div>';
 
     document.body.appendChild(modal);
