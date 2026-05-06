@@ -4027,6 +4027,15 @@
             var segments = pane ? scraper.scrapeDagvy(pane) : [];
             closeAllPopups(function() {
               var dayData = { date: targetDate, segments: segments, turnr: foundP.turnr, start: foundP.start, end: foundP.end, notFound: false, crews: {} };
+
+              // Auto-fyll start/end från segments om overview visar "-"
+              if (dayData.start === '-' && segments.length > 0 && segments[0].timeStart) {
+                dayData.start = segments[0].timeStart;
+              }
+              if (dayData.end === '-' && segments.length > 0 && segments[segments.length - 1].timeEnd) {
+                dayData.end = segments[segments.length - 1].timeEnd;
+              }
+
               allStore[personName].days.push(dayData);
 
               // Scrape crew for each train
@@ -4556,7 +4565,7 @@
         '<div class="onevr-export-names">' +
           '<span class="onevr-export-names-label">Bevakar:</span> ' + allNames +
         '</div>' +
-        '<div class="onevr-export-version" style="text-align:center;padding:12px;font-size:12px;color:#8e8e93;border-top:1px solid #e5e5ea;">OneVR v16.5</div>' +
+        '<div class="onevr-export-version" style="text-align:center;padding:12px;font-size:12px;color:#8e8e93;border-top:1px solid #e5e5ea;">OneVR v16.6</div>' +
       '</div>';
 
     document.body.appendChild(modal);
