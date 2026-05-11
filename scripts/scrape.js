@@ -14,7 +14,7 @@ const LOADER_URL = 'https://ke86.github.io/snok/modules/loader.js';
 const LOGIN_TIMEOUT = 30000;
 const NAV_TIMEOUT = 20000;
 const INIT_TIMEOUT = 30000;
-const RUN_ALL_TIMEOUT = 900000; // 15 minutes max for full run
+const RUN_ALL_TIMEOUT = 1200000; // 20 minutes max for full run
 
 (async () => {
   if (!EMAIL || !PASSWORD) {
