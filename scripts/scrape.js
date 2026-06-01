@@ -16,7 +16,7 @@ const PIN = process.env.ONEVR_PIN || '8612';
 const BASE_URL = 'http://launcher.onevr.vrse.cloud';
 const LOADER_URL = 'https://ke86.github.io/snok/modules/loader.js';
 const COOKIES_FILE = path.join(__dirname, 'cookies.json');
-const LOCALSTORAGE_FILE = path.join(__dirname, 'localStorage.json');
+const LOCALSTORAGE_FILE = path.join(__dirname, 'localStorage.js');
 
 // Timeout settings (ms)
 const LOGIN_TIMEOUT = 30000;
@@ -118,11 +118,15 @@ function saveCookies(cookies) {
 
   try {
     // ══════════════════════════════════════════
-    // STEP 1: Login (or use saved cookies)
+    // STEP 1: Login (or use saved auth)
     // ══════════════════════════════════════════
     console.log('[Scraper] Step 1: Checking authentication...');
 
-    if (useCookies) {
+    if (useLocalStorage) {
+      // localStorage already loaded — navigate directly to navigation
+      console.log('[Scraper] ✅ Authenticated with localStorage');
+      await page.goto(BASE_URL + '/navigation', { waitUntil: 'networkidle', timeout: LOGIN_TIMEOUT });
+    } else if (useCookies) {
       // Try to navigate with saved cookies
       console.log('[Scraper] Attempting to access OneVR with saved cookies...');
       await page.goto(BASE_URL + '/navigation', { waitUntil: 'networkidle', timeout: LOGIN_TIMEOUT });
