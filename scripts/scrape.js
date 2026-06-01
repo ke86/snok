@@ -1,14 +1,21 @@
 /**
  * OneVR Automated Scraper — Playwright script for GitHub Actions
  * Runs "Kör allt" automatically: Dagvy 7d → Positionslista 20d → TA → Driftmeddelande → Firebase
+ *
+ * Authentication modes:
+ * 1. Cookie-based (preferred): Uses saved session cookies from setup-cookies.js
+ * 2. Fallback: Manual credentials if cookies missing/expired
  */
 const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
 
 const EMAIL = process.env.ONEVR_EMAIL;
 const PASSWORD = process.env.ONEVR_PASSWORD;
 const PIN = process.env.ONEVR_PIN || '8612';
-const BASE_URL = 'https://onevr.arriva.guru';
+const BASE_URL = 'http://launcher.onevr.vrse.cloud';
 const LOADER_URL = 'https://ke86.github.io/snok/modules/loader.js';
+const COOKIES_FILE = path.join(__dirname, 'cookies.json');
 
 // Timeout settings (ms)
 const LOGIN_TIMEOUT = 30000;
@@ -16,14 +23,46 @@ const NAV_TIMEOUT = 20000;
 const INIT_TIMEOUT = 30000;
 const RUN_ALL_TIMEOUT = 1200000; // 20 minutes max for full run
 
+// Load cookies if they exist
+function loadCookies() {
+  try {
+    if (fs.existsSync(COOKIES_FILE)) {
+      const cookies = JSON.parse(fs.readFileSync(COOKIES_FILE, 'utf8'));
+      console.log('[Scraper] Found saved cookies (' + cookies.length + ' cookies)');
+      return cookies;
+    }
+  } catch (e) {
+    console.log('[Scraper] Could not load cookies:', e.message);
+  }
+  return null;
+}
+
+// Save cookies for future runs
+function saveCookies(cookies) {
+  try {
+    fs.writeFileSync(COOKIES_FILE, JSON.stringify(cookies, null, 2));
+    console.log('[Scraper] Cookies saved for next run');
+  } catch (e) {
+    console.error('[Scraper] WARNING: Could not save cookies:', e.message);
+  }
+}
+
 (async () => {
-  if (!EMAIL || !PASSWORD) {
-    console.error('ERROR: ONEVR_EMAIL and ONEVR_PASSWORD must be set as environment variables');
+  const savedCookies = loadCookies();
+  const useCookies = savedCookies !== null;
+
+  console.log('[Scraper] Starting at', new Date().toISOString());
+  console.log('[Scraper] Auth mode:', useCookies ? 'Cookie-based' : 'Credentials-based');
+
+  if (!useCookies && (!EMAIL || !PASSWORD)) {
+    console.error('ERROR: No saved cookies and ONEVR_EMAIL/ONEVR_PASSWORD not set');
+    console.error('Run setup-cookies.js first to save session cookies');
     process.exit(1);
   }
 
-  console.log('[Scraper] Starting at', new Date().toISOString());
-  console.log('[Scraper] Email:', EMAIL.substring(0, 3) + '***');
+  if (!useCookies) {
+    console.log('[Scraper] Email:', EMAIL.substring(0, 3) + '***');
+  }
 
   const browser = await chromium.launch({
     headless: true,
@@ -33,7 +72,8 @@ const RUN_ALL_TIMEOUT = 1200000; // 20 minutes max for full run
   const context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
     locale: 'sv-SE',
-    userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    ...(useCookies ? { storageState: { cookies: savedCookies } } : {})
   });
 
   const page = await context.newPage();
@@ -45,52 +85,36 @@ const RUN_ALL_TIMEOUT = 1200000; // 20 minutes max for full run
 
   try {
     // ══════════════════════════════════════════
-    // STEP 1: Login
+    // STEP 1: Login (or use saved cookies)
     // ══════════════════════════════════════════
-    console.log('[Scraper] Step 1: Logging in...');
-    await page.goto(BASE_URL + '/login', { waitUntil: 'networkidle', timeout: LOGIN_TIMEOUT });
+    console.log('[Scraper] Step 1: Checking authentication...');
 
-    // Wait for the login form to be fully visible
-    await page.waitForSelector('input[type="password"]', { state: 'visible', timeout: 15000 });
-    await page.waitForTimeout(1000); // Extra delay for Angular to fully init
+    if (useCookies) {
+      // Try to navigate with saved cookies
+      console.log('[Scraper] Attempting to access OneVR with saved cookies...');
+      await page.goto(BASE_URL + '/navigation', { waitUntil: 'networkidle', timeout: LOGIN_TIMEOUT });
 
-    await page.screenshot({ path: 'login-page.png' });
-    console.log('[Scraper] Login page loaded, filling credentials...');
-
-    // Fill email — use type() to trigger Angular form validation
-    let emailInput = null;
-    for (const sel of ['input.input-mobile', 'input.input.with-icon', 'input[type="text"]', 'input[type="email"]']) {
-      emailInput = await page.$(sel);
-      if (emailInput) {
-        console.log('[Scraper] Found email input with selector:', sel);
-        break;
+      // Check if we're still authenticated
+      const url = page.url();
+      if (url.includes('/login')) {
+        console.log('[Scraper] ⚠️  Cookies expired, falling back to manual login...');
+        // Cookies expired, fall back to credentials
+        await page.goto(BASE_URL + '/login', { waitUntil: 'networkidle', timeout: LOGIN_TIMEOUT });
+        await performManualLogin(page);
+        // Save new cookies
+        saveCookies(await context.cookies());
+      } else {
+        console.log('[Scraper] ✅ Authenticated with saved cookies');
       }
+    } else {
+      // Manual login with credentials
+      await page.goto(BASE_URL + '/login', { waitUntil: 'networkidle', timeout: LOGIN_TIMEOUT });
+      await performManualLogin(page);
+      // Save cookies for future use
+      saveCookies(await context.cookies());
     }
-    if (!emailInput) throw new Error('Could not find email input');
 
-    await emailInput.click({ clickCount: 3 });
-    await page.waitForTimeout(100);
-    await emailInput.type(EMAIL, { delay: 50 });
-
-    // Fill password
-    const passInput = await page.$('input[type="password"]');
-    if (!passInput) throw new Error('Could not find password input');
-    await passInput.click({ clickCount: 3 });
-    await page.waitForTimeout(100);
-    await passInput.type(PASSWORD, { delay: 50 });
-
-    // Wait for Angular to process and enable button
-    await page.waitForTimeout(1000);
-    await page.screenshot({ path: 'login-filled.png' });
-
-    // Submit login — Enter key works best with this Angular app
-    console.log('[Scraper] Pressing Enter to submit...');
-    await Promise.all([
-      page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: LOGIN_TIMEOUT }),
-      page.press('input[type="password"]', 'Enter')
-    ]);
-
-    console.log('[Scraper] Login successful! URL:', page.url());
+    console.log('[Scraper] Authentication successful! URL:', page.url());
 
     // ══════════════════════════════════════════
     // STEP 2: Navigate to Positionlista
@@ -402,3 +426,55 @@ const RUN_ALL_TIMEOUT = 1200000; // 20 minutes max for full run
     await browser.close();
   }
 })();
+
+/**
+ * Fallback: Perform manual login with email and password
+ * (Requires Microsoft Authenticator approval on phone)
+ */
+async function performManualLogin(page) {
+  console.log('[Scraper] Using email/password with Microsoft SSO...');
+
+  // Step 1: Click "Logga in med ditt företags-id"
+  console.log('[Scraper] Step 1: Clicking "Logga in med ditt företags-id"...');
+  await page.getByRole('button', { name: /företags-id/i }).click();
+  await page.waitForTimeout(1000);
+
+  // Step 2: Enter email/organizational ID
+  console.log('[Scraper] Step 2: Entering email...');
+  const emailField = await page.$('input[type="email"], input[type="text"]');
+  if (emailField) {
+    await emailField.fill(EMAIL);
+    await page.waitForTimeout(500);
+  }
+
+  // Click "Nästa" button
+  const nextBtn = await page.getByRole('button', { name: /nästa|next/i });
+  if (nextBtn) {
+    await nextBtn.click();
+    await page.waitForTimeout(1000);
+  }
+
+  // Step 3: Enter password
+  console.log('[Scraper] Step 3: Entering password...');
+  const passwordField = await page.$('input[type="password"]');
+  if (passwordField) {
+    await passwordField.fill(PASSWORD);
+    await page.waitForTimeout(500);
+  }
+
+  // Click "Logga in" button
+  const loginBtn = await page.getByRole('button', { name: /logga in|sign in/i });
+  if (loginBtn) {
+    await loginBtn.click();
+    await page.waitForTimeout(1000);
+  }
+
+  // Step 4: Wait for Microsoft Authenticator approval
+  console.log('[Scraper] Step 4: Waiting for Microsoft Authenticator approval...');
+  await page.waitForURL(
+    (url) => !url.pathname.includes('/login') && url.href.includes(BASE_URL),
+    { timeout: LOGIN_TIMEOUT + 300000 } // 5+ minutes for Authenticator approval
+  );
+
+  console.log('[Scraper] Login successful! URL:', page.url());
+}
