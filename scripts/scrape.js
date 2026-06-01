@@ -16,6 +16,7 @@ const PIN = process.env.ONEVR_PIN || '8612';
 const BASE_URL = 'http://launcher.onevr.vrse.cloud';
 const LOADER_URL = 'https://ke86.github.io/snok/modules/loader.js';
 const COOKIES_FILE = path.join(__dirname, 'cookies.json');
+const LOCALSTORAGE_FILE = path.join(__dirname, 'localStorage.json');
 
 // Timeout settings (ms)
 const LOGIN_TIMEOUT = 30000;
@@ -23,7 +24,21 @@ const NAV_TIMEOUT = 20000;
 const INIT_TIMEOUT = 30000;
 const RUN_ALL_TIMEOUT = 1200000; // 20 minutes max for full run
 
-// Load cookies if they exist
+// Load localStorage if it exists
+function loadLocalStorage() {
+  try {
+    if (fs.existsSync(LOCALSTORAGE_FILE)) {
+      const localStorage = JSON.parse(fs.readFileSync(LOCALSTORAGE_FILE, 'utf8'));
+      console.log('[Scraper] Found saved localStorage (' + Object.keys(localStorage).length + ' items)');
+      return localStorage;
+    }
+  } catch (e) {
+    console.log('[Scraper] Could not load localStorage:', e.message);
+  }
+  return null;
+}
+
+// Load cookies if they exist (legacy)
 function loadCookies() {
   try {
     if (fs.existsSync(COOKIES_FILE)) {
@@ -48,19 +63,21 @@ function saveCookies(cookies) {
 }
 
 (async () => {
+  const savedLocalStorage = loadLocalStorage();
   const savedCookies = loadCookies();
-  const useCookies = savedCookies !== null;
+  const useLocalStorage = savedLocalStorage !== null;
+  const useCookies = !useLocalStorage && savedCookies !== null;
 
   console.log('[Scraper] Starting at', new Date().toISOString());
-  console.log('[Scraper] Auth mode:', useCookies ? 'Cookie-based' : 'Credentials-based');
+  console.log('[Scraper] Auth mode:', useLocalStorage ? 'localStorage-based' : useCookies ? 'Cookie-based' : 'Credentials-based');
 
-  if (!useCookies && (!EMAIL || !PASSWORD)) {
-    console.error('ERROR: No saved cookies and ONEVR_EMAIL/ONEVR_PASSWORD not set');
-    console.error('Run setup-cookies.js first to save session cookies');
+  if (!useLocalStorage && !useCookies && (!EMAIL || !PASSWORD)) {
+    console.error('ERROR: No saved localStorage/cookies and ONEVR_EMAIL/ONEVR_PASSWORD not set');
+    console.error('Run setup-cookies.js first or upload localStorage.json');
     process.exit(1);
   }
 
-  if (!useCookies) {
+  if (!useLocalStorage && !useCookies) {
     console.log('[Scraper] Email:', EMAIL.substring(0, 3) + '***');
   }
 
@@ -75,6 +92,22 @@ function saveCookies(cookies) {
     userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     ...(useCookies ? { storageState: { cookies: savedCookies } } : {})
   });
+
+  // Load localStorage if available
+  if (useLocalStorage) {
+    const page = await context.newPage();
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 10000 });
+
+    // Set localStorage items
+    await page.evaluate((data) => {
+      Object.entries(data).forEach(([key, value]) => {
+        localStorage.setItem(key, value);
+      });
+      console.log('[Page] localStorage restored: ' + Object.keys(data).length + ' items');
+    }, savedLocalStorage);
+
+    await page.close();
+  }
 
   const page = await context.newPage();
 
