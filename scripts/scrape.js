@@ -158,31 +158,36 @@ function saveCookies(cookies) {
     // ══════════════════════════════════════════
     console.log('[Scraper] Step 2: Navigating to Positionslista...');
 
-    // Navigate directly to positions page (we know the URL)
-    await page.goto(BASE_URL + '/positions', { waitUntil: 'domcontentloaded', timeout: LOGIN_TIMEOUT });
+    // Navigate directly to positions page with proper navigation wait
+    const navigationPromise = page.waitForNavigation({ waitUntil: 'load', timeout: LOGIN_TIMEOUT });
+    await page.goto(BASE_URL + '/positions', { waitUntil: 'domcontentloaded', timeout: 10000 });
+    await navigationPromise;
 
     console.log('[Scraper] Navigated to:', page.url());
 
     // Wait for position list to load
     console.log('[Scraper] Waiting for position list content to load...');
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(3000);
 
-    // Wait for content to appear
+    // Wait for content to appear — try various selectors
     try {
       await page.waitForSelector('.item-wrapper, app-duty-positions-list-element, .duty-name, .personnel-list', {
-        timeout: 45000
+        timeout: 15000
       });
       console.log('[Scraper] ✅ Position list content loaded');
     } catch (e) {
-      console.log('[Scraper] ⚠️ Position list selector timeout, but continuing...');
-      const currentState = await page.evaluate(() => {
-        return JSON.stringify({
-          url: window.location.href,
-          title: document.title
-        });
-      });
-      console.log('[Scraper] Current page state:', currentState);
+      console.log('[Scraper] ⚠️ Position list elements not found, but continuing...');
     }
+
+    // Check final URL and state
+    const finalState = await page.evaluate(() => {
+      return JSON.stringify({
+        url: window.location.href,
+        title: document.title,
+        hasContent: !!document.querySelector('.item-wrapper, app-duty-positions-list-element')
+      });
+    });
+    console.log('[Scraper] Page state:', finalState);
 
     await page.screenshot({ path: 'position-list.png' });
 
