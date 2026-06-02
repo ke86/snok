@@ -19,10 +19,10 @@ const COOKIES_FILE = path.join(__dirname, 'cookies.json');
 const LOCALSTORAGE_FILE = path.join(__dirname, 'localStorage.js');
 
 // Timeout settings (ms)
-const LOGIN_TIMEOUT = 60000;      // 60s — increased for GitHub Actions network latency
-const NAV_TIMEOUT = 30000;        // 30s — increased for position list navigation
-const INIT_TIMEOUT = 45000;       // 45s — increased for bookmarklet initialization
-const RUN_ALL_TIMEOUT = 1200000;  // 20 minutes max for full run
+const LOGIN_TIMEOUT = 30000;
+const NAV_TIMEOUT = 20000;
+const INIT_TIMEOUT = 30000;
+const RUN_ALL_TIMEOUT = 1200000; // 20 minutes max for full run
 
 // Load localStorage if it exists
 function loadLocalStorage() {
@@ -125,7 +125,7 @@ function saveCookies(cookies) {
     if (useLocalStorage) {
       // localStorage already loaded — navigate directly to navigation
       console.log('[Scraper] ✅ Authenticated with localStorage');
-      await page.goto(BASE_URL + '/navigation', { waitUntil: 'domcontentloaded', timeout: LOGIN_TIMEOUT });
+      await page.goto(BASE_URL + '/navigation', { waitUntil: 'networkidle', timeout: LOGIN_TIMEOUT });
     } else if (useCookies) {
       // Try to navigate with saved cookies
       console.log('[Scraper] Attempting to access OneVR with saved cookies...');
@@ -154,42 +154,151 @@ function saveCookies(cookies) {
     console.log('[Scraper] Authentication successful! URL:', page.url());
 
     // ══════════════════════════════════════════
-    // STEP 2: Navigate directly to Positionslista
+    // STEP 2: Navigate to Positionlista
     // ══════════════════════════════════════════
-    console.log('[Scraper] Step 2: Navigating to Positionslista...');
+    console.log('[Scraper] Step 2: Navigating to Positionlista...');
 
-    // Navigate directly to positions page with proper navigation wait
-    const navigationPromise = page.waitForNavigation({ waitUntil: 'load', timeout: LOGIN_TIMEOUT });
-    await page.goto(BASE_URL + '/positions', { waitUntil: 'domcontentloaded', timeout: 10000 });
-    await navigationPromise;
-
-    console.log('[Scraper] Navigated to:', page.url());
-
-    // Wait for position list to load
-    console.log('[Scraper] Waiting for position list content to load...');
+    // Wait for the home page to fully render
     await page.waitForTimeout(3000);
+    await page.screenshot({ path: 'home-page.png' });
 
-    // Wait for content to appear — try various selectors
-    try {
-      await page.waitForSelector('.item-wrapper, app-duty-positions-list-element, .duty-name, .personnel-list', {
-        timeout: 15000
+    // Debug: log ALL elements in the bottom nav area
+    const navDebug = await page.evaluate(() => {
+      // Find all text content that contains "Position" anywhere on the page
+      const allElements = document.querySelectorAll('*');
+      const matches = [];
+      for (const el of allElements) {
+        const text = el.textContent.trim();
+        if (text === 'Positionlista' && el.children.length === 0) {
+          matches.push({
+            tag: el.tagName,
+            classes: el.className,
+            id: el.id,
+            parentTag: el.parentElement ? el.parentElement.tagName : null,
+            parentClasses: el.parentElement ? el.parentElement.className : null,
+            grandParentTag: el.parentElement && el.parentElement.parentElement ? el.parentElement.parentElement.tagName : null,
+            grandParentClasses: el.parentElement && el.parentElement.parentElement ? el.parentElement.parentElement.className : null
+          });
+        }
+      }
+      // Also check for storybook-label elements
+      const labels = document.querySelectorAll('storybook-label, .storybook-label, [class*="storybook"]');
+      const labelInfo = [];
+      for (const l of labels) {
+        labelInfo.push({
+          tag: l.tagName,
+          text: l.textContent.trim().substring(0, 30),
+          classes: l.className
+        });
+      }
+      return JSON.stringify({ positionlistaElements: matches, storybookLabels: labelInfo.slice(0, 10) });
+    });
+    console.log('[Scraper] Nav debug:', navDebug);
+
+    // Try multiple approaches to click Positionlista
+    let navClicked = false;
+
+    // Approach 1: storybook-label with exact text
+    if (!navClicked) {
+      navClicked = await page.evaluate(() => {
+        const labels = document.querySelectorAll('storybook-label, .storybook-label');
+        for (const el of labels) {
+          if (el.textContent.trim() === 'Positionlista') {
+            el.click();
+            return true;
+          }
+        }
+        return false;
       });
-      console.log('[Scraper] ✅ Position list content loaded');
-    } catch (e) {
-      console.log('[Scraper] ⚠️ Position list elements not found, but continuing...');
+      if (navClicked) console.log('[Scraper] Clicked via storybook-label');
     }
 
-    // Check final URL and state
-    const finalState = await page.evaluate(() => {
+    // Approach 2: Any element with exact text "Positionlista" — click it or its parent
+    if (!navClicked) {
+      navClicked = await page.evaluate(() => {
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+        while (walker.nextNode()) {
+          if (walker.currentNode.textContent.trim() === 'Positionlista') {
+            const el = walker.currentNode.parentElement;
+            // Try clicking parent chain up to find a clickable container
+            let target = el;
+            for (let i = 0; i < 5; i++) {
+              if (!target) break;
+              const style = window.getComputedStyle(target);
+              if (style.cursor === 'pointer' || target.onclick || target.hasAttribute('routerlink') ||
+                  target.tagName === 'A' || target.tagName === 'BUTTON' ||
+                  target.classList.contains('pointer') || target.getAttribute('role') === 'button') {
+                target.click();
+                return true;
+              }
+              target = target.parentElement;
+            }
+            // Fallback: just click the text element itself
+            el.click();
+            return true;
+          }
+        }
+        return false;
+      });
+      if (navClicked) console.log('[Scraper] Clicked via text walker');
+    }
+
+    // Approach 3: Try getByText (Playwright built-in)
+    if (!navClicked) {
+      try {
+        await page.getByText('Positionlista', { exact: true }).click({ timeout: 5000 });
+        navClicked = true;
+        console.log('[Scraper] Clicked via getByText');
+      } catch (e) {
+        console.log('[Scraper] getByText failed:', e.message);
+      }
+    }
+
+    if (!navClicked) {
+      await page.screenshot({ path: 'nav-click-failed.png' });
+      throw new Error('Could not click Positionlista navigation');
+    }
+
+    // Wait for position list to load — try multiple selectors
+    console.log('[Scraper] Waiting for position list to load...');
+    await page.waitForTimeout(3000);
+
+    // Debug: check what's on the page now
+    const pageCheck = await page.evaluate(() => {
       return JSON.stringify({
         url: window.location.href,
         title: document.title,
-        hasContent: !!document.querySelector('.item-wrapper, app-duty-positions-list-element')
+        hasItemWrapper: !!document.querySelector('.item-wrapper'),
+        hasDutyElement: !!document.querySelector('app-duty-positions-list-element'),
+        bodySnippet: document.body.innerText.substring(0, 200)
       });
     });
-    console.log('[Scraper] Page state:', finalState);
+    console.log('[Scraper] After nav click:', pageCheck);
 
     await page.screenshot({ path: 'position-list.png' });
+
+    // Wait for content to appear — try various selectors that might be on the position list page
+    try {
+      await page.waitForSelector('.item-wrapper, app-duty-positions-list-element, .duty-name, .personnel-list', {
+        timeout: NAV_TIMEOUT
+      });
+      console.log('[Scraper] Position list content loaded');
+    } catch (e) {
+      console.log('[Scraper] Position list selector timeout, checking page state...');
+      const currentState = await page.evaluate(() => {
+        return JSON.stringify({
+          url: window.location.href,
+          allClasses: Array.from(new Set(
+            Array.from(document.querySelectorAll('[class]'))
+              .flatMap(el => Array.from(el.classList))
+          )).filter(c => c.includes('duty') || c.includes('position') || c.includes('item') || c.includes('list') || c.includes('person')).slice(0, 20)
+        });
+      });
+      console.log('[Scraper] Page classes:', currentState);
+      // Continue anyway — maybe the content is there with different selectors
+    }
+
+    await page.waitForTimeout(2000);
 
     // ══════════════════════════════════════════
     // STEP 3: Inject bookmarklet
