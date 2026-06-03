@@ -11,7 +11,8 @@
     tdsShift: '^TDS\\d$',
     tpSuffix: 'TP$',
     flShift: '^FL\\d*$',
-    turnNumber: '^[1-6]\\d{4}(V\\d{2})?(-[A-Za-z0-9]+)?[A-Z]{0,2}$',
+    turnNumber: '^[1-6]\\d{4}(V\\d{2})?[A-Z]{0,2}$',
+    suffixedTurn: '^[1-6]\\d{4}(V\\d{2})?-[A-Za-z0-9]+$',
     reserve: '^RESERV?\\d*$',
     changedReserve: '^\\d{6}-\\d{6}$'
   };
@@ -33,6 +34,7 @@
       patterns.tpSuffix = new RegExp(p.tpSuffix || FALLBACK_PATTERNS.tpSuffix);
       patterns.flShift = new RegExp(p.flShift || FALLBACK_PATTERNS.flShift);
       patterns.turnNumber = new RegExp(p.turnNumber || FALLBACK_PATTERNS.turnNumber);
+      patterns.suffixedTurn = new RegExp(p.suffixedTurn || FALLBACK_PATTERNS.suffixedTurn);
       patterns.reserve = new RegExp(p.reserve || FALLBACK_PATTERNS.reserve, 'i');
       patterns.changedReserve = new RegExp(p.changedReserve || FALLBACK_PATTERNS.changedReserve);
     } catch(e) {
@@ -62,6 +64,7 @@
     return t.match(patterns.flShift) ||
            t === 'ADM' ||
            t.match(patterns.turnNumber) ||
+           t.match(patterns.suffixedTurn) ||
            t.match(patterns.reserve) ||
            t.match(patterns.changedReserve) ||
            t.match(patterns.tilShift) ||
