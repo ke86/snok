@@ -11,7 +11,7 @@
     tdsShift: '^TDS\\d$',
     tpSuffix: 'TP$',
     flShift: '^FL\\d*$',
-    turnNumber: '^[1-6]\\d{4}(V\\d{2})?[A-Z]{0,2}$',
+    turnNumber: '^[1-6]\\d{4}(V\\d{2})?(-[A-Za-z0-9]+)?[A-Z]{0,2}$',
     reserve: '^RESERV?\\d*$',
     changedReserve: '^\\d{6}-\\d{6}$'
   };
@@ -132,8 +132,11 @@
 
     if (turnr.toUpperCase().endsWith('TP')) info.isChanged = true;
 
+    // Strippa suffix (-R, -N, etc) innan parsing av plats/land
+    var baseTurnr = turnr.replace(/-[A-Za-z0-9]+$/, '');
+
     // Matchar 5-siffrig tur med valfritt V\d{2} vecko-suffix och valfria bokstäver (A/B/TP)
-    var match = turnr.match(/^(\d)(\d)(\d)(\d)(\d)(?:V\d{2})?([A-Z]{1,2})?$/);
+    var match = baseTurnr.match(/^(\d)(\d)(\d)(\d)(\d)(?:V\d{2})?([A-Z]{1,2})?$/);
     if (match) {
       info.loc = match[1];
       // Lazy config access — always read fresh from window.OneVR.config

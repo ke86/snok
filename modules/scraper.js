@@ -38,7 +38,7 @@
       // Fallback: look for 5-6 digit number starting with 1-6 (now with optional V19 week suffix)
       if (!turnr) {
         for (var j = 0; j < lines.length; j++) {
-          if (lines[j].match(/^[1-6]\d{4}(V\d{2})?[A-Z]{0,2}$/)) {
+          if (lines[j].match(/^[1-6]\d{4}(V\d{2})?(-[A-Za-z0-9]+)?[A-Z]{0,2}$/)) {
             turnr = lines[j];
             break;
           }
