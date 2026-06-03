@@ -5,18 +5,45 @@
 (function() {
   'use strict';
 
-  var CFG = window.OneVR.config;
-
-  // Build regex patterns from config
-  var patterns = {
-    tilShift: new RegExp(CFG.patterns.tilShift, 'i'),
-    tdsShift: new RegExp(CFG.patterns.tdsShift, 'i'),
-    tpSuffix: new RegExp(CFG.patterns.tpSuffix),
-    flShift: new RegExp(CFG.patterns.flShift),
-    turnNumber: new RegExp(CFG.patterns.turnNumber),
-    reserve: new RegExp(CFG.patterns.reserve, 'i'),
-    changedReserve: new RegExp(CFG.patterns.changedReserve)
+  // Fallback patterns (matches config.json defaults)
+  var FALLBACK_PATTERNS = {
+    tilShift: '^(PL|IL|SL|DK)\\d$',
+    tdsShift: '^TDS\\d$',
+    tpSuffix: 'TP$',
+    flShift: '^FL\\d*$',
+    turnNumber: '^[1-6]\\d{4}(V\\d{2})?[A-Z]{0,2}$',
+    suffixedTurn: '^[1-6]\\d{4}(V\\d{2})?-[A-Za-z0-9]+$',
+    reserve: '^RESERV?\\d*$',
+    changedReserve: '^\\d{6}-\\d{6}$'
   };
+
+  var FALLBACK_LOCATIONS = {
+    '1': 'Malmö', '2': 'Helsingborg', '3': 'Hässleholm',
+    '4': 'Kalmar', '5': 'Karlskrona', '6': 'Halmstad'
+  };
+
+  // Build regex patterns — from config if available, otherwise fallbacks
+  var patterns = {};
+
+  function buildPatterns() {
+    var cfg = window.OneVR.config || {};
+    var p = cfg.patterns || FALLBACK_PATTERNS;
+    try {
+      patterns.tilShift = new RegExp(p.tilShift || FALLBACK_PATTERNS.tilShift, 'i');
+      patterns.tdsShift = new RegExp(p.tdsShift || FALLBACK_PATTERNS.tdsShift, 'i');
+      patterns.tpSuffix = new RegExp(p.tpSuffix || FALLBACK_PATTERNS.tpSuffix);
+      patterns.flShift = new RegExp(p.flShift || FALLBACK_PATTERNS.flShift);
+      patterns.turnNumber = new RegExp(p.turnNumber || FALLBACK_PATTERNS.turnNumber);
+      patterns.suffixedTurn = new RegExp(p.suffixedTurn || FALLBACK_PATTERNS.suffixedTurn);
+      patterns.reserve = new RegExp(p.reserve || FALLBACK_PATTERNS.reserve, 'i');
+      patterns.changedReserve = new RegExp(p.changedReserve || FALLBACK_PATTERNS.changedReserve);
+    } catch(e) {
+      console.error('[OneVR] Pattern build error:', e);
+    }
+  }
+
+  // Build immediately (works with or without config)
+  buildPatterns();
 
   /**
    * Get TIL data (times or labels) for a shift
@@ -37,6 +64,7 @@
     return t.match(patterns.flShift) ||
            t === 'ADM' ||
            t.match(patterns.turnNumber) ||
+           t.match(patterns.suffixedTurn) ||
            t.match(patterns.reserve) ||
            t.match(patterns.changedReserve) ||
            t.match(patterns.tilShift) ||
@@ -107,10 +135,16 @@
 
     if (turnr.toUpperCase().endsWith('TP')) info.isChanged = true;
 
-    var match = turnr.match(/^(\d)(\d)(\d)(\d)(\d)([A-Z]{1,2})?$/);
+    // Strippa suffix (-R, -N, etc) innan parsing av plats/land
+    var baseTurnr = turnr.replace(/-[A-Za-z0-9]+$/, '');
+
+    // Matchar 5-siffrig tur med valfritt V\d{2} vecko-suffix och valfria bokstäver (A/B/TP)
+    var match = baseTurnr.match(/^(\d)(\d)(\d)(\d)(\d)(?:V\d{2})?([A-Z]{1,2})?$/);
     if (match) {
       info.loc = match[1];
-      info.locName = CFG.locations[match[1]] || '';
+      // Lazy config access — always read fresh from window.OneVR.config
+      var locs = (window.OneVR.config && window.OneVR.config.locations) || FALLBACK_LOCATIONS;
+      info.locName = locs[match[1]] || '';
       info.country = (parseInt(match[3]) % 2 === 0) ? 'DK' : 'SE';
       if (match[4] === '8' || match[4] === '9') info.isRes = true;
       if (match[6] === 'A' || (match[6] && match[6][0] === 'A')) info.overnight = 'ÖL1';
@@ -173,6 +207,7 @@
   // Export to global namespace
   window.OneVR.utils = {
     patterns: patterns,
+    buildPatterns: buildPatterns,
     getTil: getTil,
     chkTurn: chkTurn,
     isChangedReserve: isChangedReserve,

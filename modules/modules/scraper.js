@@ -5,7 +5,7 @@
 (function() {
   'use strict';
 
-  var CFG = window.OneVR.config;
+  var CFG = window.OneVR.config || {};
   var utils = window.OneVR.utils;
 
   // Initialize caches
@@ -35,10 +35,10 @@
         }
       }
 
-      // Fallback: look for 5-6 digit number
+      // Fallback: look for 5-6 digit number starting with 1-6 (now with optional V19 week suffix)
       if (!turnr) {
         for (var j = 0; j < lines.length; j++) {
-          if (lines[j].match(/^\d{5,6}[A-Z]?$/)) {
+          if (lines[j].match(/^[1-6]\d{4}(V\d{2})?(-[A-Za-z0-9]+)?[A-Z]{0,2}$/)) {
             turnr = lines[j];
             break;
           }
@@ -67,6 +67,9 @@
    * Build location cache by navigating through dates
    */
   function buildCache(callback) {
+    // Re-read config (may have been loaded after module init)
+    CFG = window.OneVR.config || CFG;
+
     var prevBtn = document.querySelector('.icon-prev');
     var nextBtn = document.querySelector('.icon-next');
 
