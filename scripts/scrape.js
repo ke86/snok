@@ -46,12 +46,10 @@ async function loadLocalStorageFromFirebase() {
 
     // Step 1: Get auth token from Cloudflare Worker
     const authResponse = await fetch(FIREBASE_WORKER_URL + '/auth-token', {
-      method: 'POST',
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json',
-        'Accept-Language': 'sv-SE,sv;q=0.9'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       }
     });
     if (!authResponse.ok) throw new Error('Worker auth failed: HTTP ' + authResponse.status);
