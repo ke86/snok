@@ -18,22 +18,75 @@ const LOADER_URL = 'https://ke86.github.io/snok/modules/loader.js';
 const COOKIES_FILE = path.join(__dirname, 'cookies.json');
 const LOCALSTORAGE_FILE = path.join(__dirname, 'localStorage.js');
 
-// Timeout settings (ms)
-const LOGIN_TIMEOUT = 30000;
-const NAV_TIMEOUT = 20000;
-const INIT_TIMEOUT = 30000;
-const RUN_ALL_TIMEOUT = 1200000; // 20 minutes max for full run
+// Firebase config
+const FIREBASE_PROJECT_ID = 'vemjobbaridag';
+const FIREBASE_WORKER_URL = 'https://onevr-auth.kenny-eriksson1986.workers.dev';
 
-// Load localStorage if it exists
-function loadLocalStorage() {
+// Timeout settings (ms)
+const LOGIN_TIMEOUT = 60000;      // 60s — increased for GitHub Actions network latency
+const NAV_TIMEOUT = 30000;        // 30s — increased for position list navigation
+const INIT_TIMEOUT = 45000;       // 45s — increased for bookmarklet initialization
+const RUN_ALL_TIMEOUT = 1200000;  // 20 minutes max for full run
+
+// Load localStorage from Firebase (primary) or local file (fallback)
+async function loadLocalStorage() {
+  // Try Firebase first
+  const firebaseData = await loadLocalStorageFromFirebase();
+  if (firebaseData) return firebaseData;
+
+  // Fallback to local file
+  console.log('[Scraper] Firebase failed, trying local file...');
+  return loadLocalStorageFromFile();
+}
+
+// Fetch localStorage from Firestore via Cloudflare Worker auth
+async function loadLocalStorageFromFirebase() {
+  try {
+    console.log('[Scraper] Fetching localStorage from Firebase...');
+
+    // Step 1: Get auth token from Cloudflare Worker
+    const authResponse = await fetch(FIREBASE_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!authResponse.ok) throw new Error('Worker auth failed: HTTP ' + authResponse.status);
+    const authData = await authResponse.json();
+    if (!authData.idToken) throw new Error('No idToken received from Worker');
+
+    // Step 2: Fetch localStorage document from Firestore
+    const url = 'https://firestore.googleapis.com/v1/projects/' + FIREBASE_PROJECT_ID +
+                '/databases/(default)/documents/config/localStorage';
+    const response = await fetch(url, {
+      headers: { 'Authorization': 'Bearer ' + authData.idToken }
+    });
+    if (!response.ok) throw new Error('Firestore fetch failed: HTTP ' + response.status);
+    const doc = await response.json();
+
+    // Step 3: Parse Firestore document
+    if (!doc.fields || !doc.fields.data || !doc.fields.data.stringValue) {
+      throw new Error('No data field in Firestore document');
+    }
+
+    const localStorage = JSON.parse(doc.fields.data.stringValue);
+    const updatedAt = doc.fields.updatedAt ? doc.fields.updatedAt.stringValue : 'unknown';
+    console.log('[Scraper] ✅ Loaded localStorage from Firebase (' + Object.keys(localStorage).length + ' items, updated: ' + updatedAt + ')');
+    return localStorage;
+  } catch (e) {
+    console.log('[Scraper] ⚠️ Could not load from Firebase:', e.message);
+    return null;
+  }
+}
+
+// Load localStorage from local file (legacy fallback)
+function loadLocalStorageFromFile() {
   try {
     if (fs.existsSync(LOCALSTORAGE_FILE)) {
       const localStorage = JSON.parse(fs.readFileSync(LOCALSTORAGE_FILE, 'utf8'));
-      console.log('[Scraper] Found saved localStorage (' + Object.keys(localStorage).length + ' items)');
+      console.log('[Scraper] Found saved localStorage file (' + Object.keys(localStorage).length + ' items)');
       return localStorage;
     }
   } catch (e) {
-    console.log('[Scraper] Could not load localStorage:', e.message);
+    console.log('[Scraper] Could not load localStorage file:', e.message);
   }
   return null;
 }
@@ -63,7 +116,7 @@ function saveCookies(cookies) {
 }
 
 (async () => {
-  const savedLocalStorage = loadLocalStorage();
+  const savedLocalStorage = await loadLocalStorage();
   const savedCookies = loadCookies();
   const useLocalStorage = savedLocalStorage !== null;
   const useCookies = !useLocalStorage && savedCookies !== null;
@@ -73,7 +126,7 @@ function saveCookies(cookies) {
 
   if (!useLocalStorage && !useCookies && (!EMAIL || !PASSWORD)) {
     console.error('ERROR: No saved localStorage/cookies and ONEVR_EMAIL/ONEVR_PASSWORD not set');
-    console.error('Run setup-cookies.js first or upload localStorage.json');
+    console.error('Upload localStorage via Firebase or update localStorage.js');
     process.exit(1);
   }
 
@@ -125,7 +178,7 @@ function saveCookies(cookies) {
     if (useLocalStorage) {
       // localStorage already loaded — navigate directly to navigation
       console.log('[Scraper] ✅ Authenticated with localStorage');
-      await page.goto(BASE_URL + '/navigation', { waitUntil: 'networkidle', timeout: LOGIN_TIMEOUT });
+      await page.goto(BASE_URL + '/navigation', { waitUntil: 'domcontentloaded', timeout: LOGIN_TIMEOUT });
     } else if (useCookies) {
       // Try to navigate with saved cookies
       console.log('[Scraper] Attempting to access OneVR with saved cookies...');
@@ -154,151 +207,37 @@ function saveCookies(cookies) {
     console.log('[Scraper] Authentication successful! URL:', page.url());
 
     // ══════════════════════════════════════════
-    // STEP 2: Navigate to Positionlista
+    // STEP 2: Navigate directly to Positionslista
     // ══════════════════════════════════════════
-    console.log('[Scraper] Step 2: Navigating to Positionlista...');
+    console.log('[Scraper] Step 2: Navigating to Positionslista...');
 
-    // Wait for the home page to fully render
-    await page.waitForTimeout(3000);
-    await page.screenshot({ path: 'home-page.png' });
+    // Navigate directly to positions page (we know the URL)
+    await page.goto(BASE_URL + '/positions', { waitUntil: 'domcontentloaded', timeout: LOGIN_TIMEOUT });
 
-    // Debug: log ALL elements in the bottom nav area
-    const navDebug = await page.evaluate(() => {
-      // Find all text content that contains "Position" anywhere on the page
-      const allElements = document.querySelectorAll('*');
-      const matches = [];
-      for (const el of allElements) {
-        const text = el.textContent.trim();
-        if (text === 'Positionlista' && el.children.length === 0) {
-          matches.push({
-            tag: el.tagName,
-            classes: el.className,
-            id: el.id,
-            parentTag: el.parentElement ? el.parentElement.tagName : null,
-            parentClasses: el.parentElement ? el.parentElement.className : null,
-            grandParentTag: el.parentElement && el.parentElement.parentElement ? el.parentElement.parentElement.tagName : null,
-            grandParentClasses: el.parentElement && el.parentElement.parentElement ? el.parentElement.parentElement.className : null
-          });
-        }
-      }
-      // Also check for storybook-label elements
-      const labels = document.querySelectorAll('storybook-label, .storybook-label, [class*="storybook"]');
-      const labelInfo = [];
-      for (const l of labels) {
-        labelInfo.push({
-          tag: l.tagName,
-          text: l.textContent.trim().substring(0, 30),
-          classes: l.className
-        });
-      }
-      return JSON.stringify({ positionlistaElements: matches, storybookLabels: labelInfo.slice(0, 10) });
-    });
-    console.log('[Scraper] Nav debug:', navDebug);
+    console.log('[Scraper] Navigated to:', page.url());
 
-    // Try multiple approaches to click Positionlista
-    let navClicked = false;
+    // Wait for position list to load
+    console.log('[Scraper] Waiting for position list content to load...');
+    await page.waitForTimeout(2000);
 
-    // Approach 1: storybook-label with exact text
-    if (!navClicked) {
-      navClicked = await page.evaluate(() => {
-        const labels = document.querySelectorAll('storybook-label, .storybook-label');
-        for (const el of labels) {
-          if (el.textContent.trim() === 'Positionlista') {
-            el.click();
-            return true;
-          }
-        }
-        return false;
-      });
-      if (navClicked) console.log('[Scraper] Clicked via storybook-label');
-    }
-
-    // Approach 2: Any element with exact text "Positionlista" — click it or its parent
-    if (!navClicked) {
-      navClicked = await page.evaluate(() => {
-        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-        while (walker.nextNode()) {
-          if (walker.currentNode.textContent.trim() === 'Positionlista') {
-            const el = walker.currentNode.parentElement;
-            // Try clicking parent chain up to find a clickable container
-            let target = el;
-            for (let i = 0; i < 5; i++) {
-              if (!target) break;
-              const style = window.getComputedStyle(target);
-              if (style.cursor === 'pointer' || target.onclick || target.hasAttribute('routerlink') ||
-                  target.tagName === 'A' || target.tagName === 'BUTTON' ||
-                  target.classList.contains('pointer') || target.getAttribute('role') === 'button') {
-                target.click();
-                return true;
-              }
-              target = target.parentElement;
-            }
-            // Fallback: just click the text element itself
-            el.click();
-            return true;
-          }
-        }
-        return false;
-      });
-      if (navClicked) console.log('[Scraper] Clicked via text walker');
-    }
-
-    // Approach 3: Try getByText (Playwright built-in)
-    if (!navClicked) {
-      try {
-        await page.getByText('Positionlista', { exact: true }).click({ timeout: 5000 });
-        navClicked = true;
-        console.log('[Scraper] Clicked via getByText');
-      } catch (e) {
-        console.log('[Scraper] getByText failed:', e.message);
-      }
-    }
-
-    if (!navClicked) {
-      await page.screenshot({ path: 'nav-click-failed.png' });
-      throw new Error('Could not click Positionlista navigation');
-    }
-
-    // Wait for position list to load — try multiple selectors
-    console.log('[Scraper] Waiting for position list to load...');
-    await page.waitForTimeout(3000);
-
-    // Debug: check what's on the page now
-    const pageCheck = await page.evaluate(() => {
-      return JSON.stringify({
-        url: window.location.href,
-        title: document.title,
-        hasItemWrapper: !!document.querySelector('.item-wrapper'),
-        hasDutyElement: !!document.querySelector('app-duty-positions-list-element'),
-        bodySnippet: document.body.innerText.substring(0, 200)
-      });
-    });
-    console.log('[Scraper] After nav click:', pageCheck);
-
-    await page.screenshot({ path: 'position-list.png' });
-
-    // Wait for content to appear — try various selectors that might be on the position list page
+    // Wait for content to appear
     try {
       await page.waitForSelector('.item-wrapper, app-duty-positions-list-element, .duty-name, .personnel-list', {
-        timeout: NAV_TIMEOUT
+        timeout: 45000
       });
-      console.log('[Scraper] Position list content loaded');
+      console.log('[Scraper] ✅ Position list content loaded');
     } catch (e) {
-      console.log('[Scraper] Position list selector timeout, checking page state...');
+      console.log('[Scraper] ⚠️ Position list selector timeout, but continuing...');
       const currentState = await page.evaluate(() => {
         return JSON.stringify({
           url: window.location.href,
-          allClasses: Array.from(new Set(
-            Array.from(document.querySelectorAll('[class]'))
-              .flatMap(el => Array.from(el.classList))
-          )).filter(c => c.includes('duty') || c.includes('position') || c.includes('item') || c.includes('list') || c.includes('person')).slice(0, 20)
+          title: document.title
         });
       });
-      console.log('[Scraper] Page classes:', currentState);
-      // Continue anyway — maybe the content is there with different selectors
+      console.log('[Scraper] Current page state:', currentState);
     }
 
-    await page.waitForTimeout(2000);
+    await page.screenshot({ path: 'position-list.png' });
 
     // ══════════════════════════════════════════
     // STEP 3: Inject bookmarklet
