@@ -45,7 +45,7 @@ async function loadLocalStorageFromFirebase() {
     console.log('[Scraper] Fetching localStorage from Firebase...');
 
     // Step 1: Get auth token from Cloudflare Worker
-    const authResponse = await fetch(FIREBASE_WORKER_URL, {
+    const authResponse = await fetch(FIREBASE_WORKER_URL + '/auth-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
