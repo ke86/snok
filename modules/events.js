@@ -78,9 +78,12 @@
     var workerUrl = CFG.firebase && CFG.firebase.workerUrl;
     if (!workerUrl) { cb(null, 'Firebase Worker-URL saknas i config'); return; }
 
-    fetch(workerUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+    fetch(workerUrl + '/auth-token', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
     })
     .then(function(r) {
       if (!r.ok) return r.json().then(function(e) {
