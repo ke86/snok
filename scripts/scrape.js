@@ -3,8 +3,9 @@
  * Runs "Kör allt" automatically: Dagvy 7d → Positionslista 20d → TA → Driftmeddelande → Firebase
  *
  * Authentication modes:
- * 1. Cookie-based (preferred): Uses saved session cookies from setup-cookies.js
- * 2. Fallback: Manual credentials if cookies missing/expired
+ * 1. localStorage-based (primary): Uses Firebase-stored tokens
+ * 2. Cookie-based (fallback): Uses saved session cookies from setup-cookies.js
+ * 3. Manual credentials (fallback): Email/password if cookies missing/expired
  */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -44,7 +45,7 @@ async function loadLocalStorageFromFirebase() {
   try {
     console.log('[Scraper] Fetching localStorage from Firebase...');
 
-    // Step 1: Get auth token from Cloudflare Worker
+    // Step 1: Get auth token from Cloudflare Worker (GET method)
     const authResponse = await fetch(FIREBASE_WORKER_URL + '/auth-token', {
       method: 'GET',
       headers: {
