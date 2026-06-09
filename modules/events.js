@@ -4193,10 +4193,25 @@
 
   /**
    * Upload ALL stored dagvy data to Firebase
+   * FIXED: Skip upload if no valid data (prevent overwriting with empty)
    */
   function uploadAllToFirebase(cb) {
     var names = Object.keys(window.OneVR.dagvyStore);
     if (names.length === 0) { cb(0, 0); return; }
+
+    // Verify at least one person has actual data (not all notFound)
+    var hasValidData = false;
+    names.forEach(function(name) {
+      var store = window.OneVR.dagvyStore[name];
+      var hasRealData = store.days && store.days.some(function(d) { return !d.notFound; });
+      if (hasRealData) hasValidData = true;
+    });
+
+    if (!hasValidData) {
+      console.log('[OneVR] uploadAllToFirebase: No valid dagvy data found, skipping Firebase upload');
+      cb(0, 0);
+      return;
+    }
 
     var ok = 0;
     var fail = 0;
@@ -4276,6 +4291,7 @@
     }
 
     // ─── Firebase upload step (dagvy + positions) ───
+    // FIXED: Only upload positions if count > 0 (prevent empty overwrite)
     function doFirebaseUpload(cb) {
       var fbResults = { dagvy: { ok: 0, fail: 0 }, positions: 'skip' };
 
@@ -4283,14 +4299,18 @@
       uploadAllToFirebase(function(ok, fail) {
         fbResults.dagvy = { ok: ok, fail: fail };
 
-        // 2) Upload positions data
+        // 2) Upload positions data — ONLY if we got actual data
         var posResult = results.find(function(r) { return r.type === 'positions'; });
-        if (posResult && posResult.json) {
+        if (posResult && posResult.json && posResult.count > 0) {
+          console.log('[OneVR] Uploading positions: ' + posResult.count + ' entries across ' + posResult.days + ' days');
           uploadPositions(posResult.json, function(status) {
             fbResults.positions = status;
             cb(fbResults);
           });
         } else {
+          var reason = !posResult ? 'no result' : !posResult.json ? 'no json' : posResult.count + ' entries (skip)';
+          console.log('[OneVR] Skipping positions upload — ' + reason);
+          fbResults.positions = 'skip';
           cb(fbResults);
         }
       });
