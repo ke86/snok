@@ -145,20 +145,23 @@ function loadLocalStorageFromFile() {
     console.log('[Scraper] Authentication successful! URL:', page.url());
 
     // ══════════════════════════════════════════
-    // STEP 2: Navigate directly to Positionslista
+    // STEP 2: Navigate to Positionslista via Angular router
     // ══════════════════════════════════════════
-    console.log('[Scraper] Step 2: Navigating to Positionslista...');
+    console.log('[Scraper] Step 2: Clicking Positionlista tab in bottom nav...');
 
-    // Navigate directly to positions page (we know the URL)
-    await page.goto(BASE_URL + '/positions', { waitUntil: 'domcontentloaded', timeout: LOGIN_TIMEOUT });
+    // IMPORTANT: page.goto('/positions') does NOT work — the Angular SPA
+    // redirects back to /navigation on full page reload. We must click the
+    // routerLink in the bottom nav bar to trigger Angular's internal router.
+    await page.waitForSelector('a[routerlink="/positions"]', { timeout: NAV_TIMEOUT });
+    await page.click('a[routerlink="/positions"]');
+
+    // Wait for Angular route transition
+    await page.waitForTimeout(2000);
 
     console.log('[Scraper] Navigated to:', page.url());
 
-    // Wait for position list to load
+    // Wait for position list content to appear
     console.log('[Scraper] Waiting for position list content to load...');
-    await page.waitForTimeout(2000);
-
-    // Wait for content to appear
     try {
       await page.waitForSelector('.item-wrapper, app-duty-positions-list-element, .duty-name, .personnel-list', {
         timeout: 45000
