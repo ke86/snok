@@ -2,21 +2,16 @@
  * OneVR Automated Scraper — Playwright script for GitHub Actions
  * Runs "Kör allt" automatically: Dagvy 7d → Positionslista 20d → TA → Driftmeddelande → Firebase
  *
- * Authentication modes:
- * 1. localStorage-based (primary): Uses Firebase-stored tokens
- * 2. Cookie-based (fallback): Uses saved session cookies from setup-cookies.js
- * 3. Manual credentials (fallback): Email/password if cookies missing/expired
+ * Authentication: localStorage-only (fetched from Firebase)
+ * localStorage synkas via bookmarklet → Firebase → hämtas här
  */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-const EMAIL = process.env.ONEVR_EMAIL;
-const PASSWORD = process.env.ONEVR_PASSWORD;
 const PIN = process.env.ONEVR_PIN || '8612';
 const BASE_URL = 'http://launcher.onevr.vrse.cloud';
 const LOADER_URL = 'https://ke86.github.io/snok/modules/loader.js';
-const COOKIES_FILE = path.join(__dirname, 'cookies.json');
 const LOCALSTORAGE_FILE = path.join(__dirname, 'localStorage.js');
 
 // Firebase config
@@ -95,48 +90,18 @@ function loadLocalStorageFromFile() {
   return null;
 }
 
-// Load cookies if they exist (legacy)
-function loadCookies() {
-  try {
-    if (fs.existsSync(COOKIES_FILE)) {
-      const cookies = JSON.parse(fs.readFileSync(COOKIES_FILE, 'utf8'));
-      console.log('[Scraper] Found saved cookies (' + cookies.length + ' cookies)');
-      return cookies;
-    }
-  } catch (e) {
-    console.log('[Scraper] Could not load cookies:', e.message);
-  }
-  return null;
-}
-
-// Save cookies for future runs
-function saveCookies(cookies) {
-  try {
-    fs.writeFileSync(COOKIES_FILE, JSON.stringify(cookies, null, 2));
-    console.log('[Scraper] Cookies saved for next run');
-  } catch (e) {
-    console.error('[Scraper] WARNING: Could not save cookies:', e.message);
-  }
-}
-
 (async () => {
   const savedLocalStorage = await loadLocalStorage();
-  const savedCookies = loadCookies();
-  const useLocalStorage = savedLocalStorage !== null;
-  const useCookies = !useLocalStorage && savedCookies !== null;
 
   console.log('[Scraper] Starting at', new Date().toISOString());
-  console.log('[Scraper] Auth mode:', useLocalStorage ? 'localStorage-based' : useCookies ? 'Cookie-based' : 'Credentials-based');
 
-  if (!useLocalStorage && !useCookies && (!EMAIL || !PASSWORD)) {
-    console.error('ERROR: No saved localStorage/cookies and ONEVR_EMAIL/ONEVR_PASSWORD not set');
-    console.error('Upload localStorage via Firebase or update localStorage.js');
+  if (!savedLocalStorage) {
+    console.error('ERROR: Kunde inte hämta localStorage från Firebase eller lokal fil');
+    console.error('Kör bookmarkleten i OneVR för att synka localStorage till Firebase');
     process.exit(1);
   }
 
-  if (!useLocalStorage && !useCookies) {
-    console.log('[Scraper] Email:', EMAIL.substring(0, 3) + '***');
-  }
+  console.log('[Scraper] Auth mode: localStorage-based');
 
   const browser = await chromium.launch({
     headless: true,
@@ -146,25 +111,21 @@ function saveCookies(cookies) {
   const context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
     locale: 'sv-SE',
-    userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    ...(useCookies ? { storageState: { cookies: savedCookies } } : {})
+    userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
   });
 
-  // Load localStorage if available
-  if (useLocalStorage) {
-    const page = await context.newPage();
-    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 10000 });
+  // Load localStorage into browser context
+  const setupPage = await context.newPage();
+  await setupPage.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 10000 });
 
-    // Set localStorage items
-    await page.evaluate((data) => {
-      Object.entries(data).forEach(([key, value]) => {
-        localStorage.setItem(key, value);
-      });
-      console.log('[Page] localStorage restored: ' + Object.keys(data).length + ' items');
-    }, savedLocalStorage);
+  await setupPage.evaluate((data) => {
+    Object.entries(data).forEach(([key, value]) => {
+      localStorage.setItem(key, value);
+    });
+    console.log('[Page] localStorage restored: ' + Object.keys(data).length + ' items');
+  }, savedLocalStorage);
 
-    await page.close();
-  }
+  await setupPage.close();
 
   const page = await context.newPage();
 
@@ -175,38 +136,11 @@ function saveCookies(cookies) {
 
   try {
     // ══════════════════════════════════════════
-    // STEP 1: Login (or use saved auth)
+    // STEP 1: Login via localStorage
     // ══════════════════════════════════════════
-    console.log('[Scraper] Step 1: Checking authentication...');
-
-    if (useLocalStorage) {
-      // localStorage already loaded — navigate directly to navigation
-      console.log('[Scraper] ✅ Authenticated with localStorage');
-      await page.goto(BASE_URL + '/navigation', { waitUntil: 'domcontentloaded', timeout: LOGIN_TIMEOUT });
-    } else if (useCookies) {
-      // Try to navigate with saved cookies
-      console.log('[Scraper] Attempting to access OneVR with saved cookies...');
-      await page.goto(BASE_URL + '/navigation', { waitUntil: 'networkidle', timeout: LOGIN_TIMEOUT });
-
-      // Check if we're still authenticated
-      const url = page.url();
-      if (url.includes('/login')) {
-        console.log('[Scraper] ⚠️  Cookies expired, falling back to manual login...');
-        // Cookies expired, fall back to credentials
-        await page.goto(BASE_URL + '/login', { waitUntil: 'networkidle', timeout: LOGIN_TIMEOUT });
-        await performManualLogin(page);
-        // Save new cookies
-        saveCookies(await context.cookies());
-      } else {
-        console.log('[Scraper] ✅ Authenticated with saved cookies');
-      }
-    } else {
-      // Manual login with credentials
-      await page.goto(BASE_URL + '/login', { waitUntil: 'networkidle', timeout: LOGIN_TIMEOUT });
-      await performManualLogin(page);
-      // Save cookies for future use
-      saveCookies(await context.cookies());
-    }
+    console.log('[Scraper] Step 1: Authenticating with localStorage...');
+    console.log('[Scraper] ✅ localStorage loaded, navigating to app');
+    await page.goto(BASE_URL + '/navigation', { waitUntil: 'domcontentloaded', timeout: LOGIN_TIMEOUT });
 
     console.log('[Scraper] Authentication successful! URL:', page.url());
 
@@ -407,54 +341,5 @@ function saveCookies(cookies) {
   }
 })();
 
-/**
- * Fallback: Perform manual login with email and password
- * (Requires Microsoft Authenticator approval on phone)
- */
-async function performManualLogin(page) {
-  console.log('[Scraper] Using email/password with Microsoft SSO...');
-
-  // Step 1: Click "Logga in med ditt företags-id"
-  console.log('[Scraper] Step 1: Clicking "Logga in med ditt företags-id"...');
-  await page.getByRole('button', { name: /företags-id/i }).click();
-  await page.waitForTimeout(1000);
-
-  // Step 2: Enter email/organizational ID
-  console.log('[Scraper] Step 2: Entering email...');
-  const emailField = await page.$('input[type="email"], input[type="text"]');
-  if (emailField) {
-    await emailField.fill(EMAIL);
-    await page.waitForTimeout(500);
-  }
-
-  // Click "Nästa" button
-  const nextBtn = await page.getByRole('button', { name: /nästa|next/i });
-  if (nextBtn) {
-    await nextBtn.click();
-    await page.waitForTimeout(1000);
-  }
-
-  // Step 3: Enter password
-  console.log('[Scraper] Step 3: Entering password...');
-  const passwordField = await page.$('input[type="password"]');
-  if (passwordField) {
-    await passwordField.fill(PASSWORD);
-    await page.waitForTimeout(500);
-  }
-
-  // Click "Logga in" button
-  const loginBtn = await page.getByRole('button', { name: /logga in|sign in/i });
-  if (loginBtn) {
-    await loginBtn.click();
-    await page.waitForTimeout(1000);
-  }
-
-  // Step 4: Wait for Microsoft Authenticator approval
-  console.log('[Scraper] Step 4: Waiting for Microsoft Authenticator approval...');
-  await page.waitForURL(
-    (url) => !url.pathname.includes('/login') && url.href.includes(BASE_URL),
-    { timeout: LOGIN_TIMEOUT + 300000 } // 5+ minutes for Authenticator approval
-  );
-
-  console.log('[Scraper] Login successful! URL:', page.url());
-}
+// No fallback login — localStorage is the only authentication method
+// Use the bookmarklet in OneVR to sync localStorage to Firebase
