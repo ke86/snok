@@ -34,6 +34,10 @@
   // Structure: { [personName]: { days: [ { date, segments, turnr, start, end, notFound, crews: { [trainNr]: crewData } } ] } }
   window.OneVR.dagvyStore = window.OneVR.dagvyStore || {};
 
+  // Separate store for reserve dagvy — keyed by startDate
+  // Structure: { [startDate]: { startDate, scrapedAt, totalPersons, days: [ { date, label, persons: [...] } ] } }
+  window.OneVR.reserveDagvyStore = window.OneVR.reserveDagvyStore || {};
+
   // ─── Firestore helpers ───────────────────────
 
   /**
@@ -4191,9 +4195,162 @@
     processDay(0);
   }
 
+  /**
+   * Upload reserve dagvy data to Firestore under reservdagvy/{startDate}
+   * Structure: { startDate, scrapedAt, totalPersons, days: [ { date, persons: [...] } ] }
+   */
+  function uploadReserveDagvyToFirebase(startDate, storeData, cb) {
+    var projectId = CFG.firebase && CFG.firebase.projectId;
+    if (!projectId) { cb(false, 'Firebase ej konfigurerat'); return; }
+
+    firebaseAuth(function(token, authErr) {
+      if (!token) { cb(false, authErr || 'Inloggning misslyckades'); return; }
+
+      var docId = encodeURIComponent(startDate);
+      var url = 'https://firestore.googleapis.com/v1/projects/' + projectId +
+                '/databases/(default)/documents/reservdagvy/' + docId;
+
+      var docData = {
+        fields: {
+          startDate: { stringValue: startDate },
+          scrapedAt: { stringValue: new Date().toISOString() },
+          totalPersons: { integerValue: String(storeData.totalPersons || 0) },
+          days: toFirestoreValue(storeData.days)
+        }
+      };
+
+      fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(docData)
+      })
+      .then(function(r) {
+        if (!r.ok) return r.json().then(function(e) { throw new Error(e.error ? e.error.message : 'HTTP ' + r.status); });
+        return r.json();
+      })
+      .then(function() {
+        console.log('[OneVR] Reserve dagvy upload OK for ' + startDate);
+        cb(true);
+      })
+      .catch(function(err) {
+        console.error('[OneVR] Reserve dagvy upload failed:', err);
+        cb(false, err.message || 'Okänt fel');
+      });
+    });
+  }
+
+  /**
+   * Show result modal after reserve dagvy scrape with Firebase status and JSON download
+   */
+  function showReserveDagvyResult(startDate, storeData, fbOk, fbErr) {
+    var totalPersons = storeData.totalPersons || 0;
+    var days = storeData.days || [];
+
+    var statusHTML = fbOk
+      ? '<div class="onevr-dagvy-info-row" style="color:#30d158;">✅ Firebase: Uppladdad till reservdagvy/' + startDate + '</div>'
+      : '<div class="onevr-dagvy-info-row" style="color:#ff3b30;">❌ Firebase: ' + (fbErr || 'Misslyckades') + '</div>';
+
+    var summaryHTML = '<div class="onevr-dagvy-info">' +
+      '<div class="onevr-dagvy-info-row">' +
+        '<span style="font-weight:600;">🟠 Reservdagvy – ' + startDate + '</span>' +
+      '</div>' +
+      '<div class="onevr-dagvy-info-row">' +
+        '<span>' + totalPersons + ' reserver · ' + days.length + ' dagar</span>' +
+      '</div>' +
+      statusHTML +
+    '</div>';
+
+    var daysHTML = '';
+    days.forEach(function(day) {
+      daysHTML += '<div style="padding:8px 16px;border-bottom:1px solid #e5e5ea;">' +
+        '<div style="font-weight:600;font-size:13px;margin-bottom:4px;">📅 ' + day.date + ' (' + day.persons.length + ' reserver)</div>';
+      day.persons.forEach(function(p) {
+        var timeStr = p.start && p.start !== '-' ? p.start + ' – ' + p.end : '—';
+        var segsCount = p.segments ? p.segments.length : 0;
+        daysHTML += '<div style="padding:4px 0;font-size:12px;display:flex;justify-content:space-between;">' +
+          '<span>' + p.badge + ' ' + p.name + '</span>' +
+          '<span style="color:#8e8e93;">' + timeStr + ' · ' + segsCount + ' segs</span>' +
+        '</div>';
+      });
+      daysHTML += '</div>';
+    });
+
+    var modal = document.createElement('div');
+    modal.className = 'onevr-dagvy-modal';
+    modal.innerHTML =
+      '<div class="onevr-dagvy-content">' +
+        '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#ff9500,#ff7a00);">' +
+          '<span>🟠 Reservdagvy klar</span>' +
+          '<button class="onevr-dagvy-close">✕</button>' +
+        '</div>' +
+        summaryHTML +
+        '<div style="max-height:300px;overflow-y:auto;">' + daysHTML + '</div>' +
+        '<div class="onevr-dagvy-footer">' +
+          '<div class="onevr-dagvy-footer-row">' +
+            (fbOk ? '' : '<button class="onevr-firebase-btn" id="onevr-reserv-fb-retry">☁️ Försök igen</button>') +
+            '<button class="onevr-download-btn" id="onevr-reserv-json-download">📥 JSON</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+    modal.querySelector('.onevr-dagvy-close').onclick = function() { modal.remove(); };
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+
+    var retryBtn = modal.querySelector('#onevr-reserv-fb-retry');
+    if (retryBtn) {
+      retryBtn.onclick = function() {
+        retryBtn.disabled = true;
+        retryBtn.textContent = '☁️ Skickar...';
+        uploadReserveDagvyToFirebase(startDate, storeData, function(ok, err) {
+          if (ok) {
+            retryBtn.textContent = '✅ Skickat!';
+            retryBtn.classList.add('onevr-firebase-done');
+          } else {
+            retryBtn.textContent = '❌ ' + (err || 'Fel');
+            retryBtn.disabled = false;
+            setTimeout(function() { retryBtn.textContent = '☁️ Försök igen'; }, 3000);
+          }
+        });
+      };
+    }
+
+    var dlBtn = modal.querySelector('#onevr-reserv-json-download');
+    if (dlBtn) {
+      dlBtn.onclick = function() {
+        var exportData = {
+          startDate: startDate,
+          scrapedAt: new Date().toISOString(),
+          totalPersons: storeData.totalPersons,
+          days: storeData.days
+        };
+        var json = JSON.stringify(exportData, null, 2);
+        var blob = new Blob([json], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'reservdagvy-' + startDate + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        dlBtn.textContent = '✅ Nedladdad!';
+        setTimeout(function() { dlBtn.textContent = '📥 JSON'; }, 2000);
+      };
+    }
+  }
+
   function scrapeReserveDagvy(overlay) {
     var startDate = currentData.isoDate || window.OneVR.state.navDate;
-    var reserveNames = [];
+    // Map date -> { persons scraped on that date }
+    var dayPersonsMap = {};
+    dayPersonsMap[startDate] = [];
+    var tomorrowDate = utils.addDays(startDate, 1);
+    dayPersonsMap[tomorrowDate] = [];
+
     var seenNames = {};
 
     var cdkC = document.querySelector('.cdk-overlay-container');
@@ -4204,90 +4361,251 @@
     loadingModal.innerHTML =
       '<div class="onevr-dagvy-content">' +
         '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#ff9500,#ff7a00);">' +
-          '<span>🟠 Skrapar reservpersonal...</span>' +
+          '<span>🟠 Reservdagvy...</span>' +
           '<button class="onevr-dagvy-close">✕</button>' +
         '</div>' +
         '<div class="onevr-dagvy-loading">' +
           '<div class="onevr-spinner"></div>' +
           '<div class="onevr-multi-progress" id="onevr-reserv-progress" style="color:inherit;opacity:1;">Läser dag 1...</div>' +
           '<div class="onevr-batch-detail" id="onevr-reserv-detail" style="color:inherit;opacity:1;"></div>' +
+          '<div class="onevr-progress-bar-wrap"><div class="onevr-progress-bar" id="onevr-reserv-bar" style="width:0%;background:#ff9500;"></div></div>' +
+          '<div class="onevr-progress-pct" id="onevr-reserv-pct">0%</div>' +
+          '<div class="onevr-elapsed" id="onevr-reserv-elapsed" style="opacity:1;">⏱ 0:00</div>' +
         '</div>' +
       '</div>';
     document.body.appendChild(loadingModal);
 
     var cancelled = false;
-    loadingModal.querySelector('.onevr-dagvy-close').onclick = function() { cancelled = true; cleanup(); };
-    loadingModal.onclick = function(e) { if (e.target === loadingModal) { cancelled = true; cleanup(); } };
+    var elapsedSec = 0;
+    var elapsedEl = document.getElementById('onevr-reserv-elapsed');
+    var elapsedTimer = setInterval(function() {
+      elapsedSec++;
+      var m = Math.floor(elapsedSec / 60);
+      var s = elapsedSec % 60;
+      if (elapsedEl) elapsedEl.textContent = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
+    }, 1000);
 
     function cleanup() {
+      clearInterval(elapsedTimer);
       loadingModal.remove();
       if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
       if (overlay) overlay.style.display = '';
     }
 
+    loadingModal.querySelector('.onevr-dagvy-close').onclick = function() { cancelled = true; cleanup(); };
+    loadingModal.onclick = function(e) { if (e.target === loadingModal) { cancelled = true; cleanup(); } };
+
     if (overlay) overlay.style.display = 'none';
+
     var progressEl = document.getElementById('onevr-reserv-progress');
     var detailEl = document.getElementById('onevr-reserv-detail');
+    var barEl = document.getElementById('onevr-reserv-bar');
+    var pctEl = document.getElementById('onevr-reserv-pct');
 
-    function collectFromPage(dayLabel) {
+    function setProgress(main, detail, pct) {
+      if (progressEl) progressEl.textContent = main;
+      if (detailEl) detailEl.textContent = detail || '';
+      if (typeof pct === 'number') {
+        var p = Math.round(pct);
+        if (barEl) barEl.style.width = p + '%';
+        if (pctEl) pctEl.textContent = p + '%';
+      }
+    }
+
+    function closeAllPopups(cb) {
+      var bds = document.querySelectorAll('.cdk-overlay-backdrop');
+      bds.forEach(function(b) { b.click(); });
+      var icons = document.querySelectorAll('.close-icon, .icon-close');
+      icons.forEach(function(c) { c.click(); });
+      setTimeout(cb, 300);
+    }
+
+    // Collect reserve persons from current page for a given date
+    function collectReservesFromPage(targetDate) {
       var scraped = scraper.scrapePersonnel();
       var people = scraped.people;
-      var count = 0;
+      var elements = scraped.elements;
+      var collected = [];
       people.forEach(function(p) {
-        if ((p.isRes || p.role === 'Reserv') && !seenNames[p.name]) {
-          seenNames[p.name] = true;
-          reserveNames.push(p.name);
-          count++;
+        if ((p.isRes || p.role === 'Reserv') &&
+            (p.badge === 'LKF' || p.badge === 'TV' || p.badge === 'TIL' ||
+             p.role === 'Lokförare' || p.role === 'Tågvärd' || p.role === 'Reserv')) {
+          if (!seenNames[p.name]) seenNames[p.name] = true;
+          collected.push({ person: p, el: elements[p.elIdx], date: targetDate });
         }
       });
-      if (detailEl) detailEl.textContent = (detailEl.textContent ? detailEl.textContent + ' · ' : '') + dayLabel + ': +' + count;
-      return count;
+      return { scraped: scraped, collected: collected };
     }
 
-    function startDagvyScrape() {
-      if (cancelled) return;
-      if (reserveNames.length === 0) {
-        if (progressEl) progressEl.textContent = 'Ingen reservpersonal hittades.';
-        setTimeout(function() { cleanup(); showExportMenu(); }, 2000);
+    // Scrape dagvy for one person on current page
+    function scrapeOneReservePerson(entry, cb) {
+      if (cancelled) { cb(null); return; }
+      var person = entry.person;
+      var el = entry.el;
+      var firstName = person.name.split(' ')[0];
+
+      if (!el) {
+        cb({ name: person.name, badge: person.badge, turnr: person.turnr, start: person.start, end: person.end, segments: [], notFound: true });
         return;
       }
-      if (progressEl) progressEl.textContent = 'Hittade ' + reserveNames.length + ' reservpersoner. Startar dagvy...';
-      setTimeout(function() {
-        loadingModal.remove();
-        scrapeAllTracked(overlay, 2, function(result) {
-          console.log('[OneVR] Reserv dagvy done:', result);
-          showExportMenu();
-        }, reserveNames);
-      }, 800);
+
+      var tE = findTurnLabel(el) || el;
+      el.scrollIntoView({ behavior: 'instant', block: 'center' });
+
+      waitClose(function() {
+        if (cancelled) { cb(null); return; }
+        setTimeout(function() {
+          tE.click();
+          waitModal(firstName, function(pane) {
+            var segments = pane ? scraper.scrapeDagvy(pane) : [];
+            closeAllPopups(function() {
+              var result = {
+                name: person.name,
+                badge: person.badge,
+                badgeColor: person.badgeColor,
+                role: person.role,
+                turnr: person.turnr,
+                start: person.start !== '-' ? person.start : (segments.length > 0 ? segments[0].timeStart : '-'),
+                end: person.end !== '-' ? person.end : (segments.length > 0 ? segments[segments.length - 1].timeEnd : '-'),
+                country: person.country,
+                locName: person.locName,
+                segments: segments,
+                notFound: false
+              };
+              cb(result);
+            });
+          }, 6000);
+        }, 200);
+      });
     }
 
-    // Day 1 (today) — scrape current page
-    collectFromPage('Idag');
+    // Scrape all reserves on current page sequentially
+    function scrapePageReserves(entries, targetDate, totalSteps, stepBase, cb) {
+      var results = [];
+      var idx = 0;
 
-    // Navigate to tomorrow
+      function next() {
+        if (cancelled || idx >= entries.length) { cb(results); return; }
+        var entry = entries[idx];
+        var pct = stepBase + ((idx / Math.max(entries.length, 1)) * (100 / totalSteps));
+        setProgress(
+          (targetDate === startDate ? 'Idag' : 'Imorgon') + ' – ' + entry.person.name.split(' ')[0] + ' (' + (idx + 1) + '/' + entries.length + ')',
+          entry.person.badge + ' ' + entry.person.turnr,
+          pct
+        );
+        scrapeOneReservePerson(entry, function(result) {
+          if (result) results.push(result);
+          idx++;
+          next();
+        });
+      }
+
+      next();
+    }
+
+    // ─── Phase 1: Collect today's reserves ───
+    setProgress('Idag – läser reserver...', '', 0);
+    var todayData = collectReservesFromPage(startDate);
+    var todayEntries = todayData.collected;
+
+    // Snapshot today's people/elements for re-use after navigation
+    var todayPeople = todayData.scraped.people;
+    var todayElements = todayData.scraped.elements;
+
+    // Re-build entries with fresh elements (already done above)
+    setProgress('Idag: ' + todayEntries.length + ' reserver hittade. Navigerar till imorgon...', '', 5);
+
     var nextBtn = document.querySelector('.icon-next');
-    if (nextBtn) {
-      if (progressEl) progressEl.textContent = 'Navigerar till imorgon...';
-      nextBtn.click();
-      setTimeout(function() {
+    if (!nextBtn) {
+      // No navigation possible — just scrape today
+      scrapePageReserves(todayEntries, startDate, 1, 0, function(todayResults) {
         if (cancelled) return;
-        collectFromPage('Imorgon');
-        // Navigate back to start date
+        finalize(todayResults, []);
+      });
+      return;
+    }
+
+    nextBtn.click();
+    setTimeout(function() {
+      if (cancelled) return;
+
+      // ─── Phase 2: Collect tomorrow's reserves ───
+      setProgress('Imorgon – läser reserver...', '', 10);
+      var tomorrowData = collectReservesFromPage(tomorrowDate);
+      var tomorrowEntries = tomorrowData.collected;
+      setProgress('Imorgon: ' + tomorrowEntries.length + ' reserver hittade. Skrapar dagvy...', '', 15);
+
+      // ─── Phase 3: Scrape tomorrow dagvy ───
+      scrapePageReserves(tomorrowEntries, tomorrowDate, 2, 50, function(tomorrowResults) {
+        if (cancelled) return;
+
+        // Navigate back to today
+        setProgress('Navigerar tillbaka...', '', 80);
         var prevBtn = document.querySelector('.icon-prev');
-        if (prevBtn) {
-          prevBtn.click();
-          setTimeout(function() {
-            if (cancelled) return;
-            window.OneVR.state.navDate = startDate;
-            startDagvyScrape();
-          }, CFG.ui.dateNavDelay);
-        } else {
+        if (prevBtn) prevBtn.click();
+
+        setTimeout(function() {
+          if (cancelled) return;
           window.OneVR.state.navDate = startDate;
-          startDagvyScrape();
-        }
-      }, CFG.ui.dateNavDelay);
-    } else {
-      startDagvyScrape();
+
+          // ─── Phase 4: Scrape today dagvy (now back on today's page) ───
+          setProgress('Idag – skrapar dagvy...', '', 85);
+
+          // Re-scrape current page to get fresh elements
+          var freshToday = scraper.scrapePersonnel();
+          var freshTodayEntries = [];
+          todayEntries.forEach(function(entry) {
+            for (var i = 0; i < freshToday.people.length; i++) {
+              if (freshToday.people[i].name === entry.person.name) {
+                freshTodayEntries.push({ person: freshToday.people[i], el: freshToday.elements[freshToday.people[i].elIdx], date: startDate });
+                break;
+              }
+            }
+          });
+
+          scrapePageReserves(freshTodayEntries, startDate, 2, 0, function(todayResults) {
+            if (cancelled) return;
+            finalize(todayResults, tomorrowResults);
+          });
+        }, CFG.ui.dateNavDelay);
+      });
+    }, CFG.ui.dateNavDelay);
+
+    function finalize(todayResults, tomorrowResults) {
+      if (cancelled) return;
+      setProgress('Bygger reservdagvy...', '', 95);
+
+      var allPersonNames = {};
+      todayResults.forEach(function(p) { allPersonNames[p.name] = true; });
+      tomorrowResults.forEach(function(p) { allPersonNames[p.name] = true; });
+      var totalPersons = Object.keys(allPersonNames).length;
+
+      var storeData = {
+        startDate: startDate,
+        scrapedAt: new Date().toISOString(),
+        totalPersons: totalPersons,
+        days: [
+          { date: startDate, label: 'Idag', persons: todayResults },
+          { date: tomorrowDate, label: 'Imorgon', persons: tomorrowResults }
+        ]
+      };
+
+      // Save to dedicated reserve store
+      window.OneVR.reserveDagvyStore = window.OneVR.reserveDagvyStore || {};
+      window.OneVR.reserveDagvyStore[startDate] = storeData;
+
+      console.log('[OneVR] Reserve dagvy collected: ' + todayResults.length + ' idag, ' + tomorrowResults.length + ' imorgon, ' + totalPersons + ' unika');
+
+      setProgress('Laddar upp till Firebase...', '', 98);
+
+      // Auto-upload to Firebase
+      uploadReserveDagvyToFirebase(startDate, storeData, function(ok, err) {
+        setProgress(ok ? '✅ Klart!' : '⚠️ Firebase misslyckades', '', 100);
+        setTimeout(function() {
+          cleanup();
+          showReserveDagvyResult(startDate, storeData, ok, err);
+        }, 600);
+      });
     }
   }
 
