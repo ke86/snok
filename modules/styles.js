@@ -955,6 +955,7 @@
         box-shadow: 0 2px 12px rgba(88,86,214,.4);
       }
       .onevr-batch-pos { background: linear-gradient(135deg, #007AFF, #5AC8FA); }
+      .onevr-batch-reserv { background: linear-gradient(135deg, #ff9500, #ff7a00); }
       .onevr-batch-turns { background: linear-gradient(135deg, #00a550, #30d158); }
       .onevr-batch-vak { background: linear-gradient(135deg, #d63027, #ff6b6b); }
       .onevr-batch-doc-ta { background: linear-gradient(135deg, #ff453a, #ff6b6b); }
@@ -2127,6 +2128,11 @@
     .onevr-batch-pos {
       background: linear-gradient(135deg, #0055CC, #007AFF);
       box-shadow: 0 3px 12px rgba(0,122,255,.3);
+    }
+
+    .onevr-batch-reserv {
+      background: linear-gradient(135deg, #ff9f0a, #ff7a00);
+      box-shadow: 0 3px 12px rgba(255,149,0,.3);
     }
 
     .onevr-batch-turns {

@@ -3871,10 +3871,10 @@
    * Batch scrape all tracked people across 3 days
    * Smart: navigates 3 days ONCE and scrapes everyone per day
    */
-  function scrapeAllTracked(overlay, numDays, onComplete) {
+  function scrapeAllTracked(overlay, numDays, onComplete, customNames) {
     var startDate = currentData.isoDate || window.OneVR.state.navDate;
     var totalDays = numDays || window.OneVR.exportDays || 5;
-    var trackedNames = scraper.DAGVY_NAMES.slice();
+    var trackedNames = (customNames && customNames.length > 0) ? customNames.slice() : scraper.DAGVY_NAMES.slice();
 
     // Per-person store: { name: { days: [] } }
     var allStore = {};
@@ -4189,6 +4189,106 @@
     }
 
     processDay(0);
+  }
+
+  function scrapeReserveDagvy(overlay) {
+    var startDate = currentData.isoDate || window.OneVR.state.navDate;
+    var reserveNames = [];
+    var seenNames = {};
+
+    var cdkC = document.querySelector('.cdk-overlay-container');
+    if (cdkC) { cdkC.style.opacity = '0'; cdkC.style.pointerEvents = 'none'; }
+
+    var loadingModal = document.createElement('div');
+    loadingModal.className = 'onevr-dagvy-modal';
+    loadingModal.innerHTML =
+      '<div class="onevr-dagvy-content">' +
+        '<div class="onevr-dagvy-header" style="background:linear-gradient(135deg,#ff9500,#ff7a00);">' +
+          '<span>🟠 Skrapar reservpersonal...</span>' +
+          '<button class="onevr-dagvy-close">✕</button>' +
+        '</div>' +
+        '<div class="onevr-dagvy-loading">' +
+          '<div class="onevr-spinner"></div>' +
+          '<div class="onevr-multi-progress" id="onevr-reserv-progress" style="color:inherit;opacity:1;">Läser dag 1...</div>' +
+          '<div class="onevr-batch-detail" id="onevr-reserv-detail" style="color:inherit;opacity:1;"></div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(loadingModal);
+
+    var cancelled = false;
+    loadingModal.querySelector('.onevr-dagvy-close').onclick = function() { cancelled = true; cleanup(); };
+    loadingModal.onclick = function(e) { if (e.target === loadingModal) { cancelled = true; cleanup(); } };
+
+    function cleanup() {
+      loadingModal.remove();
+      if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
+      if (overlay) overlay.style.display = '';
+    }
+
+    if (overlay) overlay.style.display = 'none';
+    var progressEl = document.getElementById('onevr-reserv-progress');
+    var detailEl = document.getElementById('onevr-reserv-detail');
+
+    function collectFromPage(dayLabel) {
+      var scraped = scraper.scrapePersonnel();
+      var people = scraped.people;
+      var count = 0;
+      people.forEach(function(p) {
+        if ((p.isRes || p.role === 'Reserv') && !seenNames[p.name]) {
+          seenNames[p.name] = true;
+          reserveNames.push(p.name);
+          count++;
+        }
+      });
+      if (detailEl) detailEl.textContent = (detailEl.textContent ? detailEl.textContent + ' · ' : '') + dayLabel + ': +' + count;
+      return count;
+    }
+
+    function startDagvyScrape() {
+      if (cancelled) return;
+      if (reserveNames.length === 0) {
+        if (progressEl) progressEl.textContent = 'Ingen reservpersonal hittades.';
+        setTimeout(function() { cleanup(); showExportMenu(); }, 2000);
+        return;
+      }
+      if (progressEl) progressEl.textContent = 'Hittade ' + reserveNames.length + ' reservpersoner. Startar dagvy...';
+      setTimeout(function() {
+        loadingModal.remove();
+        scrapeAllTracked(overlay, 2, function(result) {
+          console.log('[OneVR] Reserv dagvy done:', result);
+          showExportMenu();
+        }, reserveNames);
+      }, 800);
+    }
+
+    // Day 1 (today) — scrape current page
+    collectFromPage('Idag');
+
+    // Navigate to tomorrow
+    var nextBtn = document.querySelector('.icon-next');
+    if (nextBtn) {
+      if (progressEl) progressEl.textContent = 'Navigerar till imorgon...';
+      nextBtn.click();
+      setTimeout(function() {
+        if (cancelled) return;
+        collectFromPage('Imorgon');
+        // Navigate back to start date
+        var prevBtn = document.querySelector('.icon-prev');
+        if (prevBtn) {
+          prevBtn.click();
+          setTimeout(function() {
+            if (cancelled) return;
+            window.OneVR.state.navDate = startDate;
+            startDagvyScrape();
+          }, CFG.ui.dateNavDelay);
+        } else {
+          window.OneVR.state.navDate = startDate;
+          startDagvyScrape();
+        }
+      }, CFG.ui.dateNavDelay);
+    } else {
+      startDagvyScrape();
+    }
   }
 
   /**
@@ -4540,6 +4640,10 @@
             '<span class="onevr-mini-icon">👥</span>' +
             '<span class="onevr-mini-label">Positionslista</span>' +
           '</button>' +
+          '<button class="onevr-mini-btn onevr-batch-reserv" id="onevr-reserv-btn" style="flex:0 0 auto;">' +
+            '<span class="onevr-mini-icon">🟠</span>' +
+            '<span class="onevr-mini-label">Reserv</span>' +
+          '</button>' +
           '<div class="onevr-pos-days" style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">' +
             [1,3,5,7,10,14,20].map(function(d) {
               return '<button class="onevr-day-sel-btn onevr-pos-day-btn' + (d === 7 ? ' onevr-day-sel-active' : '') + '" data-posdays="' + d + '" style="min-width:28px;padding:4px 6px;font-size:12px;">' + d + '</button>';
@@ -4702,6 +4806,13 @@
       modal.remove();
       var overlay = document.querySelector('.onevr-overlay');
       scrapePositionList(overlay, selectedPosDays);
+    };
+
+    var reservBtn = modal.querySelector('#onevr-reserv-btn');
+    reservBtn.onclick = function() {
+      modal.remove();
+      var overlay = document.querySelector('.onevr-overlay');
+      scrapeReserveDagvy(overlay);
     };
 
     // Weekly turns button (fixed 7 days)
