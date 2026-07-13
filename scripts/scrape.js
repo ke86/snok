@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PIN = process.env.ONEVR_PIN || '8612';
+const JOB = process.env.ONEVR_JOB || 'all';  // 'all' | 'reserv'
 const BASE_URL = 'http://launcher.onevr.vrse.cloud';
 const LOADER_URL = 'https://ke86.github.io/snok/modules/loader.js';
 const LOCALSTORAGE_FILE = path.join(__dirname, 'localStorage.js');
@@ -229,15 +230,21 @@ function loadLocalStorageFromFile() {
     await page.screenshot({ path: 'pin-accepted.png' });
 
     // ══════════════════════════════════════════
-    // STEP 6: Click "Kör allt"
+    // STEP 6: Click action button based on JOB
     // ══════════════════════════════════════════
-    console.log('[Scraper] Step 6: Starting "Kör allt"...');
-
-    await page.waitForSelector('#onevr-run-all', { timeout: 5000 });
-    await page.click('#onevr-run-all');
-
-    console.log('[Scraper] "Kör allt" clicked, waiting for completion...');
-    await page.screenshot({ path: 'run-all-started.png' });
+    if (JOB === 'reserv') {
+      console.log('[Scraper] Step 6: Starting "Reservdagvy"...');
+      await page.waitForSelector('#onevr-reserv-btn', { timeout: 5000 });
+      await page.click('#onevr-reserv-btn');
+      console.log('[Scraper] "Reserv"-knappen klickad, väntar på resultat...');
+      await page.screenshot({ path: 'run-all-started.png' });
+    } else {
+      console.log('[Scraper] Step 6: Starting "Kör allt"...');
+      await page.waitForSelector('#onevr-run-all', { timeout: 5000 });
+      await page.click('#onevr-run-all');
+      console.log('[Scraper] "Kör allt" clicked, waiting for completion...');
+      await page.screenshot({ path: 'run-all-started.png' });
+    }
 
     // ══════════════════════════════════════════
     // STEP 7: Wait for completion
@@ -251,22 +258,30 @@ function loadLocalStorageFromFile() {
 
     while (Date.now() - startTime < RUN_ALL_TIMEOUT) {
       try {
-        const status = await page.evaluate(() => {
-          // Check for summary "Klar" button (run-all finished)
-          const doneBtn = document.getElementById('onevr-runall-done');
-          if (doneBtn) return { done: true };
-
-          // Check for summary modal without banner (all steps completed)
-          const banner = document.querySelector('.onevr-runall-banner');
-          const summaryModal = document.querySelector('.onevr-dagvy-modal');
-          if (!banner && summaryModal) return { done: true };
+        const status = await page.evaluate((isReserv) => {
+          if (isReserv) {
+            // Reserv job: done when result modal appears (header contains "Reservdagvy klar")
+            const modals = document.querySelectorAll('.onevr-dagvy-modal');
+            for (const m of modals) {
+              if (m.innerText && m.innerText.includes('Reservdagvy klar')) return { done: true };
+            }
+            // Also done if the reserv-json-download button exists
+            if (document.getElementById('onevr-reserv-json-download')) return { done: true };
+          } else {
+            // Full run: done when run-all banner is gone and a summary modal is showing
+            const doneBtn = document.getElementById('onevr-runall-done');
+            if (doneBtn) return { done: true };
+            const banner = document.querySelector('.onevr-runall-banner');
+            const summaryModal = document.querySelector('.onevr-dagvy-modal');
+            if (!banner && summaryModal) return { done: true };
+          }
 
           // Get current progress for logging
           const progressEl = document.querySelector('.onevr-runall-banner') ||
                              document.querySelector('.onevr-dagvy-modal');
           const progressText = progressEl ? progressEl.innerText.substring(0, 100) : '';
           return { done: false, progress: progressText };
-        });
+        }, JOB === 'reserv');
 
         if (status.done) {
           completed = true;
@@ -294,10 +309,10 @@ function loadLocalStorageFromFile() {
     if (!completed) {
       // Take screenshot of where it got stuck
       await page.screenshot({ path: 'timeout-screenshot.png' });
-      throw new Error('Kör allt timed out after ' + totalElapsed + 's');
+      throw new Error((JOB === 'reserv' ? 'Reservdagvy' : 'Kör allt') + ' timed out after ' + totalElapsed + 's');
     }
 
-    console.log('[Scraper] "Kör allt" completed in ' + totalElapsed + 's');
+    console.log('[Scraper] ' + (JOB === 'reserv' ? 'Reservdagvy' : '"Kör allt"') + ' completed in ' + totalElapsed + 's');
 
     // Grab summary
     let stats = 'No summary found';

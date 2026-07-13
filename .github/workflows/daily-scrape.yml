@@ -13,7 +13,17 @@ on:
     - cron: '30 19 * * *'
 
   # Allow manual trigger from GitHub Actions UI
+  # job: 'all' (default) = Kör allt | 'reserv' = Reservdagvy only
   workflow_dispatch:
+    inputs:
+      job:
+        description: 'Which job to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - reserv
 
 jobs:
   scrape:
@@ -43,6 +53,7 @@ jobs:
           ONEVR_EMAIL: ${{ secrets.ONEVR_EMAIL }}
           ONEVR_PASSWORD: ${{ secrets.ONEVR_PASSWORD }}
           ONEVR_PIN: ${{ secrets.ONEVR_PIN }}
+          ONEVR_JOB: ${{ github.event.inputs.job || 'all' }}
         run: node scrape.js
 
       - name: Upload debug screenshots
