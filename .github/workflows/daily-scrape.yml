@@ -1,17 +1,5 @@
 name: Daily OneVR Scrape
-
 on:
-  # UTC      | Sommartid (UTC+2) | Vintertid (UTC+1)
-  # 04:15    | 06:15             | 05:15
-  # 07:00    | 09:00             | 08:00
-  # 15:00    | 17:00             | 16:00
-  # 19:30    | 21:30             | 20:30
-  schedule:
-    - cron: '15 4 * * *'
-    - cron: '0 7 * * *'
-    - cron: '0 15 * * *'
-    - cron: '30 19 * * *'
-
   # Allow manual trigger from GitHub Actions UI
   # job: 'all' (default) = Kör allt | 'reserv' = Reservdagvy only
   workflow_dispatch:
@@ -24,29 +12,23 @@ on:
         options:
           - all
           - reserv
-
 jobs:
   scrape:
     runs-on: ubuntu-latest
     timeout-minutes: 25
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - name: Install dependencies
         working-directory: scripts
         run: npm install
-
       - name: Install Playwright Chromium
         working-directory: scripts
         run: npx playwright install chromium --with-deps
-
       - name: Run scraper
         working-directory: scripts
         env:
@@ -55,7 +37,6 @@ jobs:
           ONEVR_PIN: ${{ secrets.ONEVR_PIN }}
           ONEVR_JOB: ${{ github.event.inputs.job || 'all' }}
         run: node scrape.js
-
       - name: Upload debug screenshots
         if: always()
         uses: actions/upload-artifact@v4
