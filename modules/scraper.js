@@ -48,7 +48,7 @@
       // Cache location if valid - men INTE för changedReserve format
       if (name && name.length > 3 && name.match(/^[A-ZÅÄÖÉÈÜ]/) && turnr) {
         // Hoppa över changedReserve (123456-123456) - dessa har fel ort i turnr
-        if (turnr.match(/^\d{6}-\d{6}$/)) {
+        if (utils.isChangedReserve(turnr)) {
           // Skriv inte över cache med fel ort
           return;
         }

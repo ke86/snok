@@ -14,7 +14,7 @@
     turnNumber: '^[1-6]\\d{4}(V\\d{2})?[A-Z]{0,2}$',
     suffixedTurn: '^[1-6]\\d{4}(V\\d{2})?-[A-Za-z0-9]+$',
     reserve: '^RESERV?\\d*$',
-    changedReserve: '^\\d{6}-\\d{6}$'
+    changedReserve: '^\\d{6}-\\d{6}(\\s*-\\s*\\S+)?$'
   };
 
   var FALLBACK_LOCATIONS = {
@@ -125,7 +125,7 @@
       return info;
     }
 
-    // Check for changed reserve format: 123456-123456
+    // Check for changed reserve format: 123456-123456 (with optional suffix like " - TP")
     if (isChangedReserve(turnr)) {
       info.isRes = true;
       info.isChanged = true;

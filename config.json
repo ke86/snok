@@ -98,7 +98,7 @@
     "flShift": "^FL\\d*$",
     "turnNumber": "^[1-6]\\d{4}(V\\d{2})?[A-Z]{0,2}$",
     "reserve": "^RESERV?\\d*$",
-    "changedReserve": "^\\d{6}-\\d{6}$"
+    "changedReserve": "^\\d{6}-\\d{6}(\\s*-\\s*\\S+)?$"
   },
 
   "ui": {
