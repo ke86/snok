@@ -1921,6 +1921,87 @@
     var failed = [];
     var parsedDocs = []; // Strukturerad data extraherad från PDFs
 
+    // Network interceptor for capturing PDF binary data
+    // ngx-extended-pdf-viewer doesn't expose PDFViewerApplication.pdfDocument reliably
+    var pdfCaptureQueue = [];
+    var _origXHROpen = XMLHttpRequest.prototype.open;
+    var _origXHRSend = XMLHttpRequest.prototype.send;
+    var _origFetch = window.fetch;
+    var _interceptorInstalled = false;
+
+    function installPdfInterceptor() {
+      if (_interceptorInstalled) return;
+      _interceptorInstalled = true;
+
+      XMLHttpRequest.prototype.open = function(method, url) {
+        this._onevrUrl = url;
+        return _origXHROpen.apply(this, arguments);
+      };
+
+      XMLHttpRequest.prototype.send = function(body) {
+        var xhr = this;
+        xhr.addEventListener('load', function() {
+          try {
+            var ct = (xhr.getResponseHeader('content-type') || '').toLowerCase();
+            var url = (xhr._onevrUrl || '').toLowerCase();
+            var isPdfByType = ct.indexOf('pdf') !== -1 || ct.indexOf('octet-stream') !== -1;
+            var isPdfByUrl = url.indexOf('.pdf') !== -1 || url.indexOf('document') !== -1;
+            var hasResponse = xhr.response && (
+              xhr.response instanceof ArrayBuffer ||
+              xhr.response instanceof Blob
+            );
+            if ((isPdfByType || isPdfByUrl) && hasResponse) {
+              var processBuf = function(buf) {
+                // Check for PDF magic bytes (%PDF = 0x25 0x50 0x44 0x46)
+                if (buf.byteLength > 1000) {
+                  var view = new Uint8Array(buf.slice(0, 5));
+                  if (view[0] === 0x25 && view[1] === 0x50 && view[2] === 0x44 && view[3] === 0x46) {
+                    pdfCaptureQueue.push(buf);
+                    console.log('[OneVR] Captured PDF: ' + (xhr._onevrUrl || '?') + ' (' + buf.byteLength + ' bytes)');
+                  }
+                }
+              };
+              if (xhr.response instanceof ArrayBuffer) {
+                processBuf(xhr.response);
+              } else {
+                xhr.response.arrayBuffer().then(processBuf).catch(function() {});
+              }
+            }
+          } catch(e) {}
+        });
+        return _origXHRSend.apply(this, arguments);
+      };
+
+      window.fetch = function(input, init) {
+        return _origFetch.apply(this, arguments).then(function(response) {
+          try {
+            var ct = (response.headers.get('content-type') || '').toLowerCase();
+            var url = (typeof input === 'string' ? input : '').toLowerCase();
+            if (ct.indexOf('pdf') !== -1 || ct.indexOf('octet-stream') !== -1 || url.indexOf('.pdf') !== -1) {
+              response.clone().arrayBuffer().then(function(buf) {
+                if (buf.byteLength > 1000) {
+                  var view = new Uint8Array(buf.slice(0, 5));
+                  if (view[0] === 0x25 && view[1] === 0x50 && view[2] === 0x44 && view[3] === 0x46) {
+                    pdfCaptureQueue.push(buf);
+                    console.log('[OneVR] Captured PDF (fetch): ' + (typeof input === 'string' ? input : '?') + ' (' + buf.byteLength + ' bytes)');
+                  }
+                }
+              }).catch(function() {});
+            }
+          } catch(e) {}
+          return response;
+        });
+      };
+    }
+
+    function uninstallPdfInterceptor() {
+      if (!_interceptorInstalled) return;
+      _interceptorInstalled = false;
+      XMLHttpRequest.prototype.open = _origXHROpen;
+      XMLHttpRequest.prototype.send = _origXHRSend;
+      window.fetch = _origFetch;
+    }
+
     // ─── Load JSZip library dynamically ───
     function loadJSZip(cb) {
       if (window.JSZip) { cb(); return; }
@@ -1969,6 +2050,7 @@
     function cleanUp() {
       cancelled = true;
       clearInterval(elapsedTimer);
+      uninstallPdfInterceptor();
       loadingModal.remove();
       if (cdkC) { cdkC.style.opacity = ''; cdkC.style.pointerEvents = ''; }
       if (overlay) overlay.style.display = '';
@@ -2178,17 +2260,54 @@
       return doc;
     }
 
+    // Helper: extract text from PDF ArrayBuffer using pdf.js library
+    function tryExtractTextFromBuffer(arrayBuffer, filename, cb) {
+      try {
+        if (window.pdfjsLib) {
+          var loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer.slice(0) });
+          loadingTask.promise.then(function(pdfDoc) {
+            extractPdfText(pdfDoc, function(text) {
+              var parsed = parsePdfDocument(text, filename);
+              console.log('[OneVR] Parsed: ' + filename + ' → TA ' + (parsed.taNumber || '?') + ', ' + parsed.trainNumbers.length + ' tåg, ' + parsed.dates.length + ' datum');
+              pdfDoc.destroy();
+              cb(arrayBuffer, parsed);
+            });
+          }).catch(function() {
+            console.log('[OneVR] Text extraction failed for ' + filename + ', returning raw data');
+            cb(arrayBuffer, null);
+          });
+        } else {
+          cb(arrayBuffer, null);
+        }
+      } catch(e) {
+        console.error('[OneVR] Text extraction error:', e);
+        cb(arrayBuffer, null);
+      }
+    }
+
     // Helper: wait for PDF viewer, collect data + extract text
     function waitForPdfAndCollect(filename, cb) {
       var elapsed = 0;
       function poll() {
         if (cancelled) { cb(null, null); return; }
-        if (window.PDFViewerApplication && window.PDFViewerApplication.pdfDocument) {
-          var pdfDoc = window.PDFViewerApplication.pdfDocument;
-          // Get binary data first
+
+        // Check network capture queue first (works with ngx-extended-pdf-viewer)
+        if (pdfCaptureQueue.length > 0) {
+          var data = pdfCaptureQueue.shift();
+          console.log('[OneVR] Collected: ' + filename + ' (' + data.byteLength + ' bytes)');
+          tryExtractTextFromBuffer(data, filename, cb);
+          return;
+        }
+
+        // Fallback: check PDFViewerApplication and alternative paths
+        var pdfDoc = null;
+        if (window.PDFViewerApplication) {
+          pdfDoc = window.PDFViewerApplication.pdfDocument ||
+                   (window.PDFViewerApplication.pdfViewer && window.PDFViewerApplication.pdfViewer.pdfDocument);
+        }
+        if (pdfDoc) {
           pdfDoc.getData().then(function(data) {
             console.log('[OneVR] Collected: ' + filename + ' (' + data.byteLength + ' bytes)');
-            // Then extract text for parsing
             extractPdfText(pdfDoc, function(text) {
               var parsed = parsePdfDocument(text, filename);
               console.log('[OneVR] Parsed: ' + filename + ' → TA ' + (parsed.taNumber || '?') + ', ' + parsed.trainNumbers.length + ' tåg, ' + parsed.dates.length + ' datum');
@@ -2198,14 +2317,15 @@
             console.error('[OneVR] getData failed for ' + filename, err);
             cb(null, null);
           });
+          return;
+        }
+
+        elapsed += 500;
+        if (elapsed < PDF_WAIT_MAX) {
+          setTimeout(poll, 500);
         } else {
-          elapsed += 500;
-          if (elapsed < PDF_WAIT_MAX) {
-            setTimeout(poll, 500);
-          } else {
-            console.error('[OneVR] PDF viewer timeout for ' + filename);
-            cb(null, null);
-          }
+          console.error('[OneVR] PDF viewer timeout for ' + filename);
+          cb(null, null);
         }
       }
       setTimeout(poll, PDF_WAIT_DELAY);
@@ -2219,6 +2339,9 @@
         return;
       }
       if (cancelled) return;
+
+      // Install network interceptor to capture PDF binary data
+      installPdfInterceptor();
 
       // Step 1: Navigate to Hem (resets SPA state)
       setProgress('Navigerar till Hem...', '', 5);
@@ -2508,6 +2631,7 @@
     function goBack() {
       if (cancelled) return;
       clearInterval(elapsedTimer);
+      uninstallPdfInterceptor();
       setProgress('Navigerar tillbaka...', '', 95);
 
       // Go to Hem first to reset document navigation state
