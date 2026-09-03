@@ -2020,7 +2020,7 @@
     function ensureCategoryList(targetLabel, cb) {
       function checkLabel() {
         var found = false;
-        document.querySelectorAll('.storybook-label').forEach(function(el) {
+        document.querySelectorAll('.storybook-label, h3.category-title').forEach(function(el) {
           if (el.innerText.trim() === targetLabel) found = true;
         });
         return found;
@@ -2258,7 +2258,7 @@
               setProgress('Öppnar ' + categoryName + '...', '', 25);
 
               // Find and click the category using both storybook-label AND parent click
-              var categoryEl = Array.from(document.querySelectorAll('.storybook-label'))
+              var categoryEl = Array.from(document.querySelectorAll('.storybook-label, h3.category-title'))
                 .find(function(el) { return el.innerText.trim() === categoryName; });
 
               if (categoryEl) {
@@ -2274,12 +2274,26 @@
 
             // Step 4: Find all PDF elements
             var pdfNames = [];
-            document.querySelectorAll('.storybook-label').forEach(function(el) {
+            var seenPdf = {};
+            document.querySelectorAll('.storybook-label, h3.category-title, [class*="file-name"], [class*="filename"], [class*="document-title"], [class*="item-title"]').forEach(function(el) {
               var txt = el.innerText.trim();
-              if (txt.toLowerCase().indexOf('.pdf') !== -1) {
+              if (txt.toLowerCase().indexOf('.pdf') !== -1 && txt.length < 200 && !seenPdf[txt]) {
+                seenPdf[txt] = true;
                 pdfNames.push(txt);
               }
             });
+            // Fallback: search leaf elements for .pdf text
+            if (pdfNames.length === 0) {
+              document.querySelectorAll('span, div, a, p, h3, h4, h5, li').forEach(function(el) {
+                if (el.children.length === 0) {
+                  var txt = el.innerText.trim();
+                  if (txt.toLowerCase().indexOf('.pdf') !== -1 && txt.length < 200 && !seenPdf[txt]) {
+                    seenPdf[txt] = true;
+                    pdfNames.push(txt);
+                  }
+                }
+              });
+            }
 
             if (pdfNames.length === 0) {
               setProgress('Inga PDF-filer hittades', categoryName, 100);
@@ -2310,13 +2324,23 @@
 
               // Click the PDF label (only el + parent, NOT grandparent)
               var clicked = false;
-              document.querySelectorAll('.storybook-label').forEach(function(el) {
+              document.querySelectorAll('.storybook-label, h3.category-title, [class*="file-name"], [class*="filename"], [class*="document-title"], [class*="item-title"]').forEach(function(el) {
                 if (!clicked && el.innerText.trim() === filename) {
                   clicked = true;
                   el.click();
                   if (el.parentElement) el.parentElement.click();
                 }
               });
+              // Fallback: search leaf elements for exact filename match
+              if (!clicked) {
+                document.querySelectorAll('span, div, a, p, h3, h4, h5, li').forEach(function(el) {
+                  if (!clicked && el.children.length === 0 && el.innerText.trim() === filename) {
+                    clicked = true;
+                    el.click();
+                    if (el.parentElement) el.parentElement.click();
+                  }
+                });
+              }
 
               if (!clicked) {
                 failed.push(filename);
